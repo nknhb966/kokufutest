@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width">
+<title>Echizen Ruins VR Coaster</title>
+
+<style>
+    body{
+        margin:0;
+        overflow:hidden;
+    }
+</style>
+</head>
+
+<body>
+
+<script type="importmap">
+    {
+        "imports":{
+            "three":"https://code4fukui.github.io/three.js/build/three.module.js",
+            "three/addons/":"https://code4fukui.github.io/three.js/examples/jsm/"
+        }
+    }
+</script>
+
+<script type="module">
+
+import * as THREE from "three";
+import {Curve,addCoaster} from "https://code4fukui.github.io/vr-tojinbo/TojinboCoaster.js";
+import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+import {VRButton} from "three/addons/webxr/VRButton.js";
+import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
+
+////////////////////////////////////////////////////////
+//// 設定
+////////////////////////////////////////////////////////
+
+const MODEL_SCALE = 5;         // 遺跡サイズ
+const ARTIFACT_SCALE = 5;      // 出土品サイズ
+const ARTIFACT_HEIGHT = 5;     // 出土品高さ
+
+const RAIL_RADIUS = 40;        // レール半径
+const RAIL_HEIGHT = 10;        // コース高さ
+const RAIL_OVAL = 0.3;         // 楕円率
+
+const SPEED = 2.5;             // 速度
+
+const CAMERA_POSITION = 1;      // 0:外部, 1:レール上
+const CURVE_MODE = 0;           // 0:モノレール, 1:ジェットコースター
+
+////////////////////////////////////////////////////////
+//// renderer
+////////////////////////////////////////////////////////
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.xr.enabled = true;
+
+document.body.appendChild(renderer.domElement);
+document.body.appendChild(VRButton.createButton(renderer));
+
+////////////////////////////////////////////////////////
+//// scene
+////////////////////////////////////////////////////////
+
+const scene = new THREE.Scene();
+
+////////////////////////////////////////////////////////
+//// camera
+////////////////////////////////////////////////////////
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
+let controls;
+
+////////////////////////////////////////////////////////
+//// curve
+////////////////////////////////////////////////////////
+
+class MyCurve extends Curve {
+
+    getPointAt(t) {
+        t *= Math.PI * 2;
+        if (CURVE_MODE == 0) {
+            const x = Math.sin(t * 3) * RAIL_RADIUS;
+            const y = RAIL_HEIGHT;
+            const z = Math.sin(t * 2) * RAIL_RADIUS * RAIL_OVAL;
+            return this.vector.set(x, y, z);
+        } else {
+            const x = Math.sin(t * 3) * Math.cos(t * 4) * RAIL_RADIUS;
+            const y = Math.sin(t * 10) * 2 + Math.cos(t * 17) * 2 + RAIL_HEIGHT;
+            const z = Math.sin(t) * Math.sin(t * 4) * RAIL_RADIUS * RAIL_OVAL;
+            return this.vector.set(x, y, z);
+        }
+    }
+}
+
+const curve = new MyCurve();
+
+////////////////////////////////////////////////////////
+//// coaster
+////////////////////////////////////////////////////////
+
+await addCoaster(scene, curve, null,
+"https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu.glb"
+);
+
+////////////////////////////////////////////////////////
+//// 遺跡スケール変更
+////////////////////////////////////////////////////////
+
+let scaled = false;
+
+scene.traverse((obj) => {
+    if(obj.isMesh && !scaled){
+        let root = obj;
+        while(root.parent && root.parent.type !== "Scene"){
+            root = root.parent;
+        }
+        root.scale.set(MODEL_SCALE,MODEL_SCALE,MODEL_SCALE);
+        root.rotation.y = THREE.MathUtils.degToRad(20);
+        scaled = true;
+    }
+});
+
+////////////////////////////////////////////////////////
+//// 出土品
+////////////////////////////////////////////////////////
+
+const loader = new GLTFLoader();
+
+loader.load(
+    "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu2/model02_small.glb",
+    (gltf)=>{
+        const artifact=gltf.scene;
+        artifact.scale.set(ARTIFACT_SCALE,ARTIFACT_SCALE,ARTIFACT_SCALE);
+        artifact.position.set(0,ARTIFACT_HEIGHT,0);
+        scene.add(artifact);
+    }
+);
+
+////////////////////////////////////////////////////////
+//// 説明書
+////////////////////////////////////////////////////////
+const textureLoader = new THREE.TextureLoader();
+
+textureLoader.load(
+    "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu/20400_kokufuhakkutsu.png",
+    function(texture) {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const geometry = new THREE.PlaneGeometry(12, 12);
+        const material = new THREE.MeshBasicMaterial({
+            map: texture,
+            transparent: true,
+            toneMapped:false
+        });
+        const imagePlane = new THREE.Mesh(geometry, material);
+        imagePlane.position.set(40, 15, 0);
+        imagePlane.rotation.y = Math.PI * -0.5;
+        scene.add(imagePlane);
+    }
+);
+
+////////////////////////////////////////////////////////
+//// train
+////////////////////////////////////////////////////////
+
+const geometry = new THREE.BoxGeometry(0.5,0.5,1);
+const material = new THREE.MeshBasicMaterial({color:15628151});
+
+const train = new THREE.Mesh(geometry,material);
+scene.add(train);
+
+////////////////////////////////////////////////////////
+//// camera（★★★外から確認する）
+////////////////////////////////////////////////////////
+
+if(CAMERA_POSITION == 0){
+    const controls = new OrbitControls(camera,renderer.domElement);
+    controls.listenToKeyEvents(window);
+    camera.position.set(0,20,100);
+} else {
+    train.add(camera);
+    camera.position.set(0,1.2,0);
+};
+////////////////////////////////////////////////////////
+//// motion variables（元コード）
+////////////////////////////////////////////////////////
+
+const position = new THREE.Vector3();
+const tangent = new THREE.Vector3();
+const lookAt = new THREE.Vector3();
+
+let velocity = 0.0001;
+let progress = 0;
+let prevTime = performance.now();
+
+////////////////////////////////////////////////////////
+//// animation（元コード完全再現）
+////////////////////////////////////////////////////////
+
+renderer.setAnimationLoop(()=>{
+
+    const time = performance.now();
+    const delta = time-prevTime;
+
+    progress += velocity;
+    progress %= 1;
+
+    position.copy(curve.getPointAt(progress));
+    position.y += 0.2;
+
+    train.position.copy(position);
+
+    tangent.copy(curve.getTangentAt(progress));
+
+    const vc = SPEED;
+
+    velocity -= tangent.y * 1e-7 * delta * vc;
+
+    velocity=Math.max(
+        0.00004*vc,
+        Math.min(0.0002*vc,velocity)
+    );
+
+    train.lookAt(
+        lookAt.copy(position).sub(tangent)
+    );
+
+    if(controls) controls.update();
+
+    renderer.render(scene,camera);
+
+    prevTime=time;
+});
+
+////////////////////////////////////////////////////////
+//// resize
+////////////////////////////////////////////////////////
+
+window.addEventListener("resize",()=>{
+    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+</script>
+</body>
+</html>
