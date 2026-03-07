@@ -12,36 +12,48 @@
     }
     #ui{
         position:absolute;
-        top:10px;
-        left:10px;
+        top:20px;
+        left:20px;
         z-index:10;
         display:flex;
         flex-direction:column;
-        gap:8px;
-        background:rgba(0,0,0,0.5);
-        padding:10px;
-        border-radius:8px;
+        gap:20px;
+        background:rgba(0,0,0,0.6);
+        padding:20px;
+        border-radius:12px;
         color:white;
-        font-family:sans-serif;
     }
+
+    .control{
+        display:flex;
+        flex-direction:column;
+    }
+
     button{
-        padding:6px 10px;
-        font-size:14px;
+        padding:16px 20px;
+        min-width:220px;
     }
+
     input[type=range]{
-        width:200px;
+        width:360px;
+        height:30px;
     }
 </style>
 </head>
 
 <body>
 
+<audio id="railSound" src="trolley_clatter.mp3" loop></audio>
+
 <div id="ui">
-    <div>
-        速度<input type="range" id="speedSlider" min="0.1" max="10" step="0.1"><span id="speedValue"></span>
+    <div class="control">
+        速度
+        <input type="range" id="speedSlider" min="0" max="2" step="0.1">
+        <span id="speedValue"></span>
     </div>
     <button id="cameraBtn"></button>
     <button id="curveBtn"></button>
+    <button id="soundBtn">Sound:OFF</button>
 </div>
 
 <script type="importmap">
@@ -65,7 +77,7 @@ import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 //// localStorage読み込み
 ////////////////////////////////////////////////////////
 
-let SPEED = Number(localStorage.getItem("speed") ?? 2.5);
+let SPEED = Number(localStorage.getItem("speed") ?? 0.5);
 let CAMERA_POSITION = Number(localStorage.getItem("camera") ?? 0);
 let CURVE_MODE = Number(localStorage.getItem("curve") ?? 1);
 
@@ -89,6 +101,8 @@ const slider = document.getElementById("speedSlider");
 const speedValue = document.getElementById("speedValue");
 const cameraBtn = document.getElementById("cameraBtn");
 const curveBtn = document.getElementById("curveBtn");
+const soundBtn = document.getElementById("soundBtn");
+const sound = document.getElementById("railSound");
 
 slider.value = SPEED;
 speedValue.textContent = SPEED.toFixed(1);
@@ -116,6 +130,24 @@ curveBtn.onclick = () => {
     CURVE_MODE = CURVE_MODE ? 0 : 1;
     localStorage.setItem("curve", CURVE_MODE);
     location.reload();
+};
+
+let SOUND_ON;
+
+function updateSound(){
+    soundBtn.textContent = SOUND_ON ? "Sound:ON" : "Sound:OFF";
+    if(SOUND_ON){
+        railSound.play();
+    }else{
+        railSound.pause();
+    }
+}
+
+updateSound();
+
+soundBtn.onclick = () => {
+    SOUND_ON =! SOUND_ON;
+    updateSound();
 };
 
 ////////////////////////////////////////////////////////
@@ -242,7 +274,7 @@ const train = new THREE.Mesh(geometry,material);
 scene.add(train);
 
 ////////////////////////////////////////////////////////
-//// camera（★★★外から確認する）
+//// camera
 ////////////////////////////////////////////////////////
 
 if(CAMERA_POSITION == 0){
@@ -254,7 +286,7 @@ if(CAMERA_POSITION == 0){
     camera.position.set(0,1.2,0);
 };
 ////////////////////////////////////////////////////////
-//// motion variables（元コード）
+//// motion variables
 ////////////////////////////////////////////////////////
 
 const position = new THREE.Vector3();
@@ -266,13 +298,13 @@ let progress = 0;
 let prevTime = performance.now();
 
 ////////////////////////////////////////////////////////
-//// animation（元コード完全再現）
+//// animation
 ////////////////////////////////////////////////////////
 
-renderer.setAnimationLoop(()=>{
+renderer.setAnimationLoop( () => {
 
     const time = performance.now();
-    const delta = time-prevTime;
+    const delta = time - prevTime;
 
     progress += velocity;
     progress %= 1;
@@ -288,10 +320,10 @@ renderer.setAnimationLoop(()=>{
 
     velocity -= tangent.y * 1e-7 * delta * vc;
 
-    velocity=Math.max(
-        0.00004*vc,
-        Math.min(0.0002*vc,velocity)
-    );
+    const MIN_SPEED = 0.00004 * vc;
+    const MAX_SPEED = 0.0002  * vc;
+
+    velocity = Math.max(MIN_SPEED, Math.min(MAX_SPEED, velocity));
 
     train.lookAt(
         lookAt.copy(position).sub(tangent)
@@ -301,7 +333,16 @@ renderer.setAnimationLoop(()=>{
 
     renderer.render(scene,camera);
 
-    prevTime=time;
+    prevTime = time;
+
+    if(!railSound.paused){
+        const speedRatio = velocity * 1000;
+        railSound.volume = Math.min(1, speedRatio);
+        const targetRate = 1 + speedRatio * 2;
+        railSound.playbackRate += (targetRate - railSound.playbackRate) * 0.05;
+
+    }
+
 });
 
 ////////////////////////////////////////////////////////
