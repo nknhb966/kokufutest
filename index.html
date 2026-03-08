@@ -3,40 +3,68 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>Echizen Ruins VR Coaster</title>
+<title>Echizen kokufu VR Trolley</title>
 
 <style>
     body{
         margin:0;
         overflow:hidden;
     }
-    #ui{
+
+    #uiPanel{
         position:absolute;
         top:20px;
         left:20px;
-        z-index:10;
-        display:flex;
-        flex-direction:column;
-        gap:20px;
+        padding:15px;
         background:rgba(0,0,0,0.6);
-        padding:20px;
-        border-radius:12px;
         color:white;
+        font-family:sans-serif;
+        border-radius:8px;
     }
 
-    .control{
+    #uiPanel h3{
+        margin:0 0 10px 0;
+        font-size:14px;
+    }
+
+    #uiPanel span{
+        margin:0 20px 0 0;
+    }
+
+    .uiRow{
         display:flex;
-        flex-direction:column;
+        align-items:center;
+        justify-content:space-between;
+        margin:20px 0;
     }
 
-    button{
+    .toggle{
+        display:flex;
+    }
+
+    .toggle button{
+        border:none;
         padding:16px 20px;
         min-width:220px;
+        background:#777;
+        color:white;
+        cursor:pointer;
+    }
+
+    .toggle button:first-child{
+        border-radius:4px 0 0 4px;
+    }
+
+    .toggle button:last-child{
+        border-radius:0 4px 4px 0;
+    }
+
+    .toggle button.active{
+        background:#4caf50;
     }
 
     input[type=range]{
         width:360px;
-        height:30px;
     }
 </style>
 </head>
@@ -45,15 +73,40 @@
 
 <audio id="railSound" src="trolley_clatter.mp3" loop></audio>
 
-<div id="ui">
-    <div class="control">
-        速度
-        <input type="range" id="speedSlider" min="0" max="2" step="0.1">
+<div id="uiPanel">
+
+    <h3>COASTER CONTROL</h3>
+
+    <div class="uiRow">
+        <span>SOUND</span>
+        <div class="toggle" id="soundToggle">
+            <button data-value="off">OFF</button>
+            <button data-value="on">ON</button>
+        </div>
+    </div>
+
+    <div class="uiRow">
+        <span>CURVE</span>
+        <div class="toggle" id="curveToggle">
+            <button data-value="trolley">TROLLEY</button>
+            <button data-value="coaster">COASTER</button>
+        </div>
+    </div>
+
+    <div class="uiRow">
+        <span>CAMERA</span>
+        <div class="toggle" id="cameraToggle">
+            <button data-value="ride">RIDE</button>
+            <button data-value="outside">OUTSIDE</button>
+        </div>
+    </div>
+
+    <div class="uiRow">
+        <span>SPEED</span>
+        <input id="speedSlider" type="range" min="0.1" max="1" step="0.1" value="1">
         <span id="speedValue"></span>
     </div>
-    <button id="cameraBtn"></button>
-    <button id="curveBtn"></button>
-    <button id="soundBtn">Sound:OFF</button>
+
 </div>
 
 <script type="importmap">
@@ -74,81 +127,89 @@ import {VRButton} from "three/addons/webxr/VRButton.js";
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 
 ////////////////////////////////////////////////////////
-//// localStorage読み込み
-////////////////////////////////////////////////////////
-
-let SPEED = Number(localStorage.getItem("speed") ?? 0.5);
-let CAMERA_POSITION = Number(localStorage.getItem("camera") ?? 0);
-let CURVE_MODE = Number(localStorage.getItem("curve") ?? 1);
-
-////////////////////////////////////////////////////////
 //// 設定
 ////////////////////////////////////////////////////////
 
-const MODEL_SCALE = 5;         // 遺跡サイズ
-const ARTIFACT_SCALE = 5;      // 出土品サイズ
-const ARTIFACT_HEIGHT = 5;     // 出土品高さ
+const MODEL_SCALE = 1;                   // 遺跡サイズ
+const ARTIFACT_SCALE = MODEL_SCALE;      // 出土品サイズ
+const ARTIFACT_HEIGHT = MODEL_SCALE;     // 出土品高さ
 
-const RAIL_RADIUS = 40;        // レール半径
-const RAIL_HEIGHT = 10;        // コース高さ
-const RAIL_OVAL = 0.3;         // 楕円率
+const RAIL_RADIUS = 8 * MODEL_SCALE;     // レール半径
+const RAIL_HEIGHT = 2 * MODEL_SCALE;     // コース高さ
+const RAIL_OVAL = 0.3;                   // 楕円率
+
+////////////////////////////////////////////////////////
+//// localStorage + CONFIG
+////////////////////////////////////////////////////////
+
+const CONFIG = {
+    sound  : "off",
+    curve  : localStorage.getItem("curve")  || "trolley",
+    camera : localStorage.getItem("camera") || "ride",
+    speed  : parseFloat(localStorage.getItem("speed") || 0.5)
+};
+
+let SPEED = CONFIG.speed;
 
 ////////////////////////////////////////////////////////
 //// UI
 ////////////////////////////////////////////////////////
 
-const slider = document.getElementById("speedSlider");
-const speedValue = document.getElementById("speedValue");
-const cameraBtn = document.getElementById("cameraBtn");
-const curveBtn = document.getElementById("curveBtn");
-const soundBtn = document.getElementById("soundBtn");
-const sound = document.getElementById("railSound");
+const railSound = document.getElementById("railSound");
 
-slider.value = SPEED;
+function setupToggle(id,key){
+
+    const buttons = document.querySelectorAll(`#${id} button`);
+
+    buttons.forEach(btn=>{
+
+        const value = btn.dataset.value;
+
+        if(value === CONFIG[key]) btn.classList.add("active");
+
+        btn.onclick = ()=>{
+
+            buttons.forEach(b=>b.classList.remove("active"));
+            btn.classList.add("active");
+
+            if(key === "sound"){
+                value === "on" ? railSound.play() : railSound.pause();
+                return;
+            }
+
+            localStorage.setItem(key,value);
+            location.reload();
+        };
+    });
+}
+
+setupToggle("soundToggle","sound");
+setupToggle("curveToggle","curve");
+setupToggle("cameraToggle","camera");
+
+
+////////////////////////////////////////////////////////
+//// SPEED UI
+////////////////////////////////////////////////////////
+
+const speedSlider = document.getElementById("speedSlider");
+const speedValue  = document.getElementById("speedValue");
+
+speedSlider.value = SPEED;
 speedValue.textContent = SPEED.toFixed(1);
 
-slider.oninput = () => {
-    SPEED = Number(slider.value);
+speedSlider.oninput = ()=>{
+
+    SPEED = parseFloat(speedSlider.value);
+
     speedValue.textContent = SPEED.toFixed(1);
-    localStorage.setItem("speed",SPEED);
-};
 
-function updateButtons(){
-    cameraBtn.textContent = CAMERA_POSITION == 0 ? "Camera:外部":"Camera:レール";
-    curveBtn.textContent = CURVE_MODE == 0 ? "Curve:トロッコ":"Curve:コースター";
-}
+    localStorage.setItem("speed",speedSlider.value);
 
-updateButtons();
-
-cameraBtn.onclick = () => {
-    CAMERA_POSITION = CAMERA_POSITION ? 0 : 1;
-    localStorage.setItem("camera", CAMERA_POSITION);
     location.reload();
 };
 
-curveBtn.onclick = () => {
-    CURVE_MODE = CURVE_MODE ? 0 : 1;
-    localStorage.setItem("curve", CURVE_MODE);
-    location.reload();
-};
-
-let SOUND_ON;
-
-function updateSound(){
-    soundBtn.textContent = SOUND_ON ? "Sound:ON" : "Sound:OFF";
-    if(SOUND_ON){
-        railSound.play();
-    }else{
-        railSound.pause();
-    }
-}
-
-updateSound();
-
-soundBtn.onclick = () => {
-    SOUND_ON =! SOUND_ON;
-    updateSound();
-};
+railSound.pause();
 
 ////////////////////////////////////////////////////////
 //// renderer
@@ -173,7 +234,7 @@ const scene = new THREE.Scene();
 ////////////////////////////////////////////////////////
 
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
-let controls;
+let controls = null;
 
 ////////////////////////////////////////////////////////
 //// curve
@@ -183,7 +244,7 @@ class MyCurve extends Curve {
 
     getPointAt(t) {
         t *= Math.PI * 2;
-        if (CURVE_MODE == 0) {
+        if (CONFIG.curve === "trolley") {
             const x = Math.sin(t * 3) * RAIL_RADIUS;
             const y = RAIL_HEIGHT;
             const z = Math.sin(t * 2) * RAIL_RADIUS * RAIL_OVAL;
@@ -234,9 +295,9 @@ const loader = new GLTFLoader();
 loader.load(
     "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu2/model02_small.glb",
     (gltf)=>{
-        const artifact=gltf.scene;
-        artifact.scale.set(ARTIFACT_SCALE,ARTIFACT_SCALE,ARTIFACT_SCALE);
-        artifact.position.set(0,ARTIFACT_HEIGHT,0);
+        const artifact = gltf.scene;
+        artifact.scale.set(ARTIFACT_SCALE, ARTIFACT_SCALE, ARTIFACT_SCALE);
+        artifact.position.set(0, ARTIFACT_HEIGHT, 0);
         scene.add(artifact);
     }
 );
@@ -250,14 +311,14 @@ textureLoader.load(
     "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu/20400_kokufuhakkutsu.png",
     function(texture) {
         texture.colorSpace = THREE.SRGBColorSpace;
-        const geometry = new THREE.PlaneGeometry(12, 12);
+        const geometry = new THREE.PlaneGeometry(2 * MODEL_SCALE, 2 * MODEL_SCALE);
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
             toneMapped:false
         });
         const imagePlane = new THREE.Mesh(geometry, material);
-        imagePlane.position.set(40, 15, 0);
+        imagePlane.position.set(8 * MODEL_SCALE, 3 * MODEL_SCALE, 0);
         imagePlane.rotation.y = Math.PI * -0.5;
         scene.add(imagePlane);
     }
@@ -274,17 +335,18 @@ const train = new THREE.Mesh(geometry,material);
 scene.add(train);
 
 ////////////////////////////////////////////////////////
-//// camera
+//// camera mode
 ////////////////////////////////////////////////////////
 
-if(CAMERA_POSITION == 0){
-    const controls = new OrbitControls(camera,renderer.domElement);
-    controls.listenToKeyEvents(window);
-    camera.position.set(0,20,100);
-} else {
+if(CONFIG.camera === "ride"){
     train.add(camera);
     camera.position.set(0,1.2,0);
-};
+}else{
+    const controls = new OrbitControls(camera,renderer.domElement);
+    controls.listenToKeyEvents(window);
+    camera.position.set(0, 4 * MODEL_SCALE, 20 * MODEL_SCALE);
+}
+
 ////////////////////////////////////////////////////////
 //// motion variables
 ////////////////////////////////////////////////////////
@@ -301,7 +363,7 @@ let prevTime = performance.now();
 //// animation
 ////////////////////////////////////////////////////////
 
-renderer.setAnimationLoop( () => {
+renderer.setAnimationLoop(()=>{
 
     const time = performance.now();
     const delta = time - prevTime;
@@ -323,7 +385,7 @@ renderer.setAnimationLoop( () => {
     const MIN_SPEED = 0.00004 * vc;
     const MAX_SPEED = 0.0002  * vc;
 
-    velocity = Math.max(MIN_SPEED, Math.min(MAX_SPEED, velocity));
+    velocity = Math.max(MIN_SPEED,Math.min(MAX_SPEED,velocity));
 
     train.lookAt(
         lookAt.copy(position).sub(tangent)
@@ -335,12 +397,20 @@ renderer.setAnimationLoop( () => {
 
     prevTime = time;
 
-    if(!railSound.paused){
-        const speedRatio = velocity * 1000;
-        railSound.volume = Math.min(1, speedRatio);
-        const targetRate = 1 + speedRatio * 2;
-        railSound.playbackRate += (targetRate - railSound.playbackRate) * 0.05;
+    ////////////////////////////////////////
+    // sound
+    ////////////////////////////////////////
 
+    if(!railSound.paused){
+
+        const speedRatio = velocity * 1000;
+
+        railSound.volume = Math.min(1,speedRatio);
+
+        const targetRate = 1 + speedRatio * 2;
+
+        railSound.playbackRate +=
+            (targetRate - railSound.playbackRate) * 0.05;
     }
 
 });
