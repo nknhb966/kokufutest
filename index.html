@@ -78,6 +78,12 @@
     <h3>COASTER CONTROL</h3>
 
     <div class="uiRow">
+        <span>SPEED</span>
+        <input id="speedSlider" type="range" min="0.1" max="1" step="0.1" value="1">
+        <span id="speedValue"></span>
+    </div>
+
+    <div class="uiRow">
         <span>SOUND</span>
         <div class="toggle" id="soundToggle">
             <button data-value="off">OFF</button>
@@ -99,12 +105,6 @@
             <button data-value="ride">RIDE</button>
             <button data-value="outside">OUTSIDE</button>
         </div>
-    </div>
-
-    <div class="uiRow">
-        <span>SPEED</span>
-        <input id="speedSlider" type="range" min="0.1" max="1" step="0.1" value="1">
-        <span id="speedValue"></span>
     </div>
 
 </div>
