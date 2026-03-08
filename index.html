@@ -130,7 +130,7 @@ import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 //// 設定
 ////////////////////////////////////////////////////////
 
-const MODEL_SCALE = 1;                   // 遺跡サイズ
+const MODEL_SCALE = 5;                   // 遺跡サイズ
 const ARTIFACT_SCALE = MODEL_SCALE;      // 出土品サイズ
 const ARTIFACT_HEIGHT = MODEL_SCALE;     // 出土品高さ
 
@@ -199,13 +199,9 @@ speedSlider.value = SPEED;
 speedValue.textContent = SPEED.toFixed(1);
 
 speedSlider.oninput = ()=>{
-
     SPEED = parseFloat(speedSlider.value);
-
     speedValue.textContent = SPEED.toFixed(1);
-
     localStorage.setItem("speed",speedSlider.value);
-
     location.reload();
 };
 
@@ -215,9 +211,9 @@ railSound.pause();
 //// renderer
 ////////////////////////////////////////////////////////
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
+const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setPixelRatio(window.devicePixelRatio);
-renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 
 document.body.appendChild(renderer.domElement);
@@ -251,7 +247,7 @@ class MyCurve extends Curve {
             return this.vector.set(x, y, z);
         } else {
             const x = Math.sin(t * 3) * Math.cos(t * 4) * RAIL_RADIUS;
-            const y = Math.sin(t * 10) * 2 + Math.cos(t * 17) * 2 + RAIL_HEIGHT;
+            const y = (Math.sin(t * 10) + Math.cos(t * 17)) * 0.4 * MODEL_SCALE + RAIL_HEIGHT;
             const z = Math.sin(t) * Math.sin(t * 4) * RAIL_RADIUS * RAIL_OVAL;
             return this.vector.set(x, y, z);
         }
@@ -328,7 +324,7 @@ textureLoader.load(
 //// train
 ////////////////////////////////////////////////////////
 
-const geometry = new THREE.BoxGeometry(0.5,0.5,1);
+const geometry = new THREE.BoxGeometry(0.1 * MODEL_SCALE, 0.1 * MODEL_SCALE, 0.2 * MODEL_SCALE);
 const material = new THREE.MeshBasicMaterial({color:15628151});
 
 const train = new THREE.Mesh(geometry,material);
@@ -340,7 +336,7 @@ scene.add(train);
 
 if(CONFIG.camera === "ride"){
     train.add(camera);
-    camera.position.set(0,1.2,0);
+    camera.position.set(0, 0.2 * MODEL_SCALE, 0);
 }else{
     const controls = new OrbitControls(camera,renderer.domElement);
     controls.listenToKeyEvents(window);
@@ -403,7 +399,7 @@ renderer.setAnimationLoop(()=>{
 
     if(!railSound.paused){
 
-        const speedRatio = velocity * 1000;
+        const speedRatio = velocity * 200 * MODEL_SCALE;
 
         railSound.volume = Math.min(1,speedRatio);
 
