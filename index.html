@@ -419,7 +419,7 @@ const explainPoints = [
 ];
 
 const IMAGE_BASE = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu/";
-const anchorGeometry = new THREE.SphereGeometry(0.35,16,16);
+const anchorGeometry = new THREE.SphereGeometry(0.35, 16, 16);
 const anchorMaterial = new THREE.MeshBasicMaterial({color:0x66ccff});
 const panelGeometry = new THREE.PlaneGeometry(1.6 * MODEL_SCALE, 1.6 * MODEL_SCALE);
 
@@ -433,7 +433,7 @@ explainPoints.forEach(data=>{
     /* anchor */
     const anchor = new THREE.Mesh(anchorGeometry, anchorMaterial);
 
-    anchor.position.set(x * MODEL_SCALE, 1 * MODEL_SCALE, z * MODEL_SCALE);
+    anchor.position.set(x * MODEL_SCALE, 1.25 * MODEL_SCALE, z * MODEL_SCALE);
 
     scene.add(anchor);
     anchors.push(anchor);
@@ -454,7 +454,7 @@ explainPoints.forEach(data=>{
 
         /* line */
         const points = [
-            new THREE.Vector3(x * MODEL_SCALE, 1 * MODEL_SCALE, z * MODEL_SCALE),
+            new THREE.Vector3(x * MODEL_SCALE, 1.25 * MODEL_SCALE, z * MODEL_SCALE),
             new THREE.Vector3((x + ox) * MODEL_SCALE, 2.2 * MODEL_SCALE, (z + oz) * MODEL_SCALE)
         ];
 
