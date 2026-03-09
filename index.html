@@ -116,6 +116,11 @@ UI PANEL
         </div>
     </div>
 
+<div class="uiRow">
+<span>REAL SPEED</span>
+<span id="realSpeed">0 km/h</span>
+</div>
+
 </div>
 
 <script type="importmap">
@@ -141,16 +146,16 @@ import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 /* =====================================================
 GLOBAL SETTINGS
 ===================================================== */
-const MODEL_SCALE = 5;                      // 遺跡サイズ
+const MODEL_SCALE = 5;
 
 /* Artifact settings */
-const ARTIFACT_SCALE = MODEL_SCALE;         // 出土品サイズ
-const ARTIFACT_HEIGHT = 1.8 * MODEL_SCALE;  // 出土品高さ
+const ARTIFACT_SCALE = MODEL_SCALE;
+const ARTIFACT_HEIGHT = 1.9 * MODEL_SCALE;
 
 /* Rail settings */
-const RAIL_RADIUS = 6 * MODEL_SCALE;        // レール半径
-const RAIL_HEIGHT = 2 * MODEL_SCALE;        // コース高さ
-const RAIL_OVAL = 0.3;                      // 楕円率
+const RAIL_RADIUS = 5 * MODEL_SCALE;
+const RAIL_HEIGHT = 2 * MODEL_SCALE;
+const RAIL_OVAL = 0.3;
 
 /* =====================================================
 CONFIGURATION (LocalStorage)
@@ -202,6 +207,8 @@ setupToggle("cameraToggle","camera");
 /* Speed slider */
 const speedSlider = document.getElementById("speedSlider");
 const speedValue  = document.getElementById("speedValue");
+
+const realSpeedUI = document.getElementById("realSpeed");
 
 speedSlider.value = SPEED;
 speedValue.textContent = SPEED.toFixed(1);
@@ -419,7 +426,7 @@ const explainPoints = [
 ];
 
 const IMAGE_BASE = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu/";
-const anchorGeometry = new THREE.SphereGeometry(0.35, 16, 16);
+const anchorGeometry = new THREE.SphereGeometry(0.05, 16, 16);
 const anchorMaterial = new THREE.MeshBasicMaterial({color:0x66ccff});
 const panelGeometry = new THREE.PlaneGeometry(1.6 * MODEL_SCALE, 1.6 * MODEL_SCALE);
 
@@ -476,11 +483,53 @@ const train = new THREE.Mesh(geometry,material);
 scene.add(train);
 
 /* =====================================================
+Speed meter
+===================================================== */
+
+const meterCanvas = document.createElement("canvas");
+meterCanvas.width = 256;
+meterCanvas.height = 128;
+
+const meterCtx = meterCanvas.getContext("2d");
+
+const meterTexture = new THREE.CanvasTexture(meterCanvas);
+
+const meterMaterial = new THREE.MeshBasicMaterial({
+    map: meterTexture,
+    transparent:true
+});
+
+const meterGeometry = new THREE.PlaneGeometry(0.05, 0.03);
+const meter = new THREE.Mesh(meterGeometry,meterMaterial);
+meter.position.set(0, 0.04, -0.45);
+
+train.add(meter);
+
+function drawSpeedMeter(speed){
+    meterCtx.clearRect(0,0,256,128);
+
+    meterCtx.fillStyle = "rgba(0,0,0,0.6)";
+    meterCtx.fillRect(0,0,256,128);
+
+    meterCtx.strokeStyle = "#66ccff";
+    meterCtx.lineWidth = 4;
+    meterCtx.strokeRect(0,0,256,128);
+
+    meterCtx.fillStyle = "white";
+    meterCtx.font = "bold 40px sans-serif";
+    meterCtx.textAlign = "center";
+
+    meterCtx.fillText(speed.toFixed(0) + " km/h", 128, 70);
+
+    meterTexture.needsUpdate = true;
+}
+
+/* =====================================================
 CAMERA MODE
 ===================================================== */
 if(CONFIG.camera === "ride"){
     train.add(camera);
-    camera.position.set(0, 0.2 * MODEL_SCALE, 0);
+    camera.position.set(0, 0.2, 0);
 }else{
     const controls = new OrbitControls(camera,renderer.domElement);
     controls.listenToKeyEvents(window);
@@ -501,6 +550,10 @@ let prevTime = performance.now();
 /* =====================================================
 ANIMATION LOOP
 ===================================================== */
+
+let prevPosition = new THREE.Vector3();
+let realSpeed = 0;
+
 renderer.setAnimationLoop(()=>{
 
     /* Move train */
@@ -513,7 +566,20 @@ renderer.setAnimationLoop(()=>{
     position.copy(curve.getPointAt(progress));
     position.y += 0.2;
 
+const distance = position.distanceTo(prevPosition);
+
+const speedMS = distance / (delta/1000);
+
+realSpeed = speedMS * 3.6;
+
+realSpeedUI.textContent = realSpeed.toFixed(0) + " km/h";
+
+prevPosition.copy(position);
+
     train.position.copy(position);
+
+drawSpeedMeter(realSpeed);
+
 
     tangent.copy(curve.getTangentAt(progress));
 
@@ -537,14 +603,14 @@ renderer.setAnimationLoop(()=>{
     /* Aura animation */
     auras.forEach((aura, i)=>{
         aura.rotation.y += 0.002;
-        aura.position.y = ARTIFACT_HEIGHT - 2.5 + Math.sin(time * 0.001 + i) * 0.2;
-        const s = 1 + Math.sin(time * 0.002 + i) * 0.01;
+        aura.position.y = ARTIFACT_HEIGHT + (- 0.6 + Math.sin(time * 0.001 + i) * 0.04) * MODEL_SCALE;
+        const s = (0.2 + Math.sin(time * 0.002 + i) * 0.005) * MODEL_SCALE;
         aura.scale.set(s, s, s);
     });
 
     /* Anchor animation */
     anchors.forEach((a,i)=>{
-        const s = 1 + Math.sin(time * 0.002 + i)*0.25;
+        const s = (1 + Math.sin(time * 0.002 + i) * 0.05) * MODEL_SCALE;
         a.scale.set(s,s,s);
     });
 
