@@ -505,9 +505,9 @@ const meterMaterial = new THREE.MeshBasicMaterial({
     transparent:true
 });
 
-const meterGeometry = new THREE.PlaneGeometry(0.05, 0.03);
+const meterGeometry = new THREE.PlaneGeometry(5, 3);
 const meter = new THREE.Mesh(meterGeometry,meterMaterial);
-meter.position.set(0, 0.04, -0.45);
+meter.position.set(0, 1.2, -0.45);
 
 train.add(meter);
 
@@ -557,19 +557,14 @@ let keyUp = false;
 let keyDown = false;
 
 window.addEventListener("keydown",(e)=>{
-
     if(e.code === "ArrowUp") keyUp = true;
     if(e.code === "ArrowDown") keyDown = true;
-
 });
 
 window.addEventListener("keyup",(e)=>{
-
     if(e.code === "ArrowUp") keyUp = false;
     if(e.code === "ArrowDown") keyDown = false;
-
 });
-
 
 function getThumbstickY(){
 
@@ -577,20 +572,14 @@ function getThumbstickY(){
     if(!session) return 0;
 
     const sources = session.inputSources;
-
     for(const source of sources){
-
         if(source.gamepad && source.gamepad.axes.length > 3){
-
             const y = source.gamepad.axes[3];
-
-            if(Math.abs(y) > 0.15){ // デッドゾーン
+            if(Math.abs(y) > 0.15){
                 return y;
             }
-
         }
     }
-
     return 0;
 }
 
