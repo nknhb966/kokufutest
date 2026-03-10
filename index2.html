@@ -505,7 +505,7 @@ const meterMaterial = new THREE.MeshBasicMaterial({
     transparent:true
 });
 
-const meterGeometry = new THREE.PlaneGeometry(5, 3);
+const meterGeometry = new THREE.PlaneGeometry(0.5, 0.3);
 const meter = new THREE.Mesh(meterGeometry,meterMaterial);
 meter.position.set(0, 1.2, -0.45);
 
