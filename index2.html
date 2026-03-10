@@ -505,9 +505,9 @@ const meterMaterial = new THREE.MeshBasicMaterial({
     transparent:true
 });
 
-const meterGeometry = new THREE.PlaneGeometry(0.5, 0.3);
+const meterGeometry = new THREE.PlaneGeometry(0.3, 0.18);
 const meter = new THREE.Mesh(meterGeometry,meterMaterial);
-meter.position.set(0, 1.2, -0.45);
+meter.position.set(0, 0.2, -0.45);
 
 train.add(meter);
 
