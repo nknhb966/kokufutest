@@ -217,7 +217,7 @@ speedSlider.oninput = ()=>{
     SPEED = parseFloat(speedSlider.value);
     speedValue.textContent = SPEED.toFixed(1);
     localStorage.setItem("speed",speedSlider.value);
-    location.reload();
+    // location.reload();
 };
 
 railSound.pause();
@@ -507,37 +507,37 @@ function drawSpeedMeter(speed){
 
     meterCtx.clearRect(0,0,256,128);
 
-    let baseColor = "rgba(0,0,0,0.65)";
+    let baseColor = "rgba(0, 0, 0, 0.65)";
     let glowColor = null;
 
     if(accelState === 1){
-        glowColor = "255,80,80";
+        glowColor = "255, 80, 80";
     }
     else if(accelState === -1){
-        glowColor = "80,120,255";
+        glowColor = "80, 120, 255";
     }
 
     meterCtx.fillStyle = baseColor;
-    meterCtx.fillRect(0,0,256,128);
+    meterCtx.fillRect(0, 0, 256, 128);
 
     if(glowColor){
         const alpha = glowStrength * 0.8;
 
         const grad = meterCtx.createRadialGradient(
-            128,64,10,
-            128,64,120
+            128, 64, 10,
+            128, 64, 120
         );
 
-        grad.addColorStop(0,`rgba(${glowColor},${alpha})`);
-        grad.addColorStop(1,"rgba(0,0,0,0)");
+        grad.addColorStop(0, `rgba(${glowColor}, ${alpha})`);
+        grad.addColorStop(1, "rgba(0, 0, 0, 0)");
 
         meterCtx.fillStyle = grad;
-        meterCtx.fillRect(0,0,256,128);
+        meterCtx.fillRect(0, 0, 256, 128);
     }
 
     meterCtx.strokeStyle = "#66ccff";
     meterCtx.lineWidth = 4;
-    meterCtx.strokeRect(0,0,256,128);
+    meterCtx.strokeRect(0, 0, 256, 128);
 
     meterCtx.fillStyle = "white";
     meterCtx.font = "bold 40px sans-serif";
@@ -634,6 +634,7 @@ renderer.setAnimationLoop(()=>{
     tangent.copy(curve.getTangentAt(progress));
 
     const ACCEL = 0.0000001;
+    const DECEL = 0.5 * ACCEL;
 
     /* keyboard speed control */
     accelState = 0;
@@ -642,7 +643,7 @@ renderer.setAnimationLoop(()=>{
         accelState = 1;
     }
     if(keyDown){
-        velocity -= 0.5 * ACCEL * delta;
+        velocity -= DECEL * delta;
         accelState = -1;
     }
 
@@ -653,7 +654,7 @@ renderer.setAnimationLoop(()=>{
         accelState = 1;
     }
     if(stickY > 0.2){
-        velocity -= ACCEL * delta * (stickY);
+        velocity -= DECEL * delta * (stickY);
         accelState = -1;
     }
 
