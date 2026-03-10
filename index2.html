@@ -276,9 +276,7 @@ const curve = new MyCurve();
 /* =====================================================
 LOAD COASTER MODEL
 ===================================================== */
-await addCoaster(scene, curve, null,
-"https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu.glb"
-);
+await addCoaster(scene, curve, null, "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu.glb");
 
 /* =====================================================
 SCENE SCALE ADJUSTMENT
@@ -364,7 +362,7 @@ artifacts.forEach(data=>{
 
         /* Aura */
         const aura = new THREE.Mesh(auraGeometry, auraMaterial);
-        aura.position.set(data.x * MODEL_SCALE, data.y * MODEL_SCALE, data.z * MODEL_SCALE);
+        aura.position.set(data.x * MODEL_SCALE, ARTIFACT_HEIGHT, data.z * MODEL_SCALE);
         scene.add(aura);
         auras.push(aura);
     });
@@ -375,14 +373,8 @@ Explanations
 ===================================================== */
 const textureLoader = new THREE.TextureLoader();
 
-addPanel(
-"https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png",
-4, 5, 0.5, 0, -90, 70, 4 ,5);
-
-addPanel(
-"https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png",
--4, 5, 0.5, 0, 90, -70, 4 ,5);
-
+addPanel("https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png", 4, 5, 0.5, 0, -90, 70, 4 ,5);
+addPanel("https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png", -4, 5, 0.5, 0, 90, -70, 4 ,5);
 
 function addPanel(file, x, y, z, rx, ry, rz, w, h){
     textureLoader.load(file,(texture)=>{
@@ -403,11 +395,7 @@ function addPanel(file, x, y, z, rx, ry, rz, w, h){
 
         const panel = new THREE.Mesh(geometry,material);
         panel.rotation.order = "ZYX";
-        panel.rotation.set(
-            THREE.MathUtils.degToRad(rx),
-            THREE.MathUtils.degToRad(ry),
-            THREE.MathUtils.degToRad(rz)
-        );
+        panel.rotation.set(THREE.MathUtils.degToRad(rx), THREE.MathUtils.degToRad(ry), THREE.MathUtils.degToRad(rz));
         group.add(panel);
     });
 }
@@ -538,7 +526,7 @@ if(CONFIG.camera === "ride"){
     train.add(camera);
     camera.position.set(0, 0.2, 0);
 }else{
-    const controls = new OrbitControls(camera,renderer.domElement);
+    controls = new OrbitControls(camera,renderer.domElement);
     controls.listenToKeyEvents(window);
     camera.position.set(0, 4 * MODEL_SCALE, 20 * MODEL_SCALE);
 }
