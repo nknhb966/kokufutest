@@ -116,10 +116,10 @@ UI PANEL
         </div>
     </div>
 
-<div class="uiRow">
-<span>REAL SPEED</span>
-<span id="realSpeed">0 km/h</span>
-</div>
+<!--     <div class="uiRow">
+        <span>REAL SPEED</span>
+        <span id="realSpeed">0 km/h</span>
+    </div> -->
 
 </div>
 
@@ -208,7 +208,7 @@ setupToggle("cameraToggle","camera");
 const speedSlider = document.getElementById("speedSlider");
 const speedValue  = document.getElementById("speedValue");
 
-const realSpeedUI = document.getElementById("realSpeed");
+// const realSpeedUI = document.getElementById("realSpeed");
 
 speedSlider.value = SPEED;
 speedValue.textContent = SPEED.toFixed(1);
@@ -607,7 +607,7 @@ ANIMATION LOOP
 ===================================================== */
 
 let prevPosition = new THREE.Vector3();
-let realSpeed = 0;
+// let realSpeed = 0;
 let lastSoundUpdate = 0;
 
 renderer.setAnimationLoop(()=>{
@@ -625,18 +625,18 @@ renderer.setAnimationLoop(()=>{
     const distance = position.distanceTo(prevPosition);
     const speedMS = distance / (delta/1000);
 
-    realSpeed = speedMS * 3.6;
-    realSpeedUI.textContent = realSpeed.toFixed(0) + " km/h";
+    // realSpeed = speedMS * 3.6;
+    // realSpeedUI.textContent = realSpeed.toFixed(0) + " km/h";
     prevPosition.copy(position);
 
     train.position.copy(position);
 
-    const now = performance.now();
+    // const now = performance.now();
 
-    if(now - lastMeterUpdate > 500){
-        drawSpeedMeter(realSpeed);
-        lastMeterUpdate = now;
-    }
+    // if(now - lastMeterUpdate > 500){
+    //     drawSpeedMeter(realSpeed);
+    //     lastMeterUpdate = now;
+    // }
 
     tangent.copy(curve.getTangentAt(progress));
 
