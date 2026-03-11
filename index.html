@@ -1,76 +1,71 @@
+
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府発掘2023VRコースターEchizen kokufu VR Trolley</title>
+<title>Echizen kokufu VR Trolley</title>
 
 <style>
-/* ================================
-   Basic Page Style
-================================ */
     body{
-        margin: 0;
-        overflow: hidden;
+        margin:0;
+        overflow:hidden;
     }
 
-/* ================================
-   Control Panel UI
-================================ */
     #uiPanel{
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        padding: 15px;
-        background: rgba(0,0,0,0.6);
-        color: white;
-        font-family: sans-serif;
-        border-radius: 8px;
+        position:absolute;
+        top:20px;
+        left:20px;
+        padding:15px;
+        background:rgba(0,0,0,0.6);
+        color:white;
+        font-family:sans-serif;
+        border-radius:8px;
     }
 
     #uiPanel h3{
-        margin: 0 0 10px 0;
-        font-size: 14px;
+        margin:0 0 10px 0;
+        font-size:14px;
     }
 
     #uiPanel span{
-        margin: 0 20px 0 0;
+        margin:0 20px 0 0;
     }
 
     .uiRow{
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin: 20px 0;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        margin:20px 0;
     }
 
     .toggle{
-        display: flex;
+        display:flex;
     }
 
     .toggle button{
-        border: none;
-        padding: 16px 20px;
-        min-width: 125px;
-        background: #777;
-        color: white;
-        cursor: pointer;
+        border:none;
+        padding:16px 20px;
+        min-width:220px;
+        background:#777;
+        color:white;
+        cursor:pointer;
     }
 
     .toggle button:first-child{
-        border-radius: 4px 0 0 4px;
+        border-radius:4px 0 0 4px;
     }
 
     .toggle button:last-child{
-        border-radius: 0 4px 4px 0;
+        border-radius:0 4px 4px 0;
     }
 
     .toggle button.active{
-        background: #4caf50;
+        background:#4caf50;
     }
 
-    input[type = range]{
-        min-width: 200px;
+    input[type=range]{
+        width:360px;
     }
 </style>
 </head>
@@ -79,16 +74,13 @@
 
 <audio id="railSound" src="trolley_clatter.mp3" loop></audio>
 
-<!-- ========================================
-UI PANEL
-======================================== -->
 <div id="uiPanel">
 
     <h3>COASTER CONTROL</h3>
 
     <div class="uiRow">
         <span>SPEED</span>
-        <input id="speedSlider" type="range" min="0.1" max="2" step="0.1" value="1">
+        <input id="speedSlider" type="range" min="0.1" max="1" step="0.1" value="1">
         <span id="speedValue"></span>
     </div>
 
@@ -116,11 +108,6 @@ UI PANEL
         </div>
     </div>
 
-<!--     <div class="uiRow">
-        <span>REAL SPEED</span>
-        <span id="realSpeed">0 km/h</span>
-    </div> -->
-
 </div>
 
 <script type="importmap">
@@ -132,9 +119,6 @@ UI PANEL
     }
 </script>
 
-<!-- =====================================================
-IMPORTS
-===================================================== -->
 <script type="module">
 
 import * as THREE from "three";
@@ -143,23 +127,22 @@ import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {VRButton} from "three/addons/webxr/VRButton.js";
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 
-/* =====================================================
-GLOBAL SETTINGS
-===================================================== */
-const MODEL_SCALE = 5;
+////////////////////////////////////////////////////////
+//// 設定
+////////////////////////////////////////////////////////
 
-/* Artifact settings */
-const ARTIFACT_SCALE = MODEL_SCALE;
-const ARTIFACT_HEIGHT = 1.9 * MODEL_SCALE;
+const MODEL_SCALE = 5;                   // 遺跡サイズ
+const ARTIFACT_SCALE = MODEL_SCALE;      // 出土品サイズ
+const ARTIFACT_HEIGHT = MODEL_SCALE;     // 出土品高さ
 
-/* Rail settings */
-const RAIL_RADIUS = 5 * MODEL_SCALE;
-const RAIL_HEIGHT = 2 * MODEL_SCALE;
-const RAIL_OVAL = 0.3;
+const RAIL_RADIUS = 8 * MODEL_SCALE;     // レール半径
+const RAIL_HEIGHT = 2 * MODEL_SCALE;     // コース高さ
+const RAIL_OVAL = 0.3;                   // 楕円率
 
-/* =====================================================
-CONFIGURATION (LocalStorage)
-===================================================== */
+////////////////////////////////////////////////////////
+//// localStorage + CONFIG
+////////////////////////////////////////////////////////
+
 const CONFIG = {
     sound  : "off",
     curve  : localStorage.getItem("curve")  || "trolley",
@@ -169,9 +152,10 @@ const CONFIG = {
 
 let SPEED = CONFIG.speed;
 
-/* =====================================================
-UI CONTROLS
-===================================================== */
+////////////////////////////////////////////////////////
+//// UI
+////////////////////////////////////////////////////////
+
 const railSound = document.getElementById("railSound");
 
 function setupToggle(id,key){
@@ -204,11 +188,13 @@ setupToggle("soundToggle","sound");
 setupToggle("curveToggle","curve");
 setupToggle("cameraToggle","camera");
 
-/* Speed slider */
+
+////////////////////////////////////////////////////////
+//// SPEED UI
+////////////////////////////////////////////////////////
+
 const speedSlider = document.getElementById("speedSlider");
 const speedValue  = document.getElementById("speedValue");
-
-// const realSpeedUI = document.getElementById("realSpeed");
 
 speedSlider.value = SPEED;
 speedValue.textContent = SPEED.toFixed(1);
@@ -217,19 +203,15 @@ speedSlider.oninput = ()=>{
     SPEED = parseFloat(speedSlider.value);
     speedValue.textContent = SPEED.toFixed(1);
     localStorage.setItem("speed",speedSlider.value);
-    // location.reload();
+    location.reload();
 };
 
 railSound.pause();
 
-/* =====================================================
-SCENE
-===================================================== */
-const scene = new THREE.Scene();
+////////////////////////////////////////////////////////
+//// renderer
+////////////////////////////////////////////////////////
 
-/* =====================================================
-RENDERER
-===================================================== */
 const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -238,21 +220,23 @@ renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 
-const controller1 = renderer.xr.getController(0);
-const controller2 = renderer.xr.getController(1);
+////////////////////////////////////////////////////////
+//// scene
+////////////////////////////////////////////////////////
 
-scene.add(controller1);
-scene.add(controller2);
+const scene = new THREE.Scene();
 
-/* =====================================================
-CAMERA
-===================================================== */
+////////////////////////////////////////////////////////
+//// camera
+////////////////////////////////////////////////////////
+
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
 let controls = null;
 
-/* =====================================================
-COASTER CURVE
-===================================================== */
+////////////////////////////////////////////////////////
+//// curve
+////////////////////////////////////////////////////////
+
 class MyCurve extends Curve {
 
     getPointAt(t) {
@@ -273,14 +257,18 @@ class MyCurve extends Curve {
 
 const curve = new MyCurve();
 
-/* =====================================================
-LOAD COASTER MODEL
-===================================================== */
-await addCoaster(scene, curve, null, "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu.glb");
+////////////////////////////////////////////////////////
+//// coaster
+////////////////////////////////////////////////////////
 
-/* =====================================================
-SCENE SCALE ADJUSTMENT
-===================================================== */
+await addCoaster(scene, curve, null,
+"https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu.glb"
+);
+
+////////////////////////////////////////////////////////
+//// 遺跡スケール変更
+////////////////////////////////////////////////////////
+
 let scaled = false;
 
 scene.traverse((obj) => {
@@ -289,281 +277,77 @@ scene.traverse((obj) => {
         while(root.parent && root.parent.type !== "Scene"){
             root = root.parent;
         }
-        root.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+        root.scale.set(MODEL_SCALE,MODEL_SCALE,MODEL_SCALE);
         root.rotation.y = THREE.MathUtils.degToRad(20);
         scaled = true;
     }
 });
 
-/* =====================================================
-ARTIFACTS
-===================================================== */
+////////////////////////////////////////////////////////
+//// 出土品
+////////////////////////////////////////////////////////
+
 const loader = new GLTFLoader();
 
-const BASE_URL = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu/";
-
-const artifacts = [
-    {file:"model02_small.glb", x:2.2, z:1.8},
-    {file:"model04_small.glb", x:4.3, z:2.2},
-    {file:"model09_small.glb", x:6.5, z:1.8},
-    {file:"model11_small.glb", x:-6.9, z:2.7},
-    {file:"model12_small.glb", x:-6.65, z:2.45},
-    {file:"model14_small.glb", x:5.2, z:1.45}    
-];
-
-const rotatingArtifacts = [];
-const auras = [];
-
-/* Aura visual */
-function createAuraTexture(){
-
-    const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 256;
-
-    const ctx = canvas.getContext("2d");
-
-    const gradient = ctx.createLinearGradient(0, 256, 0, 0);
-
-    gradient.addColorStop(0, "rgba(100, 200, 255, 0.4)");
-    gradient.addColorStop(0.4, "rgba(100, 200, 255, 0.25)");
-    gradient.addColorStop(0.7, "rgba(100, 200, 255, 0.1)");
-    gradient.addColorStop(1, "rgba(100, 200, 255, 0)");
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 64, 256);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-
-    return texture;
-}
-
-const auraTexture = createAuraTexture();
-
-const auraMaterial = new THREE.MeshBasicMaterial({
-    map: auraTexture,
-    transparent: true,
-    depthWrite:false,
-    side: THREE.DoubleSide
-});
-
-const auraGeometry = new THREE.CylinderGeometry(1.2, 0.6, 12, 32, 1, true);
-
-/* Load artifacts */
-artifacts.forEach(data=>{
-
-    loader.load(BASE_URL + data.file,(gltf)=>{
+loader.load(
+    "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu2/model02_small.glb",
+    (gltf)=>{
         const artifact = gltf.scene;
         artifact.scale.set(ARTIFACT_SCALE, ARTIFACT_SCALE, ARTIFACT_SCALE);
-        artifact.position.set(data.x * MODEL_SCALE, ARTIFACT_HEIGHT, data.z * MODEL_SCALE);
+        artifact.position.set(0, ARTIFACT_HEIGHT, 0);
         scene.add(artifact);
-        rotatingArtifacts.push(artifact);
+    }
+);
 
-        /* Aura */
-        const aura = new THREE.Mesh(auraGeometry, auraMaterial);
-        aura.position.set(data.x * MODEL_SCALE, ARTIFACT_HEIGHT, data.z * MODEL_SCALE);
-        scene.add(aura);
-        auras.push(aura);
-    });
-});
-
-/* =====================================================
-Explanations
-===================================================== */
+////////////////////////////////////////////////////////
+//// 説明書
+////////////////////////////////////////////////////////
 const textureLoader = new THREE.TextureLoader();
 
-addPanel("https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png", 4, 5, 0.5, 0, -90, 70, 4 ,5);
-addPanel("https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png", -4, 5, 0.5, 0, 90, -70, 4 ,5);
-
-function addPanel(file, x, y, z, rx, ry, rz, w, h){
-    textureLoader.load(file,(texture)=>{
+textureLoader.load(
+    "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu/20400_kokufuhakkutsu.png",
+    function(texture) {
         texture.colorSpace = THREE.SRGBColorSpace;
-
-        const group = new THREE.Group();
-        group.position.set(x * MODEL_SCALE, y * MODEL_SCALE ,z * MODEL_SCALE);
-        scene.add(group);
-
-        const geometry = new THREE.PlaneGeometry(w * MODEL_SCALE, h * MODEL_SCALE);
-
-        const material = new THREE.MeshBasicMaterial({
-            map:texture,
-            transparent:true,
-            toneMapped:false,
-            side:THREE.DoubleSide
-        });
-
-        const panel = new THREE.Mesh(geometry,material);
-        panel.rotation.order = "ZYX";
-        panel.rotation.set(THREE.MathUtils.degToRad(rx), THREE.MathUtils.degToRad(ry), THREE.MathUtils.degToRad(rz));
-        group.add(panel);
-    });
-}
-
-const explainPoints = [
-    ["20100_kokufuhakkutsu.png",  1.5, -0.5, -0.5, -2.3, 0],
-    ["20200_kokufuhakkutsu.png",  2.3,  1.8, -0.5,  1.2, 180],
-    ["20300_kokufuhakkutsu.png",  4.1, -0.5,  0.3, -2.3, 0],
-    ["20400_kokufuhakkutsu.png",  4.3,  2.2, -0.2,  0.8, 180],
-    ["20500_kokufuhakkutsu.png", -0.5, -0.5, -0.5, -2.3, 0],
-    ["20600_kokufuhakkutsu.png", -3.3,    0,    0, -2.8, 0],
-    ["20700_kokufuhakkutsu.png",  2.0,  0.5,  0.7, -3.3, 0],
-    ["20800_kokufuhakkutsu.png",  7.1,  1.7,  1.4, -1.5, -90],
-    ["20900_kokufuhakkutsu.png",  6.5,  1.8,  2.0,    0, -90],
-    ["21000_kokufuhakkutsu.png", -7.1,  3.1, -1.0, -0.7, 90],
-    ["21100_kokufuhakkutsu.png", -6.9,  2.7,    0,  0.8, 180],
-    ["21200_kokufuhakkutsu.png", -6.65,2.45,  1.5, 1.05, 180],
-    ["21300_kokufuhakkutsu.png",  5.2, 1.45,  2.1, 1.55, 180],
-    ["21400_kokufuhakkutsu.png",  5.2, 1.45,  0.5, 1.55, 180],
-    ["21500_kokufuhakkutsu.png", -6.1, -2.1,    0, -0.7, 0],
-    ["21600_kokufuhakkutsu.png",  7.6, -0.8, -0.9, -2.0, 0]
-];
-
-const IMAGE_BASE = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu/";
-const anchorGeometry = new THREE.SphereGeometry(0.05, 16, 16);
-const anchorMaterial = new THREE.MeshBasicMaterial({color:0x66ccff});
-const panelGeometry = new THREE.PlaneGeometry(1.6 * MODEL_SCALE, 1.6 * MODEL_SCALE);
-
-const anchors = [];
-const lines = [];
-
-explainPoints.forEach(data=>{
-
-    const [file, x, z, ox, oz, rot] = data;
-
-    /* anchor */
-    const anchor = new THREE.Mesh(anchorGeometry, anchorMaterial);
-
-    anchor.position.set(x * MODEL_SCALE, 1.25 * MODEL_SCALE, z * MODEL_SCALE);
-
-    scene.add(anchor);
-    anchors.push(anchor);
-
-    /* panel */
-    textureLoader.load(IMAGE_BASE + file, (texture)=>{
-        texture.colorSpace = THREE.SRGBColorSpace;
+        const geometry = new THREE.PlaneGeometry(2 * MODEL_SCALE, 2 * MODEL_SCALE);
         const material = new THREE.MeshBasicMaterial({
             map: texture,
             transparent: true,
-            toneMapped: false,
-            side: THREE.DoubleSide
+            toneMapped:false
         });
-        const panel = new THREE.Mesh(panelGeometry,material);
-        panel.position.set((x + ox) * MODEL_SCALE, 3 * MODEL_SCALE, (z + oz) * MODEL_SCALE);
-        panel.rotation.y = THREE.MathUtils.degToRad(rot);
-        scene.add(panel);
+        const imagePlane = new THREE.Mesh(geometry, material);
+        imagePlane.position.set(8 * MODEL_SCALE, 3 * MODEL_SCALE, 0);
+        imagePlane.rotation.y = Math.PI * -0.5;
+        scene.add(imagePlane);
+    }
+);
 
-        /* line */
-        const points = [
-            new THREE.Vector3(x * MODEL_SCALE, 1.25 * MODEL_SCALE, z * MODEL_SCALE),
-            new THREE.Vector3((x + ox) * MODEL_SCALE, 2.2 * MODEL_SCALE, (z + oz) * MODEL_SCALE)
-        ];
+////////////////////////////////////////////////////////
+//// train
+////////////////////////////////////////////////////////
 
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const lineMaterial = new THREE.LineBasicMaterial({color:0x88ccff});
-        const line = new THREE.Line(geometry,lineMaterial);
-        scene.add(line);
-        lines.push(line);
-    });
-});
-
-/* =====================================================
-TRAIN
-===================================================== */
 const geometry = new THREE.BoxGeometry(0.1 * MODEL_SCALE, 0.1 * MODEL_SCALE, 0.2 * MODEL_SCALE);
 const material = new THREE.MeshBasicMaterial({color:15628151});
 
 const train = new THREE.Mesh(geometry,material);
 scene.add(train);
 
-/* =====================================================
-Speed meter
-===================================================== */
+////////////////////////////////////////////////////////
+//// camera mode
+////////////////////////////////////////////////////////
 
-// const meterCanvas = document.createElement("canvas");
-// meterCanvas.width = 256;
-// meterCanvas.height = 128;
-
-// const meterCtx = meterCanvas.getContext("2d");
-
-// const meterTexture = new THREE.CanvasTexture(meterCanvas);
-
-// const meterMaterial = new THREE.MeshBasicMaterial({
-//     map: meterTexture,
-//     transparent:true
-// });
-
-// const meterGeometry = new THREE.PlaneGeometry(0.3, 0.18);
-// const meter = new THREE.Mesh(meterGeometry,meterMaterial);
-// meter.position.set(0, 0.4, -0.45);
-// meter.rotation.x = THREE.MathUtils.degToRad(-90);
-
-// train.add(meter);
-
-// let accelState = 0;
-// let glowStrength = 0;
-// let lastMeterUpdate = 0;
-
-// function drawSpeedMeter(speed){
-
-//     meterCtx.clearRect(0,0,256,128);
-
-//     let baseColor = "rgba(0, 0, 0, 0.65)";
-//     let glowColor = null;
-
-//     if(accelState === 1){
-//         glowColor = "255, 80, 80";
-//     }
-//     else if(accelState === -1){
-//         glowColor = "80, 120, 255";
-//     }
-
-//     meterCtx.fillStyle = baseColor;
-//     meterCtx.fillRect(0, 0, 256, 128);
-
-//     if(glowColor){
-//         const alpha = glowStrength * 0.8;
-
-//         const grad = meterCtx.createRadialGradient(
-//             128, 64, 10,
-//             128, 64, 120
-//         );
-
-//         grad.addColorStop(0, `rgba(${glowColor}, ${alpha})`);
-//         grad.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-//         meterCtx.fillStyle = grad;
-//         meterCtx.fillRect(0, 0, 256, 128);
-//     }
-
-//     meterCtx.strokeStyle = "#66ccff";
-//     meterCtx.lineWidth = 4;
-//     meterCtx.strokeRect(0, 0, 256, 128);
-
-//     meterCtx.fillStyle = "white";
-//     meterCtx.font = "bold 40px sans-serif";
-//     meterCtx.textAlign = "center";
-
-//     meterCtx.fillText(speed.toFixed(0) + " km/h",128,70);
-
-//     meterTexture.needsUpdate = true;
-// }
-
-/* =====================================================
-CAMERA MODE
-===================================================== */
 if(CONFIG.camera === "ride"){
     train.add(camera);
-    camera.position.set(0, 0.2, 0);
+    camera.position.set(0, 0.2 * MODEL_SCALE, 0);
 }else{
-    controls = new OrbitControls(camera,renderer.domElement);
+    const controls = new OrbitControls(camera,renderer.domElement);
     controls.listenToKeyEvents(window);
     camera.position.set(0, 4 * MODEL_SCALE, 20 * MODEL_SCALE);
 }
 
-/* =====================================================
-COASTER MOTION VARIABLES
-===================================================== */
+////////////////////////////////////////////////////////
+//// motion variables
+////////////////////////////////////////////////////////
+
 const position = new THREE.Vector3();
 const tangent = new THREE.Vector3();
 const lookAt = new THREE.Vector3();
@@ -572,47 +356,12 @@ let velocity = 0.0001;
 let progress = 0;
 let prevTime = performance.now();
 
-let keyUp = false;
-let keyDown = false;
-
-window.addEventListener("keydown",(e)=>{
-    if(e.code === "ArrowUp") keyUp = true;
-    if(e.code === "ArrowDown") keyDown = true;
-});
-
-window.addEventListener("keyup",(e)=>{
-    if(e.code === "ArrowUp") keyUp = false;
-    if(e.code === "ArrowDown") keyDown = false;
-});
-
-function getThumbstickY(){
-
-    const session = renderer.xr.getSession();
-    if(!session) return 0;
-
-    const sources = session.inputSources;
-    for(const source of sources){
-        if(source.gamepad && source.gamepad.axes.length > 3){
-            const y = source.gamepad.axes[3];
-            if(Math.abs(y) > 0.15){
-                return y;
-            }
-        }
-    }
-    return 0;
-}
-
-/* =====================================================
-ANIMATION LOOP
-===================================================== */
-
-// let prevPosition = new THREE.Vector3();
-// let realSpeed = 0;
-let lastSoundUpdate = 0;
+////////////////////////////////////////////////////////
+//// animation
+////////////////////////////////////////////////////////
 
 renderer.setAnimationLoop(()=>{
 
-    /* Move train */
     const time = performance.now();
     const delta = time - prevTime;
 
@@ -622,131 +371,51 @@ renderer.setAnimationLoop(()=>{
     position.copy(curve.getPointAt(progress));
     position.y += 0.2;
 
-    // const distance = position.distanceTo(prevPosition);
-    // const speedMS = distance / (delta/1000);
-
-    // realSpeed = speedMS * 3.6;
-    // realSpeedUI.textContent = realSpeed.toFixed(0) + " km/h";
-    // prevPosition.copy(position);
-
     train.position.copy(position);
-
-    // const now = performance.now();
-
-    // if(now - lastMeterUpdate > 500){
-    //     drawSpeedMeter(realSpeed);
-    //     lastMeterUpdate = now;
-    // }
 
     tangent.copy(curve.getTangentAt(progress));
 
-    const ACCEL = 0.0000001;
-    const DECEL = 0.5 * ACCEL;
+    const vc = SPEED;
 
-    /* keyboard speed control */
-    // accelState = 0;
-    if(keyUp){
-        velocity += ACCEL * delta;
-        // accelState = 1;
-    }
-    if(keyDown){
-        velocity -= DECEL * delta;
-        // accelState = -1;
-    }
+    velocity -= tangent.y * 1e-7 * delta * vc;
 
-    /* Quest thumbstick speed control */
-    const stickY = getThumbstickY();
-    if(stickY < -0.2){
-        velocity += ACCEL * delta * (-stickY);
-        // accelState = 1;
-    }
-    if(stickY > 0.2){
-        velocity -= DECEL * delta * (stickY);
-        // accelState = -1;
-    }
-
-    /* panel effect */
-    // const targetGlow = accelState !== 0 ? 1 : 0;
-    // glowStrength += (targetGlow - glowStrength) * 0.15;
-
-    /* slope physics */
-    velocity -= tangent.y * 1e-7 * delta * SPEED;
-
-    /* drag */
-    // const TARGET_SPEED = 0.00012 * SPEED;
-
-    // if(velocity > TARGET_SPEED){
-    //     const diff = velocity - TARGET_SPEED;
-
-    //     const AIR_DRAG = 0.0001;
-    //     const ROLLING  = 0.001;
-
-    //     velocity -= (diff*diff * AIR_DRAG + diff * ROLLING) * delta;
-    // }
-
-    /* velocity */
-    const MIN_SPEED = 0.00005 * SPEED;
-    const MAX_SPEED = 0.0003  * SPEED;
+    const MIN_SPEED = 0.00004 * vc;
+    const MAX_SPEED = 0.0002  * vc;
 
     velocity = Math.max(MIN_SPEED,Math.min(MAX_SPEED,velocity));
 
-    train.lookAt(lookAt.copy(position).sub(tangent));
+    train.lookAt(
+        lookAt.copy(position).sub(tangent)
+    );
 
-    /* Controls */
     if(controls) controls.update();
 
-    /* Artifact animation */
-    rotatingArtifacts.forEach(obj=>{
-        obj.rotation.y += 0.005;
-    });
-
-    /* Aura animation */
-    auras.forEach((aura, i)=>{
-        aura.rotation.y += 0.002;
-        aura.position.y = ARTIFACT_HEIGHT + (- 0.6 + Math.sin(time * 0.001 + i) * 0.04) * MODEL_SCALE;
-        const s = (0.2 + Math.sin(time * 0.002 + i) * 0.005) * MODEL_SCALE;
-        aura.scale.set(s, s, s);
-    });
-
-    /* Anchor animation */
-    anchors.forEach((a,i)=>{
-        const s = (1 + Math.sin(time * 0.002 + i) * 0.05) * MODEL_SCALE;
-        a.scale.set(s,s,s);
-    });
-
-    /* Line animation */
-    lines.forEach((l,i)=>{
-        const intensity = 0.5 + Math.sin(time * 0.003 + i)*0.5;
-        l.material.color.setRGB(0.5 * intensity, 0.8 * intensity, 1 * intensity);
-    });
-
-    /* Render */
     renderer.render(scene,camera);
+
     prevTime = time;
 
-    /* Sound control */
+    ////////////////////////////////////////
+    // sound
+    ////////////////////////////////////////
+
     if(!railSound.paused){
-        const now = performance.now();
-        if(now - lastSoundUpdate > 500){
-            lastSoundUpdate = now;
 
-            const speedRatio = velocity * 1000 * MODEL_SCALE;
+        const speedRatio = velocity * 200 * MODEL_SCALE;
 
-            if (CONFIG.curve === "trolley") {
-                railSound.volume = 0.6;
-            } else {
-                railSound.volume = Math.min(1,speedRatio);
-            }
+        railSound.volume = Math.min(1,speedRatio);
 
-            const targetRate = 1 + speedRatio * 0.5;
-            railSound.playbackRate = targetRate;
-        }
+        const targetRate = 1 + speedRatio * 2;
+
+        railSound.playbackRate +=
+            (targetRate - railSound.playbackRate) * 0.05;
     }
+
 });
 
-/* =====================================================
-WINDOW RESIZE
-===================================================== */
+////////////////////////////////////////////////////////
+//// resize
+////////////////////////////////////////////////////////
+
 window.addEventListener("resize",()=>{
     camera.aspect = window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
