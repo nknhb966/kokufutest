@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>Echizen kokufu VR Trolley</title>
+<title>越前国府発掘2023VRコースターEchizen kokufu VR Trolley</title>
 
 <style>
 /* ================================
@@ -116,10 +116,10 @@ UI PANEL
         </div>
     </div>
 
-<div class="uiRow">
-<span>REAL SPEED</span>
-<span id="realSpeed">0 km/h</span>
-</div>
+<!--     <div class="uiRow">
+        <span>REAL SPEED</span>
+        <span id="realSpeed">0 km/h</span>
+    </div> -->
 
 </div>
 
@@ -208,7 +208,7 @@ setupToggle("cameraToggle","camera");
 const speedSlider = document.getElementById("speedSlider");
 const speedValue  = document.getElementById("speedValue");
 
-const realSpeedUI = document.getElementById("realSpeed");
+// const realSpeedUI = document.getElementById("realSpeed");
 
 speedSlider.value = SPEED;
 speedValue.textContent = SPEED.toFixed(1);
@@ -217,10 +217,15 @@ speedSlider.oninput = ()=>{
     SPEED = parseFloat(speedSlider.value);
     speedValue.textContent = SPEED.toFixed(1);
     localStorage.setItem("speed",speedSlider.value);
-    location.reload();
+    // location.reload();
 };
 
 railSound.pause();
+
+/* =====================================================
+SCENE
+===================================================== */
+const scene = new THREE.Scene();
 
 /* =====================================================
 RENDERER
@@ -233,10 +238,11 @@ renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 
-/* =====================================================
-SCENE
-===================================================== */
-const scene = new THREE.Scene();
+const controller1 = renderer.xr.getController(0);
+const controller2 = renderer.xr.getController(1);
+
+scene.add(controller1);
+scene.add(controller2);
 
 /* =====================================================
 CAMERA
@@ -270,9 +276,7 @@ const curve = new MyCurve();
 /* =====================================================
 LOAD COASTER MODEL
 ===================================================== */
-await addCoaster(scene, curve, null,
-"https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu.glb"
-);
+await addCoaster(scene, curve, null, "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu.glb");
 
 /* =====================================================
 SCENE SCALE ADJUSTMENT
@@ -358,7 +362,7 @@ artifacts.forEach(data=>{
 
         /* Aura */
         const aura = new THREE.Mesh(auraGeometry, auraMaterial);
-        aura.position.set(data.x * MODEL_SCALE, data.y * MODEL_SCALE, data.z * MODEL_SCALE);
+        aura.position.set(data.x * MODEL_SCALE, ARTIFACT_HEIGHT, data.z * MODEL_SCALE);
         scene.add(aura);
         auras.push(aura);
     });
@@ -369,14 +373,8 @@ Explanations
 ===================================================== */
 const textureLoader = new THREE.TextureLoader();
 
-addPanel(
-"https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png",
-4, 5, 0.5, 0, -90, 70, 4 ,5);
-
-addPanel(
-"https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png",
--4, 5, 0.5, 0, 90, -70, 4 ,5);
-
+addPanel("https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png", 4, 5, 0.5, 0, -90, 70, 4 ,5);
+addPanel("https://echizencity.github.io/opendata/kokufuhakkutsu/20000_kokufuhakkutsu.png", -4, 5, 0.5, 0, 90, -70, 4 ,5);
 
 function addPanel(file, x, y, z, rx, ry, rz, w, h){
     textureLoader.load(file,(texture)=>{
@@ -397,11 +395,7 @@ function addPanel(file, x, y, z, rx, ry, rz, w, h){
 
         const panel = new THREE.Mesh(geometry,material);
         panel.rotation.order = "ZYX";
-        panel.rotation.set(
-            THREE.MathUtils.degToRad(rx),
-            THREE.MathUtils.degToRad(ry),
-            THREE.MathUtils.degToRad(rz)
-        );
+        panel.rotation.set(THREE.MathUtils.degToRad(rx), THREE.MathUtils.degToRad(ry), THREE.MathUtils.degToRad(rz));
         group.add(panel);
     });
 }
@@ -486,43 +480,74 @@ scene.add(train);
 Speed meter
 ===================================================== */
 
-const meterCanvas = document.createElement("canvas");
-meterCanvas.width = 256;
-meterCanvas.height = 128;
+// const meterCanvas = document.createElement("canvas");
+// meterCanvas.width = 256;
+// meterCanvas.height = 128;
 
-const meterCtx = meterCanvas.getContext("2d");
+// const meterCtx = meterCanvas.getContext("2d");
 
-const meterTexture = new THREE.CanvasTexture(meterCanvas);
+// const meterTexture = new THREE.CanvasTexture(meterCanvas);
 
-const meterMaterial = new THREE.MeshBasicMaterial({
-    map: meterTexture,
-    transparent:true
-});
+// const meterMaterial = new THREE.MeshBasicMaterial({
+//     map: meterTexture,
+//     transparent:true
+// });
 
-const meterGeometry = new THREE.PlaneGeometry(0.05, 0.03);
-const meter = new THREE.Mesh(meterGeometry,meterMaterial);
-meter.position.set(0, 0.04, -0.45);
+// const meterGeometry = new THREE.PlaneGeometry(0.3, 0.18);
+// const meter = new THREE.Mesh(meterGeometry,meterMaterial);
+// meter.position.set(0, 0.4, -0.45);
+// meter.rotation.x = THREE.MathUtils.degToRad(-90);
 
-train.add(meter);
+// train.add(meter);
 
-function drawSpeedMeter(speed){
-    meterCtx.clearRect(0,0,256,128);
+// let accelState = 0;
+// let glowStrength = 0;
+// let lastMeterUpdate = 0;
 
-    meterCtx.fillStyle = "rgba(0,0,0,0.6)";
-    meterCtx.fillRect(0,0,256,128);
+// function drawSpeedMeter(speed){
 
-    meterCtx.strokeStyle = "#66ccff";
-    meterCtx.lineWidth = 4;
-    meterCtx.strokeRect(0,0,256,128);
+//     meterCtx.clearRect(0,0,256,128);
 
-    meterCtx.fillStyle = "white";
-    meterCtx.font = "bold 40px sans-serif";
-    meterCtx.textAlign = "center";
+//     let baseColor = "rgba(0, 0, 0, 0.65)";
+//     let glowColor = null;
 
-    meterCtx.fillText(speed.toFixed(0) + " km/h", 128, 70);
+//     if(accelState === 1){
+//         glowColor = "255, 80, 80";
+//     }
+//     else if(accelState === -1){
+//         glowColor = "80, 120, 255";
+//     }
 
-    meterTexture.needsUpdate = true;
-}
+//     meterCtx.fillStyle = baseColor;
+//     meterCtx.fillRect(0, 0, 256, 128);
+
+//     if(glowColor){
+//         const alpha = glowStrength * 0.8;
+
+//         const grad = meterCtx.createRadialGradient(
+//             128, 64, 10,
+//             128, 64, 120
+//         );
+
+//         grad.addColorStop(0, `rgba(${glowColor}, ${alpha})`);
+//         grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+//         meterCtx.fillStyle = grad;
+//         meterCtx.fillRect(0, 0, 256, 128);
+//     }
+
+//     meterCtx.strokeStyle = "#66ccff";
+//     meterCtx.lineWidth = 4;
+//     meterCtx.strokeRect(0, 0, 256, 128);
+
+//     meterCtx.fillStyle = "white";
+//     meterCtx.font = "bold 40px sans-serif";
+//     meterCtx.textAlign = "center";
+
+//     meterCtx.fillText(speed.toFixed(0) + " km/h",128,70);
+
+//     meterTexture.needsUpdate = true;
+// }
 
 /* =====================================================
 CAMERA MODE
@@ -531,7 +556,7 @@ if(CONFIG.camera === "ride"){
     train.add(camera);
     camera.position.set(0, 0.2, 0);
 }else{
-    const controls = new OrbitControls(camera,renderer.domElement);
+    controls = new OrbitControls(camera,renderer.domElement);
     controls.listenToKeyEvents(window);
     camera.position.set(0, 4 * MODEL_SCALE, 20 * MODEL_SCALE);
 }
@@ -547,12 +572,43 @@ let velocity = 0.0001;
 let progress = 0;
 let prevTime = performance.now();
 
+let keyUp = false;
+let keyDown = false;
+
+window.addEventListener("keydown",(e)=>{
+    if(e.code === "ArrowUp") keyUp = true;
+    if(e.code === "ArrowDown") keyDown = true;
+});
+
+window.addEventListener("keyup",(e)=>{
+    if(e.code === "ArrowUp") keyUp = false;
+    if(e.code === "ArrowDown") keyDown = false;
+});
+
+function getThumbstickY(){
+
+    const session = renderer.xr.getSession();
+    if(!session) return 0;
+
+    const sources = session.inputSources;
+    for(const source of sources){
+        if(source.gamepad && source.gamepad.axes.length > 3){
+            const y = source.gamepad.axes[3];
+            if(Math.abs(y) > 0.15){
+                return y;
+            }
+        }
+    }
+    return 0;
+}
+
 /* =====================================================
 ANIMATION LOOP
 ===================================================== */
 
-let prevPosition = new THREE.Vector3();
-let realSpeed = 0;
+// let prevPosition = new THREE.Vector3();
+// let realSpeed = 0;
+let lastSoundUpdate = 0;
 
 renderer.setAnimationLoop(()=>{
 
@@ -566,27 +622,71 @@ renderer.setAnimationLoop(()=>{
     position.copy(curve.getPointAt(progress));
     position.y += 0.2;
 
-const distance = position.distanceTo(prevPosition);
+    // const distance = position.distanceTo(prevPosition);
+    // const speedMS = distance / (delta/1000);
 
-const speedMS = distance / (delta/1000);
-
-realSpeed = speedMS * 3.6;
-
-realSpeedUI.textContent = realSpeed.toFixed(0) + " km/h";
-
-prevPosition.copy(position);
+    // realSpeed = speedMS * 3.6;
+    // realSpeedUI.textContent = realSpeed.toFixed(0) + " km/h";
+    // prevPosition.copy(position);
 
     train.position.copy(position);
 
-drawSpeedMeter(realSpeed);
+    // const now = performance.now();
 
+    // if(now - lastMeterUpdate > 500){
+    //     drawSpeedMeter(realSpeed);
+    //     lastMeterUpdate = now;
+    // }
 
     tangent.copy(curve.getTangentAt(progress));
 
+    const ACCEL = 0.0000001;
+    const DECEL = 0.5 * ACCEL;
+
+    /* keyboard speed control */
+    // accelState = 0;
+    if(keyUp){
+        velocity += ACCEL * delta;
+        // accelState = 1;
+    }
+    if(keyDown){
+        velocity -= DECEL * delta;
+        // accelState = -1;
+    }
+
+    /* Quest thumbstick speed control */
+    const stickY = getThumbstickY();
+    if(stickY < -0.2){
+        velocity += ACCEL * delta * (-stickY);
+        // accelState = 1;
+    }
+    if(stickY > 0.2){
+        velocity -= DECEL * delta * (stickY);
+        // accelState = -1;
+    }
+
+    /* panel effect */
+    // const targetGlow = accelState !== 0 ? 1 : 0;
+    // glowStrength += (targetGlow - glowStrength) * 0.15;
+
+    /* slope physics */
     velocity -= tangent.y * 1e-7 * delta * SPEED;
 
-    const MIN_SPEED = 0.00004 * SPEED;
-    const MAX_SPEED = 0.0002  * SPEED;
+    /* drag */
+    // const TARGET_SPEED = 0.00012 * SPEED;
+
+    // if(velocity > TARGET_SPEED){
+    //     const diff = velocity - TARGET_SPEED;
+
+    //     const AIR_DRAG = 0.0001;
+    //     const ROLLING  = 0.001;
+
+    //     velocity -= (diff*diff * AIR_DRAG + diff * ROLLING) * delta;
+    // }
+
+    /* velocity */
+    const MIN_SPEED = 0.00005 * SPEED;
+    const MAX_SPEED = 0.0003  * SPEED;
 
     velocity = Math.max(MIN_SPEED,Math.min(MAX_SPEED,velocity));
 
@@ -626,14 +726,21 @@ drawSpeedMeter(realSpeed);
 
     /* Sound control */
     if(!railSound.paused){
-        const speedRatio = velocity * 1000 * MODEL_SCALE;
-        if (CONFIG.curve === "trolley") {
-            railSound.volume = 0.6
-        } else {
-            railSound.volume = Math.min(1,speedRatio);
+        const now = performance.now();
+        if(now - lastSoundUpdate > 500){
+            lastSoundUpdate = now;
+
+            const speedRatio = velocity * 1000 * MODEL_SCALE;
+
+            if (CONFIG.curve === "trolley") {
+                railSound.volume = 0.6;
+            } else {
+                railSound.volume = Math.min(1,speedRatio);
+            }
+
+            const targetRate = 1 + speedRatio * 0.5;
+            railSound.playbackRate = targetRate;
         }
-        const targetRate = 1 + speedRatio * 0.5;
-        railSound.playbackRate += (targetRate - railSound.playbackRate) * 0.05;
     }
 });
 
