@@ -502,6 +502,7 @@ train.add(meter);
 
 let accelState = 0;
 let glowStrength = 0;
+let lastMeterUpdate = 0;
 
 function drawSpeedMeter(speed){
 
@@ -607,6 +608,7 @@ ANIMATION LOOP
 
 let prevPosition = new THREE.Vector3();
 let realSpeed = 0;
+let lastSoundUpdate = 0;
 
 renderer.setAnimationLoop(()=>{
 
@@ -629,7 +631,12 @@ renderer.setAnimationLoop(()=>{
 
     train.position.copy(position);
 
-    drawSpeedMeter(realSpeed);
+    const now = performance.now();
+
+    if(now - lastMeterUpdate > 500){
+        drawSpeedMeter(realSpeed);
+        lastMeterUpdate = now;
+    }
 
     tangent.copy(curve.getTangentAt(progress));
 
@@ -719,14 +726,21 @@ renderer.setAnimationLoop(()=>{
 
     /* Sound control */
     if(!railSound.paused){
-        const speedRatio = velocity * 1000 * MODEL_SCALE;
-        if (CONFIG.curve === "trolley") {
-            railSound.volume = 0.6
-        } else {
-            railSound.volume = Math.min(1,speedRatio);
+        const now = performance.now();
+        if(now - lastSoundUpdate > 100){
+            lastSoundUpdate = now;
+
+            const speedRatio = velocity * 1000 * MODEL_SCALE;
+
+            if (CONFIG.curve === "trolley") {
+                railSound.volume = 0.6;
+            } else {
+                railSound.volume = Math.min(1,speedRatio);
+            }
+
+            const targetRate = 1 + speedRatio * 0.5;
+            railSound.playbackRate = targetRate;
         }
-        const targetRate = 1 + speedRatio * 0.5;
-        railSound.playbackRate += (targetRate - railSound.playbackRate) * 0.05;
     }
 });
 
