@@ -608,6 +608,7 @@ ANIMATION LOOP
 
 let prevPosition = new THREE.Vector3();
 let realSpeed = 0;
+let lastSpeedUIUpdate = 0;
 let lastSoundUpdate = 0;
 
 renderer.setAnimationLoop(()=>{
@@ -626,12 +627,21 @@ renderer.setAnimationLoop(()=>{
     const speedMS = distance / (delta/1000);
 
     realSpeed = speedMS * 3.6;
-    realSpeedUI.textContent = realSpeed.toFixed(0) + " km/h";
+
+    const now = performance.now();
+
+    if(now - lastSpeedUIUpdate > 100){
+        realSpeedUI.textContent = realSpeed.toFixed(0) + " km/h";
+        lastSpeedUIUpdate = now;
+    }
     prevPosition.copy(position);
 
     train.position.copy(position);
 
-    drawSpeedMeter(realSpeed);
+    if(now - lastMeterUpdate > 100){
+        drawSpeedMeter(realSpeed);
+        lastMeterUpdate = now;
+    }
 
     tangent.copy(curve.getTangentAt(progress));
 
@@ -721,7 +731,6 @@ renderer.setAnimationLoop(()=>{
 
     /* Sound control */
     if(!railSound.paused){
-        const now = performance.now();
         if(now - lastSoundUpdate > 500){
             lastSoundUpdate = now;
 
