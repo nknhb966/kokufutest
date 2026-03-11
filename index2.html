@@ -673,16 +673,16 @@ renderer.setAnimationLoop(()=>{
     velocity -= tangent.y * 1e-7 * delta * SPEED;
 
     /* drag */
-    const TARGET_SPEED = 0.00012 * SPEED;
+    // const TARGET_SPEED = 0.00012 * SPEED;
 
-    if(velocity > TARGET_SPEED){
-        const diff = velocity - TARGET_SPEED;
+    // if(velocity > TARGET_SPEED){
+    //     const diff = velocity - TARGET_SPEED;
 
-        const AIR_DRAG = 0.0001;
-        const ROLLING  = 0.001;
+    //     const AIR_DRAG = 0.0001;
+    //     const ROLLING  = 0.001;
 
-        velocity -= (diff*diff * AIR_DRAG + diff * ROLLING) * delta;
-    }
+    //     velocity -= (diff*diff * AIR_DRAG + diff * ROLLING) * delta;
+    // }
 
     /* velocity */
     const MIN_SPEED = 0.00005 * SPEED;
