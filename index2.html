@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>Echizen kokufu VR Trolley</title>
+<title>越前国府発掘2023VRコースターEchizen kokufu VR Trolley</title>
 
 <style>
 /* ================================
@@ -739,7 +739,9 @@ renderer.setAnimationLoop(()=>{
             }
 
             const targetRate = 1 + speedRatio * 0.5;
-            railSound.playbackRate = targetRate;
+            if(Math.abs(targetRate - railSound.playbackRate) > 0.05){
+                railSound.playbackRate = targetRate;
+            }
         }
     }
 });
