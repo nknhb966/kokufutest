@@ -727,7 +727,7 @@ renderer.setAnimationLoop(()=>{
     /* Sound control */
     if(!railSound.paused){
         const now = performance.now();
-        if(now - lastSoundUpdate > 100){
+        if(now - lastSoundUpdate > 500){
             lastSoundUpdate = now;
 
             const speedRatio = velocity * 1000 * MODEL_SCALE;
