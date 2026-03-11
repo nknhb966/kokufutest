@@ -631,12 +631,12 @@ renderer.setAnimationLoop(()=>{
 
     train.position.copy(position);
 
-    const now = performance.now();
+    // const now = performance.now();
 
-    if(now - lastMeterUpdate > 500){
+    // if(now - lastMeterUpdate > 250){
         drawSpeedMeter(realSpeed);
-        lastMeterUpdate = now;
-    }
+    //     lastMeterUpdate = now;
+    // }
 
     tangent.copy(curve.getTangentAt(progress));
 
