@@ -739,9 +739,7 @@ renderer.setAnimationLoop(()=>{
             }
 
             const targetRate = 1 + speedRatio * 0.5;
-            if(Math.abs(targetRate - railSound.playbackRate) > 0.05){
-                railSound.playbackRate = targetRate;
-            }
+            railSound.playbackRate = targetRate;
         }
     }
 });
