@@ -251,6 +251,16 @@ const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHei
 let controls = null;
 
 /* =====================================================
+LIGHT
+===================================================== */
+const ambient = new THREE.AmbientLight(0xffffff,1.5);
+scene.add(ambient);
+
+const sun = new THREE.DirectionalLight(0xffffff,1.2);
+sun.position.set(80,120,60);
+scene.add(sun);
+
+/* =====================================================
 COASTER CURVE
 ===================================================== */
 class MyCurve extends Curve {
@@ -760,3 +770,4 @@ window.addEventListener("resize",()=>{
 </script>
 </body>
 </html>
+
