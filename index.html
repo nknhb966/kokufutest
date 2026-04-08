@@ -12,6 +12,7 @@
     body{
         margin: 0;
         overflow: hidden;
+        font-family: 'Segoe UI', sans-serif;
     }
 
 /* ================================
@@ -26,6 +27,7 @@
         color: white;
         font-family: sans-serif;
         border-radius: 8px;
+        z-index: 10;
     }
 
     #uiPanel h3{
@@ -71,6 +73,28 @@
 
     input[type = range]{
         min-width: 200px;
+    }
+
+/* ================================
+   Reset Records Button
+================================ */
+    #resetBtn {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background: rgba(180, 30, 30, 0.85);
+        color: white;
+        border: 2px solid rgba(255,100,100,0.7);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-family: sans-serif;
+        z-index: 10;
+        transition: background 0.2s;
+    }
+    #resetBtn:hover {
+        background: rgba(220, 50, 50, 0.95);
     }
 </style>
 </head>
@@ -123,6 +147,9 @@ UI PANEL
 
 </div>
 
+<!-- Reset Records Button -->
+<button id="resetBtn">🗑 記録をリセット</button>
+
 <script type="importmap">
     {
         "imports":{
@@ -168,6 +195,43 @@ const CONFIG = {
 };
 
 let SPEED = CONFIG.speed;
+
+/* =====================================================
+GAME STATE
+===================================================== */
+const GAME_DURATION = 60; // seconds
+let gameActive = false;
+let gameTimeLeft = GAME_DURATION;
+let gameScore = 0;
+let gameTimer = null;
+// click counts per sphere index
+const sphereClickCounts = {};
+
+/* =====================================================
+HIGH SCORE (localStorage)
+===================================================== */
+const LS_KEY = "vr_coaster_scores";
+
+function loadScores() {
+    try {
+        return JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+    } catch(e) { return []; }
+}
+
+function saveScore(score) {
+    const scores = loadScores();
+    scores.push({ score, date: new Date().toLocaleDateString("ja-JP") });
+    scores.sort((a, b) => b.score - a.score);
+    scores.splice(5); // top 5
+    localStorage.setItem(LS_KEY, JSON.stringify(scores));
+}
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+    if (confirm("記録をリセットしますか？")) {
+        localStorage.removeItem(LS_KEY);
+        updateScoreBoard();
+    }
+});
 
 /* =====================================================
 UI CONTROLS
@@ -217,7 +281,6 @@ speedSlider.oninput = ()=>{
     SPEED = parseFloat(speedSlider.value);
     speedValue.textContent = SPEED.toFixed(1);
     localStorage.setItem("speed",speedSlider.value);
-    // location.reload();
 };
 
 railSound.pause();
@@ -238,8 +301,8 @@ renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 
-const controller1 = renderer.xr.getController(0);
-const controller2 = renderer.xr.getController(1);
+const controller1 = renderer.xr.getController(0); // right
+const controller2 = renderer.xr.getController(1); // left
 
 scene.add(controller1);
 scene.add(controller2);
@@ -363,14 +426,20 @@ const auraMaterial = new THREE.MeshBasicMaterial({
 const auraGeometry = new THREE.CylinderGeometry(1.2, 0.6, 12, 32, 1, true);
 
 /* Load artifacts */
-artifacts.forEach(data=>{
+// Store loaded GLTF scenes per artifact index (for coin spawning)
+const artifactScenes = {};
+
+artifacts.forEach((data, index)=>{
 
     loader.load(BASE_URL + data.file,(gltf)=>{
         const artifact = gltf.scene;
         artifact.scale.set(ARTIFACT_SCALE, ARTIFACT_SCALE, ARTIFACT_SCALE);
         artifact.position.set(data.x * MODEL_SCALE, ARTIFACT_HEIGHT, data.z * MODEL_SCALE);
+        // Store original position for coin spawn origin
+        artifact.userData.originalPos = artifact.position.clone();
         scene.add(artifact);
         rotatingArtifacts.push(artifact);
+        artifactScenes[index] = { scene: gltf.scene, file: data.file, pos: artifact.position.clone() };
 
         /* Aura */
         const aura = new THREE.Mesh(auraGeometry, auraMaterial);
@@ -431,17 +500,38 @@ const panelGeometry = new THREE.PlaneGeometry(1.5 * MODEL_SCALE, 1.5 * MODEL_SCA
 const anchors = [];
 const lines = [];
 
-explainPoints.forEach(data=>{
+// Clickable spheres (larger, for game)
+const clickableSpheres = [];
+const SPHERE_RADIUS = 0.18 * MODEL_SCALE;
+const sphereGeometry = new THREE.SphereGeometry(SPHERE_RADIUS, 24, 24);
+const sphereMaterial = new THREE.MeshBasicMaterial({
+    color: 0xffee44,
+    transparent: true,
+    opacity: 0.75
+});
+
+explainPoints.forEach((data, idx)=>{
 
     const [file, x, z, ox, oz, rot] = data;
 
     /* anchor */
     const anchor = new THREE.Mesh(anchorGeometry, anchorMaterial);
-
     anchor.position.set(x * MODEL_SCALE, 1.25 * MODEL_SCALE, z * MODEL_SCALE);
-
     scene.add(anchor);
     anchors.push(anchor);
+
+    /* clickable sphere */
+    const sphereMat = new THREE.MeshBasicMaterial({
+        color: 0xffdd33,
+        transparent: true,
+        opacity: 0.72
+    });
+    const sphere = new THREE.Mesh(sphereGeometry, sphereMat);
+    sphere.position.set(x * MODEL_SCALE, 1.25 * MODEL_SCALE, z * MODEL_SCALE);
+    sphere.userData.artifactIndex = idx;
+    sphere.userData.type = "clickable";
+    scene.add(sphere);
+    clickableSpheres.push(sphere);
 
     /* panel */
     textureLoader.load(IMAGE_BASE + file, (texture)=>{
@@ -566,6 +656,338 @@ if(CONFIG.camera === "ride"){
 }
 
 /* =====================================================
+START POSITION / GATE
+===================================================== */
+// Fixed start position (world origin area, slightly in front of origin)
+const START_POSITION = new THREE.Vector3(0, 0, 5 * MODEL_SCALE);
+
+// Gate structure
+const gateGroup = new THREE.Group();
+gateGroup.position.copy(START_POSITION);
+scene.add(gateGroup);
+
+// Gate pillars
+const pillarGeo = new THREE.BoxGeometry(0.3 * MODEL_SCALE, 3.5 * MODEL_SCALE, 0.3 * MODEL_SCALE);
+const pillarMat = new THREE.MeshBasicMaterial({ color: 0x996622 });
+const pillarL = new THREE.Mesh(pillarGeo, pillarMat);
+pillarL.position.set(-2 * MODEL_SCALE, 1.75 * MODEL_SCALE, 0);
+gateGroup.add(pillarL);
+const pillarR = new THREE.Mesh(pillarGeo, pillarMat);
+pillarR.position.set(2 * MODEL_SCALE, 1.75 * MODEL_SCALE, 0);
+gateGroup.add(pillarR);
+
+// Gate crossbar
+const crossGeo = new THREE.BoxGeometry(4.3 * MODEL_SCALE, 0.25 * MODEL_SCALE, 0.25 * MODEL_SCALE);
+const crossMat = new THREE.MeshBasicMaterial({ color: 0xcc8833 });
+const crossbar = new THREE.Mesh(crossGeo, crossMat);
+crossbar.position.set(0, 3.5 * MODEL_SCALE, 0);
+gateGroup.add(crossbar);
+
+// Gate label canvas
+const gateLabelCanvas = document.createElement("canvas");
+gateLabelCanvas.width = 512;
+gateLabelCanvas.height = 128;
+const gateLabelCtx = gateLabelCanvas.getContext("2d");
+const gateLabelTexture = new THREE.CanvasTexture(gateLabelCanvas);
+
+function drawGateLabel(text, color = "#ffee44") {
+    gateLabelCtx.clearRect(0, 0, 512, 128);
+    gateLabelCtx.fillStyle = "rgba(0,0,0,0.7)";
+    gateLabelCtx.fillRect(0, 0, 512, 128);
+    gateLabelCtx.fillStyle = color;
+    gateLabelCtx.font = "bold 52px sans-serif";
+    gateLabelCtx.textAlign = "center";
+    gateLabelCtx.textBaseline = "middle";
+    gateLabelCtx.fillText(text, 256, 64);
+    gateLabelTexture.needsUpdate = true;
+}
+drawGateLabel("🏛 スタートゲート 🏛");
+
+const gateLabelGeo = new THREE.PlaneGeometry(3.5 * MODEL_SCALE, 0.8 * MODEL_SCALE);
+const gateLabelMat = new THREE.MeshBasicMaterial({ map: gateLabelTexture, transparent: true, side: THREE.DoubleSide });
+const gateLabel = new THREE.Mesh(gateLabelGeo, gateLabelMat);
+gateLabel.position.set(0, 3.5 * MODEL_SCALE, 0.1 * MODEL_SCALE);
+gateGroup.add(gateLabel);
+
+/* =====================================================
+HUD - In-VR Score/Timer display (attached to camera)
+===================================================== */
+// HUD canvas
+const hudCanvas = document.createElement("canvas");
+hudCanvas.width = 512;
+hudCanvas.height = 256;
+const hudCtx = hudCanvas.getContext("2d");
+const hudTexture = new THREE.CanvasTexture(hudCanvas);
+
+const hudMaterial = new THREE.MeshBasicMaterial({
+    map: hudTexture,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false
+});
+const hudGeometry = new THREE.PlaneGeometry(0.5, 0.25);
+const hudMesh = new THREE.Mesh(hudGeometry, hudMaterial);
+hudMesh.position.set(0.28, 0.05, -0.45);
+hudMesh.renderOrder = 999;
+train.add(hudMesh);
+
+// Scoreboard HUD canvas
+const sbCanvas = document.createElement("canvas");
+sbCanvas.width = 512;
+sbCanvas.height = 512;
+const sbCtx = sbCanvas.getContext("2d");
+const sbTexture = new THREE.CanvasTexture(sbCanvas);
+const sbMaterial = new THREE.MeshBasicMaterial({ map: sbTexture, transparent: true, depthTest: false });
+const sbGeo = new THREE.PlaneGeometry(0.4, 0.4);
+const sbMesh = new THREE.Mesh(sbGeo, sbMaterial);
+sbMesh.position.set(-0.28, 0.05, -0.45);
+sbMesh.renderOrder = 999;
+train.add(sbMesh);
+
+function updateHUD() {
+    hudCtx.clearRect(0, 0, 512, 256);
+    hudCtx.fillStyle = "rgba(0,0,0,0.72)";
+    roundRect(hudCtx, 4, 4, 504, 248, 16);
+    hudCtx.fill();
+
+    // Timer bar bg
+    hudCtx.fillStyle = "rgba(255,255,255,0.15)";
+    hudCtx.fillRect(20, 180, 472, 20);
+
+    // Timer bar fill
+    const ratio = gameTimeLeft / GAME_DURATION;
+    const barColor = ratio > 0.4 ? "#44ee88" : ratio > 0.2 ? "#ffcc22" : "#ff4444";
+    hudCtx.fillStyle = barColor;
+    hudCtx.fillRect(20, 180, Math.max(0, 472 * ratio), 20);
+
+    // Score
+    hudCtx.fillStyle = "#ffee44";
+    hudCtx.font = "bold 36px sans-serif";
+    hudCtx.textAlign = "left";
+    hudCtx.fillText("SCORE", 24, 50);
+    hudCtx.fillStyle = "white";
+    hudCtx.font = "bold 72px sans-serif";
+    hudCtx.fillText(gameScore, 24, 120);
+
+    // Timer value
+    hudCtx.fillStyle = barColor;
+    hudCtx.font = "bold 28px sans-serif";
+    hudCtx.textAlign = "right";
+    hudCtx.fillText(`⏱ ${gameTimeLeft}s`, 490, 170);
+
+    // Status
+    hudCtx.textAlign = "center";
+    if (!gameActive) {
+        hudCtx.fillStyle = "#88ffcc";
+        hudCtx.font = "bold 22px sans-serif";
+        hudCtx.fillText("A: スタート  B: 強制終了", 256, 232);
+    }
+
+    hudTexture.needsUpdate = true;
+}
+
+function updateScoreBoard() {
+    sbCtx.clearRect(0, 0, 512, 512);
+    sbCtx.fillStyle = "rgba(0,0,0,0.72)";
+    roundRect(sbCtx, 4, 4, 504, 504, 16);
+    sbCtx.fill();
+
+    sbCtx.fillStyle = "#ffcc44";
+    sbCtx.font = "bold 30px sans-serif";
+    sbCtx.textAlign = "center";
+    sbCtx.fillText("🏆 TOP 5", 256, 44);
+
+    const scores = loadScores();
+    if (scores.length === 0) {
+        sbCtx.fillStyle = "#aaa";
+        sbCtx.font = "22px sans-serif";
+        sbCtx.fillText("記録なし", 256, 120);
+    } else {
+        scores.forEach((s, i) => {
+            const y = 90 + i * 82;
+            sbCtx.fillStyle = i === 0 ? "#ffd700" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "#88ccff";
+            sbCtx.font = `bold ${i === 0 ? 34 : 28}px sans-serif`;
+            sbCtx.textAlign = "left";
+            sbCtx.fillText(`${i+1}. ${s.score}pt`, 30, y);
+            sbCtx.fillStyle = "#888";
+            sbCtx.font = "18px sans-serif";
+            sbCtx.textAlign = "right";
+            sbCtx.fillText(s.date, 480, y);
+        });
+    }
+
+    sbTexture.needsUpdate = true;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.arcTo(x + w, y, x + w, y + r, r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+    ctx.lineTo(x + r, y + h);
+    ctx.arcTo(x, y + h, x, y + h - r, r);
+    ctx.lineTo(x, y + r);
+    ctx.arcTo(x, y, x + r, y, r);
+    ctx.closePath();
+}
+
+updateHUD();
+updateScoreBoard();
+
+/* =====================================================
+GAME START / END FUNCTIONS
+===================================================== */
+function startGame() {
+    if (gameActive) return;
+    gameActive = true;
+    gameScore = 0;
+    gameTimeLeft = GAME_DURATION;
+    for (const k in sphereClickCounts) delete sphereClickCounts[k];
+    updateHUD();
+    drawGateLabel("🎮 ゲーム中！", "#ff4444");
+
+    gameTimer = setInterval(() => {
+        gameTimeLeft--;
+        updateHUD();
+        if (gameTimeLeft <= 0) {
+            endGame(true);
+        }
+    }, 1000);
+}
+
+function endGame(save) {
+    if (!gameActive) return;
+    gameActive = false;
+    clearInterval(gameTimer);
+    if (save && gameScore > 0) {
+        saveScore(gameScore);
+        updateScoreBoard();
+    }
+    gameTimeLeft = GAME_DURATION;
+    gameScore = 0;
+    updateHUD();
+    drawGateLabel("🏛 スタートゲート 🏛");
+    // Cleanup all flying coins
+    activeCoinAnimations.forEach(c => {
+        if (c.mesh) scene.remove(c.mesh);
+    });
+    activeCoinAnimations.length = 0;
+}
+
+/* =====================================================
+LASER / CONTROLLER RAYCASTER
+===================================================== */
+const raycaster = new THREE.Raycaster();
+const laserMaterial = new THREE.LineBasicMaterial({ color: 0xff2222, linewidth: 2 });
+const laserGeometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, -30)
+]);
+
+const laserLine1 = new THREE.Line(laserGeometry.clone(), laserMaterial.clone());
+controller1.add(laserLine1);
+
+// Reusable temp matrix
+const tempMatrix = new THREE.Matrix4();
+
+/* =====================================================
+COIN ANIMATIONS
+===================================================== */
+const activeCoinAnimations = [];
+
+function spawnCoin(sphereIndex, isFirst) {
+    const sphereData = artifactScenes[sphereIndex];
+    if (!sphereData) return;
+
+    // Clone model
+    loader.load(BASE_URL + artifacts[sphereIndex].file, (gltf) => {
+        const coin = gltf.scene;
+        const spawnPos = sphereData.pos.clone();
+        coin.scale.set(ARTIFACT_SCALE * 0.6, ARTIFACT_SCALE * 0.6, ARTIFACT_SCALE * 0.6);
+        coin.position.copy(spawnPos);
+        scene.add(coin);
+
+        if (isFirst) {
+            // 1st click: fly to artifact position, stay there
+            const targetPos = sphereData.pos.clone();
+            activeCoinAnimations.push({
+                mesh: coin,
+                startPos: spawnPos.clone(),
+                targetPos: targetPos.clone(),
+                t: 0,
+                duration: 1.2,
+                mode: "place",
+                opacity: 1,
+                placed: false
+            });
+        } else {
+            // 2nd+ click: fountain arc trajectory, then fade out
+            const angle = Math.random() * Math.PI * 2;
+            const spread = (0.6 + Math.random() * 1.4) * MODEL_SCALE;
+            const vx = Math.cos(angle) * spread;
+            const vz = Math.sin(angle) * spread;
+            activeCoinAnimations.push({
+                mesh: coin,
+                startPos: spawnPos.clone(),
+                vx, vz,
+                vy: (2.5 + Math.random() * 1.5) * MODEL_SCALE,
+                t: 0,
+                duration: 1.8,
+                mode: "fountain",
+                opacity: 1
+            });
+        }
+    });
+}
+
+/* =====================================================
+BUTTON STATE TRACKING
+===================================================== */
+let prevAButton = false;
+let prevBButton = false;
+let prevTrigger = false;
+
+function getGamepadButtons() {
+    const session = renderer.xr.getSession();
+    if (!session) return { a: false, b: false, trigger: false };
+    for (const source of session.inputSources) {
+        if (!source.gamepad) continue;
+        const gp = source.gamepad;
+        const handedness = source.handedness;
+        if (handedness === "right") {
+            const a = gp.buttons[4] ? gp.buttons[4].pressed : false;
+            const b = gp.buttons[5] ? gp.buttons[5].pressed : false;
+            const trigger = gp.buttons[0] ? gp.buttons[0].pressed : false;
+            return { a, b, trigger };
+        }
+    }
+    return { a: false, b: false, trigger: false };
+}
+
+/* =====================================================
+HANDLE SPHERE CLICK
+===================================================== */
+function handleSphereClick(sphere) {
+    if (!gameActive) return;
+    const idx = sphere.userData.artifactIndex;
+    const count = sphereClickCounts[idx] || 0;
+    const isFirst = count === 0;
+    sphereClickCounts[idx] = count + 1;
+
+    const points = isFirst ? 5 : 1;
+    gameScore += points;
+    updateHUD();
+
+    // Sphere flash
+    sphere.material.color.set(isFirst ? 0xff4444 : 0xffffff);
+    setTimeout(() => sphere.material.color.set(0xffdd33), 150);
+
+    spawnCoin(idx, isFirst);
+}
+
+/* =====================================================
 COASTER MOTION VARIABLES
 ===================================================== */
 const position = new THREE.Vector3();
@@ -582,6 +1004,9 @@ let keyDown = false;
 window.addEventListener("keydown",(e)=>{
     if(e.code === "ArrowUp") keyUp = true;
     if(e.code === "ArrowDown") keyDown = true;
+    // Keyboard shortcut for testing: S = start, E = end
+    if(e.code === "KeyS") startGame();
+    if(e.code === "KeyE") endGame(false);
 });
 
 window.addEventListener("keyup",(e)=>{
@@ -727,6 +1152,109 @@ renderer.setAnimationLoop(()=>{
     lines.forEach((l,i)=>{
         const intensity = 0.5 + Math.sin(time * 0.003 + i)*0.5;
         l.material.color.setRGB(0.5 * intensity, 0.8 * intensity, 1 * intensity);
+    });
+
+    /* Coin animations */
+    const dt = delta / 1000;
+    for (let i = activeCoinAnimations.length - 1; i >= 0; i--) {
+        const c = activeCoinAnimations[i];
+        c.t += dt;
+        const tRatio = Math.min(c.t / c.duration, 1);
+
+        if (c.mode === "place") {
+            // Fly from spawn to target with arc
+            const arc = Math.sin(tRatio * Math.PI) * 2 * MODEL_SCALE;
+            c.mesh.position.lerpVectors(c.startPos, c.targetPos, tRatio);
+            c.mesh.position.y += arc;
+            c.mesh.rotation.y += 0.15;
+            c.mesh.rotation.z += 0.05;
+            if (tRatio >= 1 && !c.placed) {
+                c.placed = true;
+                c.mesh.position.copy(c.targetPos);
+                // Settle: keep the coin at target, fade after 1 second
+                setTimeout(() => {
+                    // Remove from scene gradually
+                    const fadeAnim = { mesh: c.mesh, t: 0, duration: 0.5, mode: "fade", opacity: 1 };
+                    activeCoinAnimations.push(fadeAnim);
+                }, 800);
+                activeCoinAnimations.splice(i, 1);
+            }
+        } else if (c.mode === "fountain") {
+            // Fountain arc
+            const elapsed = c.t;
+            const g = 9.8 * MODEL_SCALE;
+            c.mesh.position.x = c.startPos.x + c.vx * elapsed;
+            c.mesh.position.z = c.startPos.z + c.vz * elapsed;
+            c.mesh.position.y = c.startPos.y + c.vy * elapsed - 0.5 * g * elapsed * elapsed;
+            c.mesh.rotation.y += 0.2;
+            c.mesh.rotation.x += 0.1;
+
+            // Fade on descent
+            const peakT = c.vy / g;
+            if (elapsed > peakT) {
+                const fadeRatio = Math.max(0, 1 - (elapsed - peakT) / (c.duration - peakT));
+                c.opacity = fadeRatio;
+                c.mesh.traverse(child => {
+                    if (child.isMesh && child.material) {
+                        child.material.transparent = true;
+                        child.material.opacity = fadeRatio;
+                    }
+                });
+            }
+
+            if (tRatio >= 1) {
+                scene.remove(c.mesh);
+                activeCoinAnimations.splice(i, 1);
+            }
+        } else if (c.mode === "fade") {
+            const alpha = Math.max(0, 1 - c.t / c.duration);
+            c.mesh.traverse(child => {
+                if (child.isMesh && child.material) {
+                    child.material.transparent = true;
+                    child.material.opacity = alpha;
+                }
+            });
+            if (c.t >= c.duration) {
+                scene.remove(c.mesh);
+                activeCoinAnimations.splice(i, 1);
+            }
+        }
+    }
+
+    /* Laser / controller input */
+    // Laser ray from controller1 (right hand)
+    tempMatrix.identity().extractRotation(controller1.matrixWorld);
+    raycaster.ray.origin.setFromMatrixPosition(controller1.matrixWorld);
+    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+    const intersects = raycaster.intersectObjects(clickableSpheres, false);
+    const laserLen = intersects.length > 0 ? intersects[0].distance : 30;
+    const laserPoints = [new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-laserLen)];
+    laserLine1.geometry.setFromPoints(laserPoints);
+    laserLine1.material.color.set(intersects.length > 0 ? 0x00ff88 : 0xff2222);
+
+    /* Gamepad buttons */
+    const { a, b, trigger } = getGamepadButtons();
+
+    if (a && !prevAButton) {
+        if (!gameActive) startGame();
+    }
+    if (b && !prevBButton) {
+        if (gameActive) endGame(false);
+    }
+    if (trigger && !prevTrigger) {
+        if (intersects.length > 0) {
+            handleSphereClick(intersects[0].object);
+        }
+    }
+    prevAButton = a;
+    prevBButton = b;
+    prevTrigger = trigger;
+
+    /* Clickable sphere pulse */
+    clickableSpheres.forEach((s, i) => {
+        const pulse = 0.9 + Math.sin(time * 0.003 + i * 0.8) * 0.1;
+        s.scale.setScalar(pulse);
     });
 
     /* Render */
