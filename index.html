@@ -4,118 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
 <title>越前国府発掘2025VRコースター</title>
-
 <style>
-/* ================================
-   Basic Page Style
-================================ */
-    body{
-        margin: 0;
-        overflow: hidden;
-        font-family: 'Segoe UI', sans-serif;
+    body { margin:0; overflow:hidden; font-family:sans-serif; }
+    #uiPanel {
+        position:absolute; top:20px; left:20px; padding:15px;
+        background:rgba(0,0,0,0.6); color:white; border-radius:8px; z-index:10;
     }
-
-/* ================================
-   Control Panel UI
-================================ */
-    #uiPanel{
-        position: absolute;
-        top: 20px;
-        left: 20px;
-        padding: 15px;
-        background: rgba(0,0,0,0.6);
-        color: white;
-        font-family: sans-serif;
-        border-radius: 8px;
-        z-index: 10;
-    }
-
-    #uiPanel h3{
-        margin: 0 0 10px 0;
-        font-size: 14px;
-    }
-
-    #uiPanel span{
-        margin: 0 20px 0 0;
-    }
-
-    .uiRow{
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin: 20px 0;
-    }
-
-    .toggle{
-        display: flex;
-    }
-
-    .toggle button{
-        border: none;
-        padding: 16px 20px;
-        min-width: 125px;
-        background: #777;
-        color: white;
-        cursor: pointer;
-    }
-
-    .toggle button:first-child{
-        border-radius: 4px 0 0 4px;
-    }
-
-    .toggle button:last-child{
-        border-radius: 0 4px 4px 0;
-    }
-
-    .toggle button.active{
-        background: #4caf50;
-    }
-
-    input[type = range]{
-        min-width: 200px;
-    }
-
-/* ================================
-   Reset Records Button
-================================ */
+    #uiPanel h3 { margin:0 0 10px 0; font-size:14px; }
+    #uiPanel span { margin:0 20px 0 0; }
+    .uiRow { display:flex; align-items:center; justify-content:space-between; margin:20px 0; }
+    .toggle { display:flex; }
+    .toggle button { border:none; padding:16px 20px; min-width:125px; background:#777; color:white; cursor:pointer; }
+    .toggle button:first-child { border-radius:4px 0 0 4px; }
+    .toggle button:last-child  { border-radius:0 4px 4px 0; }
+    .toggle button.active { background:#4caf50; }
+    input[type=range] { min-width:200px; }
     #resetBtn {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        padding: 10px 20px;
-        background: rgba(180, 30, 30, 0.85);
-        color: white;
-        border: 2px solid rgba(255,100,100,0.7);
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        font-family: sans-serif;
-        z-index: 10;
-        transition: background 0.2s;
+        position:absolute; bottom:20px; right:20px; padding:10px 20px;
+        background:rgba(180,30,30,0.85); color:white;
+        border:2px solid rgba(255,100,100,0.7); border-radius:6px;
+        cursor:pointer; font-size:14px; z-index:10;
     }
-    #resetBtn:hover {
-        background: rgba(220, 50, 50, 0.95);
-    }
+    #resetBtn:hover { background:rgba(220,50,50,0.95); }
 </style>
 </head>
-
 <body>
-
 <audio id="railSound" src="trolley_clatter.mp3" loop></audio>
-
-<!-- ========================================
-UI PANEL
-======================================== -->
 <div id="uiPanel">
-
     <h3>COASTER CONTROL</h3>
-
     <div class="uiRow">
         <span>SPEED</span>
         <input id="speedSlider" type="range" min="0.1" max="2" step="0.1" value="1">
         <span id="speedValue"></span>
     </div>
-
     <div class="uiRow">
         <span>SOUND</span>
         <div class="toggle" id="soundToggle">
@@ -123,7 +44,6 @@ UI PANEL
             <button data-value="on">ON</button>
         </div>
     </div>
-
     <div class="uiRow">
         <span>CURVE</span>
         <div class="toggle" id="curveToggle">
@@ -131,7 +51,6 @@ UI PANEL
             <button data-value="coaster">COASTER</button>
         </div>
     </div>
-
     <div class="uiRow">
         <span>CAMERA</span>
         <div class="toggle" id="cameraToggle">
@@ -139,93 +58,67 @@ UI PANEL
             <button data-value="outside">OUTSIDE</button>
         </div>
     </div>
-
     <div class="uiRow">
         <span>REAL SPEED</span>
         <span id="realSpeed">0 km/h</span>
     </div>
-
 </div>
-
-<!-- Reset Records Button -->
 <button id="resetBtn">🗑 記録をリセット</button>
 
 <script type="importmap">
-    {
-        "imports":{
-            "three":"https://code4fukui.github.io/three.js/build/three.module.js",
-            "three/addons/":"https://code4fukui.github.io/three.js/examples/jsm/"
-        }
+{
+    "imports":{
+        "three":"https://code4fukui.github.io/three.js/build/three.module.js",
+        "three/addons/":"https://code4fukui.github.io/three.js/examples/jsm/"
     }
+}
 </script>
-
-<!-- =====================================================
-IMPORTS
-===================================================== -->
 <script type="module">
-
 import * as THREE from "three";
-import {Curve,addCoaster} from "https://code4fukui.github.io/vr-tojinbo/TojinboCoaster.js";
+import {Curve, addCoaster} from "https://code4fukui.github.io/vr-tojinbo/TojinboCoaster.js";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {VRButton} from "three/addons/webxr/VRButton.js";
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
+import {XRControllerModelFactory} from "three/addons/webxr/XRControllerModelFactory.js";
 
 /* =====================================================
-GLOBAL SETTINGS
+CONSTANTS
 ===================================================== */
-const MODEL_SCALE = 5;
-
-/* Artifact settings */
+const MODEL_SCALE    = 5;
 const ARTIFACT_SCALE = MODEL_SCALE;
-const ARTIFACT_HEIGHT = 1.5 * MODEL_SCALE;
-
-/* Rail settings */
-const RAIL_RADIUS = 3.6 * MODEL_SCALE;
-const RAIL_HEIGHT = 1.7 * MODEL_SCALE;
-const RAIL_OVAL = 0.4;
+const ARTIFACT_HEIGHT= 1.5 * MODEL_SCALE;
+const RAIL_RADIUS    = 3.6 * MODEL_SCALE;
+const RAIL_HEIGHT    = 1.7 * MODEL_SCALE;
+const RAIL_OVAL      = 0.4;
+const GAME_DURATION  = 60;
+const LASER_MAX_DIST = 25;
 
 /* =====================================================
-CONFIGURATION (LocalStorage)
+CONFIG
 ===================================================== */
 const CONFIG = {
-    sound  : "off",
-    curve  : localStorage.getItem("curve")  || "trolley",
-    camera : localStorage.getItem("camera") || "ride",
-    speed  : parseFloat(localStorage.getItem("speed") || 0.5)
+    sound : "off",
+    curve : localStorage.getItem("curve")  || "trolley",
+    camera: localStorage.getItem("camera") || "ride",
+    speed : parseFloat(localStorage.getItem("speed") || 0.5)
 };
-
 let SPEED = CONFIG.speed;
 
 /* =====================================================
-GAME STATE
+SCORES
 ===================================================== */
-const GAME_DURATION = 60; // seconds
-let gameActive = false;
-let gameTimeLeft = GAME_DURATION;
-let gameScore = 0;
-let gameTimer = null;
-// click counts per sphere index
-const sphereClickCounts = {};
-
-/* =====================================================
-HIGH SCORE (localStorage)
-===================================================== */
-const LS_KEY = "vr_coaster_scores";
-
+const LS_KEY = "vr_coaster_scores_v2";
 function loadScores() {
-    try {
-        return JSON.parse(localStorage.getItem(LS_KEY) || "[]");
-    } catch(e) { return []; }
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); }
+    catch(e) { return []; }
 }
-
 function saveScore(score) {
-    const scores = loadScores();
-    scores.push({ score, date: new Date().toLocaleDateString("ja-JP") });
-    scores.sort((a, b) => b.score - a.score);
-    scores.splice(5); // top 5
-    localStorage.setItem(LS_KEY, JSON.stringify(scores));
+    const arr = loadScores();
+    arr.push({ score, date: new Date().toLocaleDateString("ja-JP") });
+    arr.sort((a,b)=>b.score-a.score);
+    arr.splice(5);
+    localStorage.setItem(LS_KEY, JSON.stringify(arr));
 }
-
 document.getElementById("resetBtn").addEventListener("click", () => {
     if (confirm("記録をリセットしますか？")) {
         localStorage.removeItem(LS_KEY);
@@ -234,1061 +127,775 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 });
 
 /* =====================================================
-UI CONTROLS
+UI SETUP
 ===================================================== */
 const railSound = document.getElementById("railSound");
-
-function setupToggle(id,key){
-
-    const buttons = document.querySelectorAll(`#${id} button`);
-
-    buttons.forEach(btn=>{
-
-        const value = btn.dataset.value;
-
-        if(value === CONFIG[key]) btn.classList.add("active");
-
-        btn.onclick = ()=>{
-
-            buttons.forEach(b=>b.classList.remove("active"));
+function setupToggle(id, key) {
+    const btns = document.querySelectorAll(`#${id} button`);
+    btns.forEach(btn => {
+        if (btn.dataset.value === CONFIG[key]) btn.classList.add("active");
+        btn.onclick = () => {
+            btns.forEach(b=>b.classList.remove("active"));
             btn.classList.add("active");
-
-            if(key === "sound"){
-                value === "on" ? railSound.play() : railSound.pause();
-                return;
-            }
-
-            localStorage.setItem(key,value);
+            if (key === "sound") { btn.dataset.value==="on" ? railSound.play() : railSound.pause(); return; }
+            localStorage.setItem(key, btn.dataset.value);
             location.reload();
         };
     });
 }
-
 setupToggle("soundToggle","sound");
 setupToggle("curveToggle","curve");
 setupToggle("cameraToggle","camera");
-
-/* Speed slider */
 const speedSlider = document.getElementById("speedSlider");
-const speedValue  = document.getElementById("speedValue");
-
-const realSpeedUI = document.getElementById("realSpeed");
-
+const speedValueEl = document.getElementById("speedValue");
+const realSpeedUI  = document.getElementById("realSpeed");
 speedSlider.value = SPEED;
-speedValue.textContent = SPEED.toFixed(1);
-
-speedSlider.oninput = ()=>{
+speedValueEl.textContent = SPEED.toFixed(1);
+speedSlider.oninput = () => {
     SPEED = parseFloat(speedSlider.value);
-    speedValue.textContent = SPEED.toFixed(1);
-    localStorage.setItem("speed",speedSlider.value);
+    speedValueEl.textContent = SPEED.toFixed(1);
+    localStorage.setItem("speed", SPEED);
 };
-
 railSound.pause();
 
 /* =====================================================
-SCENE
+SCENE / RENDERER
 ===================================================== */
-const scene = new THREE.Scene();
-
-/* =====================================================
-RENDERER
-===================================================== */
-const renderer = new THREE.WebGLRenderer({antialias: true});
+const scene    = new THREE.Scene();
+const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
-
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 
-const controller1 = renderer.xr.getController(0); // right
-const controller2 = renderer.xr.getController(1); // left
+/* =====================================================
+CONTROLLERS
+===================================================== */
+const ctrlModelFactory = new XRControllerModelFactory();
 
-scene.add(controller1);
-scene.add(controller2);
+// Grip (shows physical model)
+const grip0 = renderer.xr.getControllerGrip(0); // right
+const grip1 = renderer.xr.getControllerGrip(1); // left
+grip0.add(ctrlModelFactory.createControllerModel(grip0));
+grip1.add(ctrlModelFactory.createControllerModel(grip1));
+scene.add(grip0);
+scene.add(grip1);
+
+// Ray sources
+const ctrl0 = renderer.xr.getController(0); // right – laser + buttons
+const ctrl1 = renderer.xr.getController(1); // left
+scene.add(ctrl0);
+scene.add(ctrl1);
+
+/* -----  LASER  ----- */
+// Build laser geometry updated each frame
+const laserPts = [new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-LASER_MAX_DIST)];
+const laserGeo = new THREE.BufferGeometry().setFromPoints(laserPts);
+const laserMat = new THREE.LineBasicMaterial({
+    color:0xff2222,
+    depthTest:false,   // renders on top of everything → always visible
+    transparent:true,
+    opacity:0.95
+});
+const laser = new THREE.Line(laserGeo, laserMat);
+laser.frustumCulled = false;
+laser.renderOrder = 9999;
+ctrl0.add(laser);
+
+// Small dot at hit point
+const dotGeo = new THREE.SphereGeometry(0.010, 8, 8);
+const dotMat = new THREE.MeshBasicMaterial({ color:0xffffff, depthTest:false });
+const laserDot = new THREE.Mesh(dotGeo, dotMat);
+laserDot.renderOrder = 9999;
+laserDot.visible = false;
+ctrl0.add(laserDot);
 
 /* =====================================================
 CAMERA
 ===================================================== */
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
-let controls = null;
+let orbitControls = null;
 
 /* =====================================================
-LIGHT
+LIGHTS
 ===================================================== */
-const ambient = new THREE.AmbientLight(0xffffff,1.5);
-scene.add(ambient);
-
-const sun = new THREE.DirectionalLight(0xffffff,1.2);
+scene.add(new THREE.AmbientLight(0xffffff, 1.5));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
 sun.position.set(80,120,60);
 scene.add(sun);
 
 /* =====================================================
-COASTER CURVE
+CURVE
 ===================================================== */
 class MyCurve extends Curve {
-
     getPointAt(t) {
-        t *= Math.PI * 2;
+        t *= Math.PI*2;
         if (CONFIG.curve === "trolley") {
-            const x = Math.sin(t * 3) * RAIL_RADIUS;
-            const y = RAIL_HEIGHT;
-            const z = Math.sin(t * 2) * RAIL_RADIUS * RAIL_OVAL;
-            return this.vector.set(x, y, z);
-        } else {
-            const x = Math.sin(t * 3) * Math.cos(t * 4) * RAIL_RADIUS;
-            const y = (Math.sin(t * 10) + Math.cos(t * 17)) * 0.4 * MODEL_SCALE + RAIL_HEIGHT;
-            const z = Math.sin(t) * Math.sin(t * 4) * RAIL_RADIUS * RAIL_OVAL;
-            return this.vector.set(x, y, z);
+            return this.vector.set(Math.sin(t*3)*RAIL_RADIUS, RAIL_HEIGHT, Math.sin(t*2)*RAIL_RADIUS*RAIL_OVAL);
         }
+        return this.vector.set(
+            Math.sin(t*3)*Math.cos(t*4)*RAIL_RADIUS,
+            (Math.sin(t*10)+Math.cos(t*17))*0.4*MODEL_SCALE+RAIL_HEIGHT,
+            Math.sin(t)*Math.sin(t*4)*RAIL_RADIUS*RAIL_OVAL
+        );
     }
 }
-
 const curve = new MyCurve();
 
 /* =====================================================
-LOAD COASTER MODEL
+COASTER MODEL
 ===================================================== */
-await addCoaster(scene, curve, null, "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu3.glb");
+await addCoaster(scene, curve, null,
+    "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu3.glb");
 
-/* =====================================================
-SCENE SCALE ADJUSTMENT
-===================================================== */
 let scaled = false;
-
-scene.traverse((obj) => {
-    if(obj.isMesh && !scaled){
-        let root = obj;
-        while(root.parent && root.parent.type !== "Scene"){
-            root = root.parent;
-        }
-        root.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+scene.traverse(o => {
+    if (o.isMesh && !scaled) {
+        let root = o;
+        while (root.parent && root.parent.type !== "Scene") root = root.parent;
+        root.scale.set(MODEL_SCALE,MODEL_SCALE,MODEL_SCALE);
         root.rotation.y = THREE.MathUtils.degToRad(-90);
         scaled = true;
     }
 });
 
 /* =====================================================
-ARTIFACTS
+ARTIFACTS — hidden until first click per sphere
 ===================================================== */
-const loader = new GLTFLoader();
-
-const BASE_URL = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu3/";
-
-const artifacts = [
+const loader  = new GLTFLoader();
+const BASE_URL= "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu3/";
+const ARTIFACTS = [
     {file:"model01_small.glb", x:-2.7, z:-0.5},
-    {file:"model02_small.glb", x:4.0, z:2.4},
-    {file:"model03_small.glb", x:3.8, z:-0.7},
-    {file:"model04_small.glb", x:3.0, z:-2.2},
-    {file:"model05_small.glb", x:0, z:-1.5},
-    {file:"model06_small.glb", x:3.2, z:2.2},
-    {file:"model07_small.glb", x:-2, z:-1},
-    {file:"model08_small.glb", x:-1.8, z:1.2}
+    {file:"model02_small.glb", x: 4.0, z: 2.4},
+    {file:"model03_small.glb", x: 3.8, z:-0.7},
+    {file:"model04_small.glb", x: 3.0, z:-2.2},
+    {file:"model05_small.glb", x:   0, z:-1.5},
+    {file:"model06_small.glb", x: 3.2, z: 2.2},
+    {file:"model07_small.glb", x:  -2, z:  -1},
+    {file:"model08_small.glb", x:-1.8, z: 1.2}
 ];
 
-const rotatingArtifacts = [];
-const auras = [];
+const artifactWorldPos = {}; // idx → THREE.Vector3
+const permanentModels  = {}; // idx → THREE.Object3D (hidden until 1st click)
+const rotatingObjects  = [];
+const auras            = [];
 
-/* Aura visual */
-function createAuraTexture(){
-
-    const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 256;
-
-    const ctx = canvas.getContext("2d");
-
-    const gradient = ctx.createLinearGradient(0, 256, 0, 0);
-
-    gradient.addColorStop(0, "rgba(100, 200, 255, 0.4)");
-    gradient.addColorStop(0.4, "rgba(100, 200, 255, 0.25)");
-    gradient.addColorStop(0.7, "rgba(100, 200, 255, 0.1)");
-    gradient.addColorStop(1, "rgba(100, 200, 255, 0)");
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 64, 256);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-
-    return texture;
+// Aura texture
+function makeAuraTex() {
+    const c = document.createElement("canvas"); c.width=64; c.height=256;
+    const ctx=c.getContext("2d"), g=ctx.createLinearGradient(0,256,0,0);
+    g.addColorStop(0,  "rgba(100,200,255,0.4)");
+    g.addColorStop(0.4,"rgba(100,200,255,0.25)");
+    g.addColorStop(0.7,"rgba(100,200,255,0.1)");
+    g.addColorStop(1,  "rgba(100,200,255,0)");
+    ctx.fillStyle=g; ctx.fillRect(0,0,64,256);
+    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
 }
+const auraTex = makeAuraTex();
+const auraMat = new THREE.MeshBasicMaterial({map:auraTex,transparent:true,depthWrite:false,side:THREE.DoubleSide});
+const auraGeo = new THREE.CylinderGeometry(1.2,0.6,12,32,1,true);
 
-const auraTexture = createAuraTexture();
+ARTIFACTS.forEach((data,idx) => {
+    const worldPos = new THREE.Vector3(data.x*MODEL_SCALE, ARTIFACT_HEIGHT, data.z*MODEL_SCALE);
+    artifactWorldPos[idx] = worldPos;
 
-const auraMaterial = new THREE.MeshBasicMaterial({
-    map: auraTexture,
-    transparent: true,
-    depthWrite:false,
-    side: THREE.DoubleSide
-});
+    // Aura — always visible
+    const aura = new THREE.Mesh(auraGeo, auraMat);
+    aura.position.copy(worldPos);
+    scene.add(aura);
+    auras.push(aura);
 
-const auraGeometry = new THREE.CylinderGeometry(1.2, 0.6, 12, 32, 1, true);
-
-/* Load artifacts */
-// Store loaded GLTF scenes per artifact index (for coin spawning)
-const artifactScenes = {};
-
-artifacts.forEach((data, index)=>{
-
-    loader.load(BASE_URL + data.file,(gltf)=>{
-        const artifact = gltf.scene;
-        artifact.scale.set(ARTIFACT_SCALE, ARTIFACT_SCALE, ARTIFACT_SCALE);
-        artifact.position.set(data.x * MODEL_SCALE, ARTIFACT_HEIGHT, data.z * MODEL_SCALE);
-        // Store original position for coin spawn origin
-        artifact.userData.originalPos = artifact.position.clone();
-        scene.add(artifact);
-        rotatingArtifacts.push(artifact);
-        artifactScenes[index] = { scene: gltf.scene, file: data.file, pos: artifact.position.clone() };
-
-        /* Aura */
-        const aura = new THREE.Mesh(auraGeometry, auraMaterial);
-        aura.position.set(data.x * MODEL_SCALE, ARTIFACT_HEIGHT, data.z * MODEL_SCALE);
-        scene.add(aura);
-        auras.push(aura);
+    // Model — load and hide
+    loader.load(BASE_URL+data.file, gltf => {
+        const obj = gltf.scene;
+        obj.scale.set(ARTIFACT_SCALE,ARTIFACT_SCALE,ARTIFACT_SCALE);
+        obj.position.copy(worldPos);
+        obj.visible = false; // hidden until 1st click
+        scene.add(obj);
+        rotatingObjects.push(obj);
+        permanentModels[idx] = obj;
     });
 });
 
 /* =====================================================
-Explanations
+EXPLANATION PANELS / ANCHORS / LINES (always visible)
 ===================================================== */
-const textureLoader = new THREE.TextureLoader();
+const texLoader  = new THREE.TextureLoader();
+const IMAGE_BASE = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu3/";
 
-addPanel("https://echizencity.github.io/opendata/kokufuhakkutsu3/40000_kokufuhakkutsu3.png", 3, 3.5, 0, 0, -90, 70, 3.2, 4);
-addPanel("https://echizencity.github.io/opendata/kokufuhakkutsu3/40000_kokufuhakkutsu3.png", -3, 3.5, 0, 0, 90, -70, 3.2, 4);
-
-function addPanel(file, x, y, z, rx, ry, rz, w, h){
-    textureLoader.load(file,(texture)=>{
-        texture.colorSpace = THREE.SRGBColorSpace;
-
-        const group = new THREE.Group();
-        group.position.set(x * MODEL_SCALE, y * MODEL_SCALE ,z * MODEL_SCALE);
-        scene.add(group);
-
-        const geometry = new THREE.PlaneGeometry(w * MODEL_SCALE, h * MODEL_SCALE);
-
-        const material = new THREE.MeshBasicMaterial({
-            map:texture,
-            transparent:true,
-            toneMapped:false,
-            side:THREE.DoubleSide
-        });
-
-        const panel = new THREE.Mesh(geometry,material);
-        panel.rotation.order = "ZYX";
-        panel.rotation.set(THREE.MathUtils.degToRad(rx), THREE.MathUtils.degToRad(ry), THREE.MathUtils.degToRad(rz));
-        group.add(panel);
+function addInfoPanel(file,x,y,z,rx,ry,rz,w,h) {
+    texLoader.load(file, tex => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        const grp = new THREE.Group();
+        grp.position.set(x*MODEL_SCALE,y*MODEL_SCALE,z*MODEL_SCALE);
+        scene.add(grp);
+        const m = new THREE.MeshBasicMaterial({map:tex,transparent:true,toneMapped:false,side:THREE.DoubleSide});
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w*MODEL_SCALE,h*MODEL_SCALE),m);
+        mesh.rotation.order="ZYX";
+        mesh.rotation.set(THREE.MathUtils.degToRad(rx),THREE.MathUtils.degToRad(ry),THREE.MathUtils.degToRad(rz));
+        grp.add(mesh);
     });
 }
+addInfoPanel("https://echizencity.github.io/opendata/kokufuhakkutsu3/40000_kokufuhakkutsu3.png", 3,3.5,0, 0,-90, 70,3.2,4);
+addInfoPanel("https://echizencity.github.io/opendata/kokufuhakkutsu3/40000_kokufuhakkutsu3.png",-3,3.5,0, 0, 90,-70,3.2,4);
 
-const explainPoints = [
-    ["40100_kokufuhakkutsu3.png", -2.7, -0.5, -0.2, -2.0, 0],
-    ["40200_kokufuhakkutsu3.png",  4.0,  2.4,  0.0,  0.1, 180],
-    ["40300_kokufuhakkutsu3.png",  3.8, -0.7,  0.0, -1.8, 0],
-    ["40400_kokufuhakkutsu3.png",  3.0, -2.2, -0.8, -0.3, 0],
-    ["40500_kokufuhakkutsu3.png",    0, -1.5,  0.1, -1.0, 0],
-    ["40600_kokufuhakkutsu3.png",  3.2,  2.2, -0.8,  0.3, 180],
-    ["40700_kokufuhakkutsu3.png", -2.0, -1.0,  0.6, -1.5, 0],
-    ["40800_kokufuhakkutsu3.png", -1.8,  1.2,  0.0,  1.3, 180]
+const EXPLAIN_PTS = [
+    ["40100_kokufuhakkutsu3.png",-2.7,-0.5,-0.2,-2.0,  0],
+    ["40200_kokufuhakkutsu3.png", 4.0, 2.4, 0.0, 0.1,180],
+    ["40300_kokufuhakkutsu3.png", 3.8,-0.7, 0.0,-1.8,  0],
+    ["40400_kokufuhakkutsu3.png", 3.0,-2.2,-0.8,-0.3,  0],
+    ["40500_kokufuhakkutsu3.png",   0,-1.5, 0.1,-1.0,  0],
+    ["40600_kokufuhakkutsu3.png", 3.2, 2.2,-0.8, 0.3,180],
+    ["40700_kokufuhakkutsu3.png",-2.0,-1.0, 0.6,-1.5,  0],
+    ["40800_kokufuhakkutsu3.png",-1.8, 1.2, 0.0, 1.3,180]
 ];
 
-const IMAGE_BASE = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu3/";
-const anchorGeometry = new THREE.SphereGeometry(0.05, 16, 16);
-const anchorMaterial = new THREE.MeshBasicMaterial({color:0x66ccff});
-const panelGeometry = new THREE.PlaneGeometry(1.5 * MODEL_SCALE, 1.5 * MODEL_SCALE);
+const anchors   = [];
+const scenelines= [];
+const clickSpheres = [];
+const SPHERE_R  = 0.20 * MODEL_SCALE;
+const sphereGeo = new THREE.SphereGeometry(SPHERE_R, 24, 24);
+const panelGeo  = new THREE.PlaneGeometry(1.5*MODEL_SCALE,1.5*MODEL_SCALE);
+const anchorGeo = new THREE.SphereGeometry(0.05,16,16);
+const anchorMat = new THREE.MeshBasicMaterial({color:0x66ccff});
 
-const anchors = [];
-const lines = [];
+EXPLAIN_PTS.forEach((data,idx) => {
+    const [file,x,z,ox,oz,rot] = data;
 
-// Clickable spheres (larger, for game)
-const clickableSpheres = [];
-const SPHERE_RADIUS = 0.18 * MODEL_SCALE;
-const sphereGeometry = new THREE.SphereGeometry(SPHERE_RADIUS, 24, 24);
-const sphereMaterial = new THREE.MeshBasicMaterial({
-    color: 0xffee44,
-    transparent: true,
-    opacity: 0.75
-});
-
-explainPoints.forEach((data, idx)=>{
-
-    const [file, x, z, ox, oz, rot] = data;
-
-    /* anchor */
-    const anchor = new THREE.Mesh(anchorGeometry, anchorMaterial);
-    anchor.position.set(x * MODEL_SCALE, 1.25 * MODEL_SCALE, z * MODEL_SCALE);
+    const anchor = new THREE.Mesh(anchorGeo, anchorMat);
+    anchor.position.set(x*MODEL_SCALE,1.25*MODEL_SCALE,z*MODEL_SCALE);
     scene.add(anchor);
     anchors.push(anchor);
 
-    /* clickable sphere */
-    const sphereMat = new THREE.MeshBasicMaterial({
-        color: 0xffdd33,
-        transparent: true,
-        opacity: 0.72
-    });
-    const sphere = new THREE.Mesh(sphereGeometry, sphereMat);
-    sphere.position.set(x * MODEL_SCALE, 1.25 * MODEL_SCALE, z * MODEL_SCALE);
-    sphere.userData.artifactIndex = idx;
-    sphere.userData.type = "clickable";
-    scene.add(sphere);
-    clickableSpheres.push(sphere);
+    const sphMat = new THREE.MeshBasicMaterial({color:0xffdd33,transparent:true,opacity:0.78});
+    const sph    = new THREE.Mesh(sphereGeo, sphMat);
+    sph.position.set(x*MODEL_SCALE,1.25*MODEL_SCALE,z*MODEL_SCALE);
+    sph.userData.artifactIndex = idx;
+    scene.add(sph);
+    clickSpheres.push(sph);
 
-    /* panel */
-    textureLoader.load(IMAGE_BASE + file, (texture)=>{
-        texture.colorSpace = THREE.SRGBColorSpace;
-        const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true,
-            toneMapped: false,
-            side: THREE.DoubleSide
-        });
-        const panel = new THREE.Mesh(panelGeometry,material);
-        panel.position.set((x + ox) * MODEL_SCALE, 2.9 * MODEL_SCALE, (z + oz) * MODEL_SCALE);
-        panel.rotation.y = THREE.MathUtils.degToRad(rot);
-        scene.add(panel);
-
-        /* line */
-        const points = [
-            new THREE.Vector3(x * MODEL_SCALE, 1.25 * MODEL_SCALE, z * MODEL_SCALE),
-            new THREE.Vector3((x + ox) * MODEL_SCALE, 2.2 * MODEL_SCALE, (z + oz) * MODEL_SCALE)
+    texLoader.load(IMAGE_BASE+file, tex => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        const m    = new THREE.MeshBasicMaterial({map:tex,transparent:true,toneMapped:false,side:THREE.DoubleSide});
+        const mesh = new THREE.Mesh(panelGeo,m);
+        mesh.position.set((x+ox)*MODEL_SCALE,2.9*MODEL_SCALE,(z+oz)*MODEL_SCALE);
+        mesh.rotation.y = THREE.MathUtils.degToRad(rot);
+        scene.add(mesh);
+        const pts=[
+            new THREE.Vector3(x*MODEL_SCALE,1.25*MODEL_SCALE,z*MODEL_SCALE),
+            new THREE.Vector3((x+ox)*MODEL_SCALE,2.2*MODEL_SCALE,(z+oz)*MODEL_SCALE)
         ];
-
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const lineMaterial = new THREE.LineBasicMaterial({color:0x88ccff});
-        const line = new THREE.Line(geometry,lineMaterial);
-        scene.add(line);
-        lines.push(line);
+        const ln = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+                                  new THREE.LineBasicMaterial({color:0x88ccff}));
+        scene.add(ln);
+        scenelines.push(ln);
     });
 });
 
 /* =====================================================
 TRAIN
 ===================================================== */
-const geometry = new THREE.BoxGeometry(0.1 * MODEL_SCALE, 0.1 * MODEL_SCALE, 0.2 * MODEL_SCALE);
-const material = new THREE.MeshBasicMaterial({color:15628151});
-
-const train = new THREE.Mesh(geometry,material);
+const train = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1*MODEL_SCALE,0.1*MODEL_SCALE,0.2*MODEL_SCALE),
+    new THREE.MeshBasicMaterial({color:15628151})
+);
 scene.add(train);
 
-/* =====================================================
-Speed meter
-===================================================== */
-
-const meterCanvas = document.createElement("canvas");
-meterCanvas.width = 256;
-meterCanvas.height = 128;
-
-const meterCtx = meterCanvas.getContext("2d");
-
-const meterTexture = new THREE.CanvasTexture(meterCanvas);
-
-const meterMaterial = new THREE.MeshBasicMaterial({
-    map: meterTexture,
-    transparent:true
-});
-
-const meterGeometry = new THREE.PlaneGeometry(0.3, 0.18);
-const meter = new THREE.Mesh(meterGeometry,meterMaterial);
-meter.position.set(0, 0.4, -0.45);
-meter.rotation.x = THREE.MathUtils.degToRad(-90);
-
-train.add(meter);
-
-let accelState = 0;
-let glowStrength = 0;
-let lastMeterUpdate = 0;
-
-function drawSpeedMeter(speed){
-
-    meterCtx.clearRect(0,0,256,128);
-
-    let baseColor = "rgba(0, 0, 0, 0.65)";
-    let glowColor = null;
-
-    if(accelState === 1){
-        glowColor = "255, 80, 80";
+// Speed meter panel on train floor
+const mCanvas=document.createElement("canvas"); mCanvas.width=256; mCanvas.height=128;
+const mCtx=mCanvas.getContext("2d"), mTex=new THREE.CanvasTexture(mCanvas);
+const mMesh=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.18),
+    new THREE.MeshBasicMaterial({map:mTex,transparent:true}));
+mMesh.position.set(0,0.4,-0.45); mMesh.rotation.x=THREE.MathUtils.degToRad(-90);
+train.add(mMesh);
+let accelState=0,glowStr=0,lastMeter=0;
+function drawMeter(speed) {
+    mCtx.clearRect(0,0,256,128);
+    mCtx.fillStyle="rgba(0,0,0,0.65)"; mCtx.fillRect(0,0,256,128);
+    if(accelState!==0){
+        const gc=accelState===1?"255,80,80":"80,120,255";
+        const g=mCtx.createRadialGradient(128,64,10,128,64,120);
+        g.addColorStop(0,`rgba(${gc},${glowStr*0.8})`); g.addColorStop(1,"rgba(0,0,0,0)");
+        mCtx.fillStyle=g; mCtx.fillRect(0,0,256,128);
     }
-    else if(accelState === -1){
-        glowColor = "80, 120, 255";
-    }
-
-    meterCtx.fillStyle = baseColor;
-    meterCtx.fillRect(0, 0, 256, 128);
-
-    if(glowColor){
-        const alpha = glowStrength * 0.8;
-
-        const grad = meterCtx.createRadialGradient(
-            128, 64, 10,
-            128, 64, 120
-        );
-
-        grad.addColorStop(0, `rgba(${glowColor}, ${alpha})`);
-        grad.addColorStop(1, "rgba(0, 0, 0, 0)");
-
-        meterCtx.fillStyle = grad;
-        meterCtx.fillRect(0, 0, 256, 128);
-    }
-
-    meterCtx.strokeStyle = "#66ccff";
-    meterCtx.lineWidth = 4;
-    meterCtx.strokeRect(0, 0, 256, 128);
-
-    meterCtx.fillStyle = "white";
-    meterCtx.font = "bold 40px sans-serif";
-    meterCtx.textAlign = "center";
-
-    meterCtx.fillText(speed.toFixed(0) + " km/h",128,70);
-
-    meterTexture.needsUpdate = true;
+    mCtx.strokeStyle="#66ccff"; mCtx.lineWidth=4; mCtx.strokeRect(0,0,256,128);
+    mCtx.fillStyle="white"; mCtx.font="bold 40px sans-serif"; mCtx.textAlign="center";
+    mCtx.fillText(speed.toFixed(0)+" km/h",128,70);
+    mTex.needsUpdate=true;
 }
 
 /* =====================================================
 CAMERA MODE
 ===================================================== */
-if(CONFIG.camera === "ride"){
+if (CONFIG.camera==="ride") {
     train.add(camera);
-    camera.position.set(0, 0.2, 0);
-}else{
-    controls = new OrbitControls(camera,renderer.domElement);
-    controls.listenToKeyEvents(window);
-    camera.position.set(0, 4 * MODEL_SCALE, 20 * MODEL_SCALE);
+    camera.position.set(0,0.2,0);
+} else {
+    orbitControls=new OrbitControls(camera,renderer.domElement);
+    orbitControls.listenToKeyEvents(window);
+    camera.position.set(0,4*MODEL_SCALE,20*MODEL_SCALE);
 }
 
 /* =====================================================
-START POSITION / GATE
+START POSITION = curve t=0
 ===================================================== */
-// Fixed start position (world origin area, slightly in front of origin)
-const START_POSITION = new THREE.Vector3(0, 0, 5 * MODEL_SCALE);
-
-// Gate structure
-const gateGroup = new THREE.Group();
-gateGroup.position.copy(START_POSITION);
-scene.add(gateGroup);
-
-// Gate pillars
-const pillarGeo = new THREE.BoxGeometry(0.3 * MODEL_SCALE, 3.5 * MODEL_SCALE, 0.3 * MODEL_SCALE);
-const pillarMat = new THREE.MeshBasicMaterial({ color: 0x996622 });
-const pillarL = new THREE.Mesh(pillarGeo, pillarMat);
-pillarL.position.set(-2 * MODEL_SCALE, 1.75 * MODEL_SCALE, 0);
-gateGroup.add(pillarL);
-const pillarR = new THREE.Mesh(pillarGeo, pillarMat);
-pillarR.position.set(2 * MODEL_SCALE, 1.75 * MODEL_SCALE, 0);
-gateGroup.add(pillarR);
-
-// Gate crossbar
-const crossGeo = new THREE.BoxGeometry(4.3 * MODEL_SCALE, 0.25 * MODEL_SCALE, 0.25 * MODEL_SCALE);
-const crossMat = new THREE.MeshBasicMaterial({ color: 0xcc8833 });
-const crossbar = new THREE.Mesh(crossGeo, crossMat);
-crossbar.position.set(0, 3.5 * MODEL_SCALE, 0);
-gateGroup.add(crossbar);
-
-// Gate label canvas
-const gateLabelCanvas = document.createElement("canvas");
-gateLabelCanvas.width = 512;
-gateLabelCanvas.height = 128;
-const gateLabelCtx = gateLabelCanvas.getContext("2d");
-const gateLabelTexture = new THREE.CanvasTexture(gateLabelCanvas);
-
-function drawGateLabel(text, color = "#ffee44") {
-    gateLabelCtx.clearRect(0, 0, 512, 128);
-    gateLabelCtx.fillStyle = "rgba(0,0,0,0.7)";
-    gateLabelCtx.fillRect(0, 0, 512, 128);
-    gateLabelCtx.fillStyle = color;
-    gateLabelCtx.font = "bold 52px sans-serif";
-    gateLabelCtx.textAlign = "center";
-    gateLabelCtx.textBaseline = "middle";
-    gateLabelCtx.fillText(text, 256, 64);
-    gateLabelTexture.needsUpdate = true;
-}
-drawGateLabel("🏛 スタートゲート 🏛");
-
-const gateLabelGeo = new THREE.PlaneGeometry(3.5 * MODEL_SCALE, 0.8 * MODEL_SCALE);
-const gateLabelMat = new THREE.MeshBasicMaterial({ map: gateLabelTexture, transparent: true, side: THREE.DoubleSide });
-const gateLabel = new THREE.Mesh(gateLabelGeo, gateLabelMat);
-gateLabel.position.set(0, 3.5 * MODEL_SCALE, 0.1 * MODEL_SCALE);
-gateGroup.add(gateLabel);
+const startCurvePos = curve.getPointAt(0).clone();
+startCurvePos.y += 0.2;
 
 /* =====================================================
-HUD - In-VR Score/Timer display (attached to camera)
+GATE at curve start
 ===================================================== */
-// HUD canvas
-const hudCanvas = document.createElement("canvas");
-hudCanvas.width = 512;
-hudCanvas.height = 256;
-const hudCtx = hudCanvas.getContext("2d");
-const hudTexture = new THREE.CanvasTexture(hudCanvas);
+const gateGrp = new THREE.Group();
+gateGrp.position.set(startCurvePos.x, 0, startCurvePos.z);
+scene.add(gateGrp);
 
-const hudMaterial = new THREE.MeshBasicMaterial({
-    map: hudTexture,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false
+const pillarM = new THREE.MeshBasicMaterial({color:0x996622});
+[-2,2].forEach(s=>{
+    const p=new THREE.Mesh(new THREE.BoxGeometry(0.3*MODEL_SCALE,3.5*MODEL_SCALE,0.3*MODEL_SCALE),pillarM);
+    p.position.set(s*MODEL_SCALE,1.75*MODEL_SCALE,0); gateGrp.add(p);
 });
-const hudGeometry = new THREE.PlaneGeometry(0.5, 0.25);
-const hudMesh = new THREE.Mesh(hudGeometry, hudMaterial);
-hudMesh.position.set(0.28, 0.05, -0.45);
-hudMesh.renderOrder = 999;
-train.add(hudMesh);
+const cross=new THREE.Mesh(new THREE.BoxGeometry(4.3*MODEL_SCALE,0.25*MODEL_SCALE,0.25*MODEL_SCALE),
+    new THREE.MeshBasicMaterial({color:0xcc8833}));
+cross.position.set(0,3.5*MODEL_SCALE,0); gateGrp.add(cross);
 
-// Scoreboard HUD canvas
-const sbCanvas = document.createElement("canvas");
-sbCanvas.width = 512;
-sbCanvas.height = 512;
-const sbCtx = sbCanvas.getContext("2d");
-const sbTexture = new THREE.CanvasTexture(sbCanvas);
-const sbMaterial = new THREE.MeshBasicMaterial({ map: sbTexture, transparent: true, depthTest: false });
-const sbGeo = new THREE.PlaneGeometry(0.4, 0.4);
-const sbMesh = new THREE.Mesh(sbGeo, sbMaterial);
-sbMesh.position.set(-0.28, 0.05, -0.45);
-sbMesh.renderOrder = 999;
-train.add(sbMesh);
+const gSignCanvas=document.createElement("canvas"); gSignCanvas.width=1024; gSignCanvas.height=256;
+const gSignCtx=gSignCanvas.getContext("2d"), gSignTex=new THREE.CanvasTexture(gSignCanvas);
 
-function updateHUD() {
-    hudCtx.clearRect(0, 0, 512, 256);
-    hudCtx.fillStyle = "rgba(0,0,0,0.72)";
-    roundRect(hudCtx, 4, 4, 504, 248, 16);
-    hudCtx.fill();
-
-    // Timer bar bg
-    hudCtx.fillStyle = "rgba(255,255,255,0.15)";
-    hudCtx.fillRect(20, 180, 472, 20);
-
-    // Timer bar fill
-    const ratio = gameTimeLeft / GAME_DURATION;
-    const barColor = ratio > 0.4 ? "#44ee88" : ratio > 0.2 ? "#ffcc22" : "#ff4444";
-    hudCtx.fillStyle = barColor;
-    hudCtx.fillRect(20, 180, Math.max(0, 472 * ratio), 20);
-
-    // Score
-    hudCtx.fillStyle = "#ffee44";
-    hudCtx.font = "bold 36px sans-serif";
-    hudCtx.textAlign = "left";
-    hudCtx.fillText("SCORE", 24, 50);
-    hudCtx.fillStyle = "white";
-    hudCtx.font = "bold 72px sans-serif";
-    hudCtx.fillText(gameScore, 24, 120);
-
-    // Timer value
-    hudCtx.fillStyle = barColor;
-    hudCtx.font = "bold 28px sans-serif";
-    hudCtx.textAlign = "right";
-    hudCtx.fillText(`⏱ ${gameTimeLeft}s`, 490, 170);
-
-    // Status
-    hudCtx.textAlign = "center";
-    if (!gameActive) {
-        hudCtx.fillStyle = "#88ffcc";
-        hudCtx.font = "bold 22px sans-serif";
-        hudCtx.fillText("A: スタート  B: 強制終了", 256, 232);
-    }
-
-    hudTexture.needsUpdate = true;
-}
-
-function updateScoreBoard() {
-    sbCtx.clearRect(0, 0, 512, 512);
-    sbCtx.fillStyle = "rgba(0,0,0,0.72)";
-    roundRect(sbCtx, 4, 4, 504, 504, 16);
-    sbCtx.fill();
-
-    sbCtx.fillStyle = "#ffcc44";
-    sbCtx.font = "bold 30px sans-serif";
-    sbCtx.textAlign = "center";
-    sbCtx.fillText("🏆 TOP 5", 256, 44);
-
-    const scores = loadScores();
-    if (scores.length === 0) {
-        sbCtx.fillStyle = "#aaa";
-        sbCtx.font = "22px sans-serif";
-        sbCtx.fillText("記録なし", 256, 120);
+function drawGateSign(line1, line2="", col="#ffee44") {
+    gSignCtx.clearRect(0,0,1024,256);
+    gSignCtx.fillStyle="rgba(0,0,0,0.78)"; gSignCtx.fillRect(0,0,1024,256);
+    gSignCtx.strokeStyle="#ffee44"; gSignCtx.lineWidth=7; gSignCtx.strokeRect(7,7,1010,242);
+    gSignCtx.fillStyle=col; gSignCtx.textAlign="center";
+    if(line2){
+        gSignCtx.font="bold 80px sans-serif"; gSignCtx.fillText(line1,512,115);
+        gSignCtx.font="bold 58px sans-serif"; gSignCtx.fillText(line2,512,200);
     } else {
-        scores.forEach((s, i) => {
-            const y = 90 + i * 82;
-            sbCtx.fillStyle = i === 0 ? "#ffd700" : i === 1 ? "#c0c0c0" : i === 2 ? "#cd7f32" : "#88ccff";
-            sbCtx.font = `bold ${i === 0 ? 34 : 28}px sans-serif`;
-            sbCtx.textAlign = "left";
-            sbCtx.fillText(`${i+1}. ${s.score}pt`, 30, y);
-            sbCtx.fillStyle = "#888";
-            sbCtx.font = "18px sans-serif";
-            sbCtx.textAlign = "right";
-            sbCtx.fillText(s.date, 480, y);
-        });
+        gSignCtx.font="bold 88px sans-serif"; gSignCtx.fillText(line1,512,154);
     }
+    gSignTex.needsUpdate=true;
+}
+drawGateSign("🏛 スタートゲート 🏛");
 
-    sbTexture.needsUpdate = true;
+const gSignMesh=new THREE.Mesh(new THREE.PlaneGeometry(3.5*MODEL_SCALE,0.9*MODEL_SCALE),
+    new THREE.MeshBasicMaterial({map:gSignTex,transparent:true,side:THREE.DoubleSide}));
+gSignMesh.position.set(0,3.55*MODEL_SCALE,0.15*MODEL_SCALE);
+gateGrp.add(gSignMesh);
+
+/* =====================================================
+HUD — score/timer (right), scoreboard (left)
+Canvas resolution 2×, plane geometry 2×
+===================================================== */
+function makeCanvasTexMesh(cw,ch,planeW,planeH,localPos) {
+    const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
+    const ctx=cv.getContext("2d"), tex=new THREE.CanvasTexture(cv);
+    const mesh=new THREE.Mesh(
+        new THREE.PlaneGeometry(planeW,planeH),
+        new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false})
+    );
+    mesh.position.copy(localPos);
+    mesh.renderOrder=999;
+    return {cv,ctx,tex,mesh};
 }
 
-function roundRect(ctx, x, y, w, h, r) {
+const HUD  = makeCanvasTexMesh(1024,512, 1.0,0.5, new THREE.Vector3( 0.56, 0.10,-0.9));
+const SB   = makeCanvasTexMesh(1024,1024,0.8,0.8, new THREE.Vector3(-0.56, 0.10,-0.9));
+const OV   = makeCanvasTexMesh(1024,512, 1.8,0.9, new THREE.Vector3( 0.00, 0.15,-1.0));
+OV.mesh.renderOrder = 1000;
+OV.mesh.visible = false;
+train.add(HUD.mesh);
+train.add(SB.mesh);
+train.add(OV.mesh);
+
+// World-space darkness overlay (two large planes)
+function makeDarkPlane(ry) {
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),
+        new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+    m.rotation.x=ry; return m;
+}
+const dark1=makeDarkPlane(-Math.PI/2); dark1.position.y= 500; scene.add(dark1);
+const dark2=makeDarkPlane( Math.PI/2); dark2.position.y=-100; scene.add(dark2);
+function setDark(a) { dark1.material.opacity=dark2.material.opacity=Math.max(0,Math.min(1,a)); }
+
+function rrect(ctx,x,y,w,h,r) {
     ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.arcTo(x + w, y, x + w, y + r, r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-    ctx.lineTo(x + r, y + h);
-    ctx.arcTo(x, y + h, x, y + h - r, r);
-    ctx.lineTo(x, y + r);
-    ctx.arcTo(x, y, x + r, y, r);
+    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+    ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+    ctx.lineTo(x+r,y+h);   ctx.arcTo(x,y+h,x,y+h-r,r);
+    ctx.lineTo(x,y+r);     ctx.arcTo(x,y,x+r,y,r);
     ctx.closePath();
 }
 
-updateHUD();
-updateScoreBoard();
+// game state
+let gamePhase    = "idle"; // idle|countdown|playing|result|forceend
+let gameScore    = 0;
+let gameTimeLeft = GAME_DURATION;
+const clickCounts= {};
+let mainInterval = null, phaseTimeout = null;
+
+function clearTimers() {
+    if (mainInterval) { clearInterval(mainInterval); mainInterval=null; }
+    if (phaseTimeout) { clearTimeout(phaseTimeout);  phaseTimeout=null; }
+}
+
+function updateHUD() {
+    const {ctx,cv,tex} = HUD;
+    ctx.clearRect(0,0,1024,512);
+    ctx.fillStyle="rgba(0,0,0,0.78)"; rrect(ctx,8,8,1008,496,28); ctx.fill();
+    ctx.fillStyle="#ffee44"; ctx.font="bold 64px sans-serif"; ctx.textAlign="left";
+    ctx.fillText("SCORE",40,88);
+    ctx.fillStyle="white"; ctx.font="bold 168px sans-serif";
+    ctx.fillText(String(gameScore),40,256);
+    const ratio=gameTimeLeft/GAME_DURATION;
+    const bc=ratio>0.4?"#44ee88":ratio>0.2?"#ffcc22":"#ff4444";
+    ctx.fillStyle=bc; ctx.font="bold 54px sans-serif"; ctx.textAlign="right";
+    ctx.fillText(`⏱ ${gameTimeLeft}s`,984,340);
+    ctx.fillStyle="rgba(255,255,255,0.15)"; ctx.fillRect(40,370,944,38);
+    ctx.fillStyle=bc; ctx.fillRect(40,370,Math.max(0,944*ratio),38);
+    if(gamePhase==="idle"){
+        ctx.fillStyle="#88ffcc"; ctx.font="bold 34px sans-serif"; ctx.textAlign="center";
+        ctx.fillText("Aボタン: スタート  Bボタン: 強制終了",512,468);
+    }
+    tex.needsUpdate=true;
+}
+
+function updateScoreBoard() {
+    const {ctx,cv,tex} = SB;
+    ctx.clearRect(0,0,1024,1024);
+    ctx.fillStyle="rgba(0,0,0,0.78)"; rrect(ctx,8,8,1008,1008,28); ctx.fill();
+    ctx.fillStyle="#ffcc44"; ctx.font="bold 72px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("🏆 TOP 5",512,88);
+    ctx.strokeStyle="rgba(255,204,68,0.4)"; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.moveTo(60,115); ctx.lineTo(964,115); ctx.stroke();
+    const scores=loadScores();
+    if(!scores.length){
+        ctx.fillStyle="#aaa"; ctx.font="50px sans-serif"; ctx.fillText("記録なし",512,280);
+    } else {
+        const medals=["🥇","🥈","🥉","4.","5."];
+        scores.forEach((s,i)=>{
+            const y=185+i*162;
+            ctx.fillStyle=i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
+            ctx.font=`bold ${i===0?72:60}px sans-serif`; ctx.textAlign="left";
+            ctx.fillText(`${medals[i]} ${s.score}pt`,60,y);
+            ctx.fillStyle="#777"; ctx.font="36px sans-serif"; ctx.textAlign="right";
+            ctx.fillText(s.date,964,y);
+        });
+    }
+    tex.needsUpdate=true;
+}
+
+function showOverlay(big, small="") {
+    const {ctx,tex}=OV;
+    ctx.clearRect(0,0,1024,512);
+    ctx.fillStyle="rgba(0,0,0,0.90)"; rrect(ctx,10,10,1004,492,40); ctx.fill();
+    ctx.strokeStyle="rgba(255,220,50,0.8)"; ctx.lineWidth=8; rrect(ctx,10,10,1004,492,40); ctx.stroke();
+    ctx.fillStyle="white"; ctx.textAlign="center";
+    if(small){
+        ctx.font="bold 180px sans-serif"; ctx.fillText(big,512,285);
+        ctx.fillStyle="#ffee44"; ctx.font="bold 60px sans-serif"; ctx.fillText(small,512,390);
+    } else {
+        ctx.font="bold 220px sans-serif"; ctx.fillText(big,512,330);
+    }
+    tex.needsUpdate=true;
+    OV.mesh.visible=true;
+}
+function hideOverlay() { OV.mesh.visible=false; }
+
+updateHUD(); updateScoreBoard();
 
 /* =====================================================
-GAME START / END FUNCTIONS
+GAME LOGIC
 ===================================================== */
-function startGame() {
-    if (gameActive) return;
-    gameActive = true;
-    gameScore = 0;
-    gameTimeLeft = GAME_DURATION;
-    for (const k in sphereClickCounts) delete sphereClickCounts[k];
-    updateHUD();
-    drawGateLabel("🎮 ゲーム中！", "#ff4444");
+function teleportToStart() {
+    progress=0; velocity=0.0001;
+}
 
-    gameTimer = setInterval(() => {
+function startCountdown() {
+    if(gamePhase!=="idle") return;
+    clearTimers();
+    gamePhase="countdown";
+    gameScore=0; gameTimeLeft=GAME_DURATION;
+    for(const k in clickCounts) delete clickCounts[k];
+    teleportToStart();
+    setDark(0);
+    drawGateSign("⏳ まもなくスタート！","準備してください","#ffcc22");
+    updateHUD();
+
+    let cd=3;
+    function tick(){
+        if(cd>0){ showOverlay(String(cd),"準備！"); cd--; phaseTimeout=setTimeout(tick,1000); }
+        else { hideOverlay(); doStart(); }
+    }
+    showOverlay("3","準備！"); cd=2;
+    phaseTimeout=setTimeout(tick,1000);
+}
+
+function doStart(){
+    gamePhase="playing";
+    drawGateSign("🎮 ゲーム中！","","#ff4444");
+    updateHUD();
+    mainInterval=setInterval(()=>{
         gameTimeLeft--;
         updateHUD();
-        if (gameTimeLeft <= 0) {
-            endGame(true);
-        }
-    }, 1000);
+        if(gameTimeLeft<=0){ clearInterval(mainInterval); mainInterval=null; doEnd(); }
+    },1000);
 }
 
-function endGame(save) {
-    if (!gameActive) return;
-    gameActive = false;
-    clearInterval(gameTimer);
-    if (save && gameScore > 0) {
-        saveScore(gameScore);
-        updateScoreBoard();
-    }
-    gameTimeLeft = GAME_DURATION;
-    gameScore = 0;
-    updateHUD();
-    drawGateLabel("🏛 スタートゲート 🏛");
-    // Cleanup all flying coins
-    activeCoinAnimations.forEach(c => {
-        if (c.mesh) scene.remove(c.mesh);
-    });
-    activeCoinAnimations.length = 0;
+function doEnd(){
+    clearTimers();
+    gamePhase="result";
+    if(gameScore>0) saveScore(gameScore);
+    updateScoreBoard();
+    setDark(0.75);
+    showOverlay(`${gameScore}pt`,"🎉 ゲーム終了！お疲れ様でした！");
+    drawGateSign("🏛 スタートゲート 🏛");
+    cleanCoins();
+    phaseTimeout=setTimeout(()=>{
+        gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
+        setDark(0); hideOverlay(); teleportToStart(); updateHUD();
+        drawGateSign("🏛 スタートゲート 🏛");
+    },10000);
 }
 
-/* =====================================================
-LASER / CONTROLLER RAYCASTER
-===================================================== */
-const raycaster = new THREE.Raycaster();
-const laserMaterial = new THREE.LineBasicMaterial({ color: 0xff2222, linewidth: 2 });
-const laserGeometry = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(0, 0, -30)
-]);
-
-const laserLine1 = new THREE.Line(laserGeometry.clone(), laserMaterial.clone());
-controller1.add(laserLine1);
-
-// Reusable temp matrix
-const tempMatrix = new THREE.Matrix4();
+function doForceEnd(){
+    if(gamePhase!=="playing"&&gamePhase!=="countdown") return;
+    clearTimers();
+    gamePhase="forceend";
+    cleanCoins();
+    setDark(0.75);
+    showOverlay("強制終了","スコアは記録されません");
+    drawGateSign("🏛 スタートゲート 🏛");
+    phaseTimeout=setTimeout(()=>{
+        gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
+        setDark(0); hideOverlay(); teleportToStart(); updateHUD();
+    },3000);
+}
 
 /* =====================================================
 COIN ANIMATIONS
 ===================================================== */
-const activeCoinAnimations = [];
+const coinAnims=[];
+function cleanCoins(){
+    coinAnims.forEach(c=>{ if(c.mesh) scene.remove(c.mesh); });
+    coinAnims.length=0;
+}
 
-function spawnCoin(sphereIndex, isFirst) {
-    const sphereData = artifactScenes[sphereIndex];
-    if (!sphereData) return;
-
-    // Clone model
-    loader.load(BASE_URL + artifacts[sphereIndex].file, (gltf) => {
-        const coin = gltf.scene;
-        const spawnPos = sphereData.pos.clone();
-        coin.scale.set(ARTIFACT_SCALE * 0.6, ARTIFACT_SCALE * 0.6, ARTIFACT_SCALE * 0.6);
-        coin.position.copy(spawnPos);
+function spawnCoin(idx, isFirst){
+    const sp=artifactWorldPos[idx]; if(!sp) return;
+    loader.load(BASE_URL+ARTIFACTS[idx].file, gltf=>{
+        const coin=gltf.scene;
+        coin.scale.set(ARTIFACT_SCALE*0.7,ARTIFACT_SCALE*0.7,ARTIFACT_SCALE*0.7);
+        coin.position.copy(sp);
         scene.add(coin);
-
-        if (isFirst) {
-            // 1st click: fly to artifact position, stay there
-            const targetPos = sphereData.pos.clone();
-            activeCoinAnimations.push({
-                mesh: coin,
-                startPos: spawnPos.clone(),
-                targetPos: targetPos.clone(),
-                t: 0,
-                duration: 1.2,
-                mode: "place",
-                opacity: 1,
-                placed: false
-            });
+        if(isFirst){
+            coinAnims.push({mesh:coin,idx,mode:"place",startPos:sp.clone(),targetPos:sp.clone(),t:0,dur:1.2,done:false});
         } else {
-            // 2nd+ click: fountain arc trajectory, then fade out
-            const angle = Math.random() * Math.PI * 2;
-            const spread = (0.6 + Math.random() * 1.4) * MODEL_SCALE;
-            const vx = Math.cos(angle) * spread;
-            const vz = Math.sin(angle) * spread;
-            activeCoinAnimations.push({
-                mesh: coin,
-                startPos: spawnPos.clone(),
-                vx, vz,
-                vy: (2.5 + Math.random() * 1.5) * MODEL_SCALE,
-                t: 0,
-                duration: 1.8,
-                mode: "fountain",
-                opacity: 1
-            });
+            const ang=Math.random()*Math.PI*2, spd=(0.5+Math.random()*1.2)*MODEL_SCALE;
+            coinAnims.push({mesh:coin,mode:"fountain",startPos:sp.clone(),
+                vx:Math.cos(ang)*spd, vz:Math.sin(ang)*spd,
+                vy:(2.0+Math.random()*1.5)*MODEL_SCALE,
+                t:0,dur:2.0});
         }
     });
 }
 
 /* =====================================================
-BUTTON STATE TRACKING
+SPHERE CLICK HANDLER
 ===================================================== */
-let prevAButton = false;
-let prevBButton = false;
-let prevTrigger = false;
-
-function getGamepadButtons() {
-    const session = renderer.xr.getSession();
-    if (!session) return { a: false, b: false, trigger: false };
-    for (const source of session.inputSources) {
-        if (!source.gamepad) continue;
-        const gp = source.gamepad;
-        const handedness = source.handedness;
-        if (handedness === "right") {
-            const a = gp.buttons[4] ? gp.buttons[4].pressed : false;
-            const b = gp.buttons[5] ? gp.buttons[5].pressed : false;
-            const trigger = gp.buttons[0] ? gp.buttons[0].pressed : false;
-            return { a, b, trigger };
-        }
-    }
-    return { a: false, b: false, trigger: false };
-}
-
-/* =====================================================
-HANDLE SPHERE CLICK
-===================================================== */
-function handleSphereClick(sphere) {
-    if (!gameActive) return;
-    const idx = sphere.userData.artifactIndex;
-    const count = sphereClickCounts[idx] || 0;
-    const isFirst = count === 0;
-    sphereClickCounts[idx] = count + 1;
-
-    const points = isFirst ? 5 : 1;
-    gameScore += points;
+function onSphereClick(sphere){
+    if(gamePhase!=="playing") return;
+    const idx=sphere.userData.artifactIndex;
+    const cnt=clickCounts[idx]||0;
+    const first=cnt===0;
+    clickCounts[idx]=cnt+1;
+    gameScore+=first?5:1;
     updateHUD();
-
-    // Sphere flash
-    sphere.material.color.set(isFirst ? 0xff4444 : 0xffffff);
-    setTimeout(() => sphere.material.color.set(0xffdd33), 150);
-
-    spawnCoin(idx, isFirst);
+    sphere.material.color.set(first?0xff4444:0xffffff);
+    setTimeout(()=>sphere.material.color.set(0xffdd33),160);
+    spawnCoin(idx,first);
 }
 
 /* =====================================================
-COASTER MOTION VARIABLES
+MOTION VARIABLES
 ===================================================== */
-const position = new THREE.Vector3();
-const tangent = new THREE.Vector3();
-const lookAt = new THREE.Vector3();
+let progress=0, velocity=0.0001, prevTime=performance.now();
+let keyUp=false, keyDown=false;
+const pos=new THREE.Vector3(), tan=new THREE.Vector3(), lkAt=new THREE.Vector3();
+let prevPos=new THREE.Vector3(), realSpeed=0;
+let lastSpeedUI=0, lastSound=0;
 
-let velocity = 0.0001;
-let progress = 0;
-let prevTime = performance.now();
-
-let keyUp = false;
-let keyDown = false;
-
-window.addEventListener("keydown",(e)=>{
-    if(e.code === "ArrowUp") keyUp = true;
-    if(e.code === "ArrowDown") keyDown = true;
-    // Keyboard shortcut for testing: S = start, E = end
-    if(e.code === "KeyS") startGame();
-    if(e.code === "KeyE") endGame(false);
+window.addEventListener("keydown",e=>{
+    if(e.code==="ArrowUp")   keyUp=true;
+    if(e.code==="ArrowDown") keyDown=true;
+    if(e.code==="KeyS"&&gamePhase==="idle") startCountdown();
+    if(e.code==="KeyE") doForceEnd();
+});
+window.addEventListener("keyup",e=>{
+    if(e.code==="ArrowUp")   keyUp=false;
+    if(e.code==="ArrowDown") keyDown=false;
 });
 
-window.addEventListener("keyup",(e)=>{
-    if(e.code === "ArrowUp") keyUp = false;
-    if(e.code === "ArrowDown") keyDown = false;
-});
-
-function getThumbstickY(){
-
-    const session = renderer.xr.getSession();
-    if(!session) return 0;
-
-    const sources = session.inputSources;
-    for(const source of sources){
-        if(source.gamepad && source.gamepad.axes.length > 3){
-            const y = source.gamepad.axes[3];
-            if(Math.abs(y) > 0.15){
-                return y;
-            }
+function getStickY(){
+    const s=renderer.xr.getSession(); if(!s) return 0;
+    for(const src of s.inputSources){
+        if(src.handedness==="right"&&src.gamepad&&src.gamepad.axes.length>3){
+            const y=src.gamepad.axes[3]; if(Math.abs(y)>0.15) return y;
         }
     }
     return 0;
 }
 
+function getRightGP(){
+    const s=renderer.xr.getSession(); if(!s) return null;
+    for(const src of s.inputSources){ if(src.handedness==="right"&&src.gamepad) return src.gamepad; }
+    return null;
+}
+
+let prevA=false,prevB=false,prevTrig=false;
+
+/* =====================================================
+RAYCASTER
+===================================================== */
+const raycaster=new THREE.Raycaster();
+const tmpMtx=new THREE.Matrix4();
+
 /* =====================================================
 ANIMATION LOOP
 ===================================================== */
-
-let prevPosition = new THREE.Vector3();
-let realSpeed = 0;
-let lastSpeedUIUpdate = 0;
-let lastSoundUpdate = 0;
-
 renderer.setAnimationLoop(()=>{
+    const now=performance.now(), dt=now-prevTime;
 
-    /* Move train */
-    const time = performance.now();
-    const delta = time - prevTime;
-
-    progress += velocity;
-    progress %= 1;
-
-    position.copy(curve.getPointAt(progress));
-    position.y += 0.2;
-
-    const distance = position.distanceTo(prevPosition);
-    const speedMS = distance / (delta/1000);
-
-    realSpeed = speedMS * 3.6;
-
-    const now = performance.now();
-
-    if(now - lastSpeedUIUpdate > 100){
-        realSpeedUI.textContent = realSpeed.toFixed(0) + " km/h";
-        lastSpeedUIUpdate = now;
+    /* train motion */
+    if(gamePhase!=="countdown"){
+        progress=(progress+velocity)%1;
     }
-    prevPosition.copy(position);
+    pos.copy(curve.getPointAt(progress)); pos.y+=0.2;
+    realSpeed=pos.distanceTo(prevPos)/(dt/1000)*3.6;
+    if(now-lastSpeedUI>100){ realSpeedUI.textContent=realSpeed.toFixed(0)+" km/h"; lastSpeedUI=now; }
+    prevPos.copy(pos);
+    train.position.copy(pos);
+    if(now-lastMeter>100){ drawMeter(realSpeed); lastMeter=now; }
+    tan.copy(curve.getTangentAt(progress));
 
-    train.position.copy(position);
+    const ACCEL=0.0000001, DECEL=ACCEL*0.5;
+    accelState=0;
+    if(keyUp)  {velocity+=ACCEL*dt;accelState=1;}
+    if(keyDown){velocity-=DECEL*dt;accelState=-1;}
+    const sy=getStickY();
+    if(sy<-0.2){velocity+=ACCEL*dt*(-sy);accelState=1;}
+    if(sy> 0.2){velocity-=DECEL*dt*sy;accelState=-1;}
+    const tg=accelState?1:0; glowStr+=(tg-glowStr)*0.15;
+    velocity-=tan.y*1e-7*dt*SPEED;
+    const TV=0.00012*SPEED;
+    if(velocity>TV){const d=velocity-TV;velocity-=(d*d*0.0001+d*0.001)*dt;}
+    velocity=Math.max(0.00005*SPEED,Math.min(0.0003*SPEED,velocity));
+    train.lookAt(lkAt.copy(pos).sub(tan));
+    if(orbitControls) orbitControls.update();
 
-    if(now - lastMeterUpdate > 100){
-        drawSpeedMeter(realSpeed);
-        lastMeterUpdate = now;
-    }
+    /* artifact rotation */
+    rotatingObjects.forEach(o=>{o.rotation.y+=0.005;});
 
-    tangent.copy(curve.getTangentAt(progress));
-
-    const ACCEL = 0.0000001;
-    const DECEL = 0.5 * ACCEL;
-
-    /* keyboard speed control */
-    accelState = 0;
-    if(keyUp){
-        velocity += ACCEL * delta;
-        accelState = 1;
-    }
-    if(keyDown){
-        velocity -= DECEL * delta;
-        accelState = -1;
-    }
-
-    /* Quest thumbstick speed control */
-    const stickY = getThumbstickY();
-    if(stickY < -0.2){
-        velocity += ACCEL * delta * (-stickY);
-        accelState = 1;
-    }
-    if(stickY > 0.2){
-        velocity -= DECEL * delta * (stickY);
-        accelState = -1;
-    }
-
-    /* panel effect */
-    const targetGlow = accelState !== 0 ? 1 : 0;
-    glowStrength += (targetGlow - glowStrength) * 0.15;
-
-    /* slope physics */
-    velocity -= tangent.y * 1e-7 * delta * SPEED;
-
-    /* drag */
-    const TARGET_SPEED = 0.00012 * SPEED;
-
-    if(velocity > TARGET_SPEED){
-        const diff = velocity - TARGET_SPEED;
-
-        const AIR_DRAG = 0.0001;
-        const ROLLING  = 0.001;
-
-        velocity -= (diff*diff * AIR_DRAG + diff * ROLLING) * delta;
-    }
-
-    /* velocity */
-    const MIN_SPEED = 0.00005 * SPEED;
-    const MAX_SPEED = 0.0003  * SPEED;
-
-    velocity = Math.max(MIN_SPEED,Math.min(MAX_SPEED,velocity));
-
-    train.lookAt(lookAt.copy(position).sub(tangent));
-
-    /* Controls */
-    if(controls) controls.update();
-
-    /* Artifact animation */
-    rotatingArtifacts.forEach(obj=>{
-        obj.rotation.y += 0.005;
+    /* aura */
+    auras.forEach((a,i)=>{
+        a.rotation.y+=0.002;
+        a.position.y=ARTIFACT_HEIGHT+(-0.6+Math.sin(now*0.001+i)*0.04)*MODEL_SCALE;
+        const s=(0.2+Math.sin(now*0.002+i)*0.005)*MODEL_SCALE; a.scale.set(s,s,s);
     });
 
-    /* Aura animation */
-    auras.forEach((aura, i)=>{
-        aura.rotation.y += 0.002;
-        aura.position.y = ARTIFACT_HEIGHT + (- 0.6 + Math.sin(time * 0.001 + i) * 0.04) * MODEL_SCALE;
-        const s = (0.2 + Math.sin(time * 0.002 + i) * 0.005) * MODEL_SCALE;
-        aura.scale.set(s, s, s);
+    /* anchors */
+    anchors.forEach((a,i)=>{const s=(1+Math.sin(now*0.002+i)*0.05)*MODEL_SCALE;a.scale.set(s,s,s);});
+
+    /* lines */
+    scenelines.forEach((l,i)=>{
+        const k=0.5+Math.sin(now*0.003+i)*0.5;
+        l.material.color.setRGB(0.5*k,0.8*k,k);
     });
 
-    /* Anchor animation */
-    anchors.forEach((a,i)=>{
-        const s = (1 + Math.sin(time * 0.002 + i) * 0.05) * MODEL_SCALE;
-        a.scale.set(s,s,s);
-    });
+    /* sphere pulse */
+    clickSpheres.forEach((s,i)=>{const p=0.9+Math.sin(now*0.003+i*0.8)*0.1;s.scale.setScalar(p);});
 
-    /* Line animation */
-    lines.forEach((l,i)=>{
-        const intensity = 0.5 + Math.sin(time * 0.003 + i)*0.5;
-        l.material.color.setRGB(0.5 * intensity, 0.8 * intensity, 1 * intensity);
-    });
-
-    /* Coin animations */
-    const dt = delta / 1000;
-    for (let i = activeCoinAnimations.length - 1; i >= 0; i--) {
-        const c = activeCoinAnimations[i];
-        c.t += dt;
-        const tRatio = Math.min(c.t / c.duration, 1);
-
-        if (c.mode === "place") {
-            // Fly from spawn to target with arc
-            const arc = Math.sin(tRatio * Math.PI) * 2 * MODEL_SCALE;
-            c.mesh.position.lerpVectors(c.startPos, c.targetPos, tRatio);
-            c.mesh.position.y += arc;
-            c.mesh.rotation.y += 0.15;
-            c.mesh.rotation.z += 0.05;
-            if (tRatio >= 1 && !c.placed) {
-                c.placed = true;
-                c.mesh.position.copy(c.targetPos);
-                // Settle: keep the coin at target, fade after 1 second
-                setTimeout(() => {
-                    // Remove from scene gradually
-                    const fadeAnim = { mesh: c.mesh, t: 0, duration: 0.5, mode: "fade", opacity: 1 };
-                    activeCoinAnimations.push(fadeAnim);
-                }, 800);
-                activeCoinAnimations.splice(i, 1);
-            }
-        } else if (c.mode === "fountain") {
-            // Fountain arc
-            const elapsed = c.t;
-            const g = 9.8 * MODEL_SCALE;
-            c.mesh.position.x = c.startPos.x + c.vx * elapsed;
-            c.mesh.position.z = c.startPos.z + c.vz * elapsed;
-            c.mesh.position.y = c.startPos.y + c.vy * elapsed - 0.5 * g * elapsed * elapsed;
-            c.mesh.rotation.y += 0.2;
-            c.mesh.rotation.x += 0.1;
-
-            // Fade on descent
-            const peakT = c.vy / g;
-            if (elapsed > peakT) {
-                const fadeRatio = Math.max(0, 1 - (elapsed - peakT) / (c.duration - peakT));
-                c.opacity = fadeRatio;
-                c.mesh.traverse(child => {
-                    if (child.isMesh && child.material) {
-                        child.material.transparent = true;
-                        child.material.opacity = fadeRatio;
-                    }
-                });
-            }
-
-            if (tRatio >= 1) {
-                scene.remove(c.mesh);
-                activeCoinAnimations.splice(i, 1);
-            }
-        } else if (c.mode === "fade") {
-            const alpha = Math.max(0, 1 - c.t / c.duration);
-            c.mesh.traverse(child => {
-                if (child.isMesh && child.material) {
-                    child.material.transparent = true;
-                    child.material.opacity = alpha;
+    /* coin animations */
+    const dtSec=dt/1000;
+    for(let i=coinAnims.length-1;i>=0;i--){
+        const c=coinAnims[i]; c.t+=dtSec; const tr=Math.min(c.t/c.dur,1);
+        if(c.mode==="place"){
+            const arc=Math.sin(tr*Math.PI)*2*MODEL_SCALE;
+            c.mesh.position.lerpVectors(c.startPos,c.targetPos,tr); c.mesh.position.y+=arc;
+            c.mesh.rotation.y+=0.15; c.mesh.rotation.z+=0.05;
+            if(tr>=1&&!c.done){
+                c.done=true;
+                // Reveal permanent model, remove flying clone
+                if(c.idx!==undefined&&permanentModels[c.idx]){
+                    permanentModels[c.idx].visible=true;
                 }
-            });
-            if (c.t >= c.duration) {
-                scene.remove(c.mesh);
-                activeCoinAnimations.splice(i, 1);
+                scene.remove(c.mesh); coinAnims.splice(i,1);
             }
+        } else if(c.mode==="fountain"){
+            const g=9.8*MODEL_SCALE, e=c.t;
+            c.mesh.position.set(
+                c.startPos.x+c.vx*e,
+                c.startPos.y+c.vy*e-0.5*g*e*e,
+                c.startPos.z+c.vz*e);
+            c.mesh.rotation.y+=0.2; c.mesh.rotation.x+=0.1;
+            const peak=c.vy/g;
+            if(e>peak){
+                const fr=Math.max(0,1-(e-peak)/(c.dur-peak));
+                c.mesh.traverse(ch=>{if(ch.isMesh&&ch.material){ch.material.transparent=true;ch.material.opacity=fr;}});
+            }
+            if(tr>=1){scene.remove(c.mesh);coinAnims.splice(i,1);}
         }
     }
 
-    /* Laser / controller input */
-    // Laser ray from controller1 (right hand)
-    tempMatrix.identity().extractRotation(controller1.matrixWorld);
-    raycaster.ray.origin.setFromMatrixPosition(controller1.matrixWorld);
-    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+    /* --- LASER + BUTTONS --- */
+    // Update laser in world space via controller matrix
+    tmpMtx.identity().extractRotation(ctrl0.matrixWorld);
+    raycaster.ray.origin.setFromMatrixPosition(ctrl0.matrixWorld);
+    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tmpMtx);
 
-    const intersects = raycaster.intersectObjects(clickableSpheres, false);
-    const laserLen = intersects.length > 0 ? intersects[0].distance : 30;
-    const laserPoints = [new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-laserLen)];
-    laserLine1.geometry.setFromPoints(laserPoints);
-    laserLine1.material.color.set(intersects.length > 0 ? 0x00ff88 : 0xff2222);
+    const hits=raycaster.intersectObjects(clickSpheres,false);
+    const hitDist=hits.length>0?hits[0].distance:LASER_MAX_DIST;
 
-    /* Gamepad buttons */
-    const { a, b, trigger } = getGamepadButtons();
+    // Rewrite laser geometry in controller-local space
+    // Direction in local space is always (0,0,-1); endpoint at hitDist
+    const ep=[new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-hitDist)];
+    laser.geometry.setFromPoints(ep);
+    laserMat.color.set(hits.length>0?0x00ff88:0xff3333);
+    laserDot.position.set(0,0,-hitDist);
+    laserDot.visible=hits.length>0;
 
-    if (a && !prevAButton) {
-        if (!gameActive) startGame();
+    /* buttons */
+    const gp=getRightGP();
+    let bA=false,bB=false,bT=false;
+    if(gp){
+        bT=gp.buttons[0]?.pressed??false; // trigger index finger
+        bA=gp.buttons[4]?.pressed??false; // A face button
+        bB=gp.buttons[5]?.pressed??false; // B face button
     }
-    if (b && !prevBButton) {
-        if (gameActive) endGame(false);
-    }
-    if (trigger && !prevTrigger) {
-        if (intersects.length > 0) {
-            handleSphereClick(intersects[0].object);
-        }
-    }
-    prevAButton = a;
-    prevBButton = b;
-    prevTrigger = trigger;
+    if(bA&&!prevA&&gamePhase==="idle")          startCountdown();
+    if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doForceEnd();
+    if(bT&&!prevTrig&&gamePhase==="playing"&&hits.length>0) onSphereClick(hits[0].object);
+    prevA=bA; prevB=bB; prevTrig=bT;
 
-    /* Clickable sphere pulse */
-    clickableSpheres.forEach((s, i) => {
-        const pulse = 0.9 + Math.sin(time * 0.003 + i * 0.8) * 0.1;
-        s.scale.setScalar(pulse);
-    });
-
-    /* Render */
     renderer.render(scene,camera);
-    prevTime = time;
+    prevTime=now;
 
-    /* Sound control */
-    if(!railSound.paused){
-        if(now - lastSoundUpdate > 500){
-            lastSoundUpdate = now;
-
-            const speedRatio = velocity * 1000 * MODEL_SCALE;
-
-            if (CONFIG.curve === "trolley") {
-                railSound.volume = 0.6;
-            } else {
-                railSound.volume = Math.min(1,speedRatio);
-            }
-
-            const targetRate = 1 + speedRatio * 0.5;
-            railSound.playbackRate = targetRate;
-        }
+    /* sound */
+    if(!railSound.paused&&now-lastSound>500){
+        lastSound=now;
+        const sr=velocity*1000*MODEL_SCALE;
+        railSound.volume=CONFIG.curve==="trolley"?0.6:Math.min(1,sr);
+        railSound.playbackRate=1+sr*0.5;
     }
 });
 
 /* =====================================================
-WINDOW RESIZE
+RESIZE
 ===================================================== */
 window.addEventListener("resize",()=>{
-    camera.aspect = window.innerWidth/window.innerHeight;
+    camera.aspect=window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(window.innerWidth,window.innerHeight);
 });
-
 </script>
 </body>
 </html>
