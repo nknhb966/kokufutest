@@ -229,12 +229,10 @@
     <p class="main-title">越前国府VRコースター</p>
     <p class="sub-title">〜体験と挑戦、ふたつの旅〜</p>
 
-    <!-- VRボタン（JS で挿入） -->
     <div id="vrButtonWrap"></div>
 
     <div class="divider"></div>
 
-    <!-- 設定グリッド -->
     <div class="settings-grid">
       <div class="setting-card">
         <div class="setting-label">カーブ</div>
@@ -333,7 +331,7 @@ CONFIG
 ===================================================== */
 const CONFIG = {
     curve    : localStorage.getItem("curve")    || "trolley",
-    camera   : "ride",   // localStorage 保存なし。sessionStorage 一時値は後で上書き
+    camera   : "ride",
     speed    : parseFloat(localStorage.getItem("speed") || 0.5),
     gameMode : localStorage.getItem("gameMode") || "game"
 };
@@ -373,7 +371,7 @@ function setupToggle(id, key) {
         };
     });
 }
-// カメラトグルは localStorage 保存なし（セッションのみ反映、リロード後はデフォルト ride）
+
 function setupCameraToggle(id) {
     const btns = document.querySelectorAll(`#${id} button`);
     btns.forEach(btn => {
@@ -381,13 +379,11 @@ function setupCameraToggle(id) {
         btn.onclick = () => {
             btns.forEach(b=>b.classList.remove("active")); btn.classList.add("active");
             location.reload();
-            // ※ location.reload() 前に localStorage を更新しないため保存されない
-            // 代わりに sessionStorage で一時保存してリロード後に適用
             sessionStorage.setItem("camera_tmp", btn.dataset.value);
         };
     });
 }
-// 起動時に sessionStorage の一時値があれば CONFIG に反映（localStorage には書かない）
+
 {
     const tmp = sessionStorage.getItem("camera_tmp");
     if(tmp){ CONFIG.camera = tmp; sessionStorage.removeItem("camera_tmp");
@@ -399,12 +395,11 @@ setupToggle("curveToggle","curve");
 setupCameraToggle("cameraToggle");
 setupToggle("gameModeToggle","gameMode");
 
-// outside モード用ミニカメラトグル
 setupCameraToggle("miniCameraToggle");
 
 const speedSlider  = document.getElementById("speedSlider");
 const speedValueEl = document.getElementById("speedValue");
-const realSpeedUI  = null; // パネルから削除済み（VR内 HUD のみ表示）
+const realSpeedUI  = null;
 speedSlider.value = SPEED;
 speedValueEl.textContent = SPEED.toFixed(1);
 speedSlider.oninput = () => {
@@ -413,7 +408,6 @@ speedSlider.oninput = () => {
     localStorage.setItem("speed", SPEED);
 };
 
-/* ── モーダル 操作説明 ── */
 const MODAL_MODES = ["game","tour"];
 let modalModeIdx = MODAL_MODES.indexOf(CONFIG.gameMode);
 if (modalModeIdx < 0) modalModeIdx = 0;
@@ -493,7 +487,6 @@ WEB AUDIO — synthesised SFX
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function sfxClick() {
-    // Short bright ping (coin-like)
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     o.connect(g); g.connect(audioCtx.destination);
@@ -505,19 +498,19 @@ function sfxClick() {
 }
 
 function sfxCountdown(n) {
-    // n=1,2,3: descending beep; n=0: GO! (rising chord)
+    // n=1,2,3
     if (n > 0) {
         const o = audioCtx.createOscillator();
         const g = audioCtx.createGain();
         o.connect(g); g.connect(audioCtx.destination);
         o.type = "square";
-        const freq = 220 + (4 - n) * 110; // 3→330 2→440 1→550
+        const freq = 220 + (4 - n) * 110;
         o.frequency.setValueAtTime(freq, audioCtx.currentTime);
         g.gain.setValueAtTime(0.3, audioCtx.currentTime);
         g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
         o.start(); o.stop(audioCtx.currentTime + 0.25);
     } else {
-        // GO! — triumphant ascending chord
+        // GO!
         [440, 554, 659, 880].forEach((f, i) => {
             const o = audioCtx.createOscillator();
             const g = audioCtx.createGain();
@@ -533,7 +526,6 @@ function sfxCountdown(n) {
 }
 
 function sfxTimeUp() {
-    // Descending fanfare
     [880, 660, 440, 330].forEach((f, i) => {
         const o = audioCtx.createOscillator();
         const g = audioCtx.createGain();
@@ -546,7 +538,6 @@ function sfxTimeUp() {
     });
 }
 
-// Resume AudioContext on first user gesture
 document.addEventListener("click", ()=>{ if(audioCtx.state==="suspended") audioCtx.resume(); }, {once:true});
 document.addEventListener("touchstart", ()=>{ if(audioCtx.state==="suspended") audioCtx.resume(); }, {once:true});
 
@@ -559,20 +550,15 @@ renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
-// VRButton を専用ラッパーに挿入
 document.getElementById("vrButtonWrap").appendChild(VRButton.createButton(renderer));
 
 /* =====================================================
 VR SESSION EVENTS
-- On session start: force ride-mode camera, start rail sound
-- On session end:   stop rail sound
 ===================================================== */
 renderer.xr.addEventListener("sessionstart", () => {
-    // タイトルUIを非表示（VR中は Three.js が全画面を使う）
     document.getElementById("uiPanel").style.display = "none";
     document.getElementById("miniUI").style.display  = "none";
 
-    // VR セッション中は outside/ride どちらの設定でも必ず ride モードに強制
     if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
     if (camera.parent !== train) {
         if (camera.parent) camera.parent.remove(camera);
@@ -583,7 +569,6 @@ renderer.xr.addEventListener("sessionstart", () => {
     if (audioCtx.state === "suspended") audioCtx.resume();
     HUD.mesh.visible = true;
     SB.mesh.visible  = true;
-    // ツアーモードはセッション開始と同時に走行開始・rail sound 再生
     if (CONFIG.gameMode === "tour") {
         railSound.play().catch(()=>{});
     }
@@ -591,7 +576,6 @@ renderer.xr.addEventListener("sessionstart", () => {
 
 renderer.xr.addEventListener("sessionend", () => {
     railSound.pause();
-    // タイトルUIを復元
     if (CONFIG.camera === "outside") {
         document.getElementById("miniUI").style.display = "block";
     } else {
@@ -599,13 +583,8 @@ renderer.xr.addEventListener("sessionend", () => {
     }
 });
 
-
-
 /* =====================================================
 CONTROLLERS
-connected イベントで handedness を確定してから
-rightController / leftController に割り当てる。
-これにより「右手レーザー＝右トリガー」が確実に保証される。
 ===================================================== */
 const ctrlModelFactory = new XRControllerModelFactory();
 
@@ -617,10 +596,8 @@ grip1.add(ctrlModelFactory.createControllerModel(grip1));
 const ctrl0 = renderer.xr.getController(0);
 const ctrl1 = renderer.xr.getController(1);
 
-// xrRig: コントローラーを乗せる Group。train.add() は TRAIN セクションで行う。
 const xrRig = new THREE.Group();
 
-// セッション開始時にコントローラー群を xrRig（train の子）へ移す
 renderer.xr.addEventListener("sessionstart", () => {
     [ctrl0, ctrl1, grip0, grip1].forEach(obj => {
         if (obj.parent !== xrRig) {
@@ -630,7 +607,7 @@ renderer.xr.addEventListener("sessionstart", () => {
     });
 });
 
-/* -----  LASER (両手共通ファクトリ)  ----- */
+/* -----  LASER  ----- */
 function makeLaser() {
     const mat = new THREE.LineBasicMaterial({ color:0xff2222, depthTest:false, transparent:true, opacity:0.95 });
     const geo = new THREE.BufferGeometry().setFromPoints([
@@ -647,10 +624,9 @@ function makeLaser() {
     return { line, mat, dot };
 }
 
-const laserRight = makeLaser(); // 右手用レーザー
-const laserLeft  = makeLaser(); // 左手用レーザー
+const laserRight = makeLaser();
+const laserLeft  = makeLaser();
 
-// connected イベントで handedness を確定し、各コントローラーにレーザーを付ける
 let rightController = null;
 let leftController  = null;
 
@@ -659,7 +635,6 @@ function onControllerConnected(event) {
     const hand = event.data.handedness;
     if (hand === "right") {
         rightController = ctrl;
-        // 既存のレーザーを外してから付け直す（二重追加防止）
         if (laserRight.line.parent) laserRight.line.parent.remove(laserRight.line);
         ctrl.add(laserRight.line);
     } else if (hand === "left") {
@@ -712,14 +687,11 @@ class MyCurve extends Curve {
 const curve = new MyCurve();
 
 /* =====================================================
-COASTER SCENE MODEL (00101_kokufuhakkutsu3.glb)
-addCoaster adds the environment model to scene.
-We scale it to MODEL_SCALE and rotate.
+COASTER SCENE MODEL
 ===================================================== */
 await addCoaster(scene, curve, null,
     "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu3.glb");
 
-// Scale and rotate the environment root
 let coasterRoot = null;
 scene.traverse(o => {
     if (!coasterRoot && o.isMesh) {
@@ -734,7 +706,7 @@ if (coasterRoot) {
 }
 
 /* =====================================================
-ARTIFACT MODELS — hidden until first click
+ARTIFACT MODELS
 ===================================================== */
 const loader   = new GLTFLoader();
 const BASE_URL = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu3/";
@@ -774,7 +746,6 @@ ARTIFACTS.forEach((data,idx) => {
         const obj = gltf.scene;
         obj.scale.set(ARTIFACT_SCALE, ARTIFACT_SCALE, ARTIFACT_SCALE);
         obj.position.copy(wp);
-        // ツアーモードは最初から全モデル表示、ゲームモードは初回クリックまで非表示
         obj.visible = (CONFIG.gameMode === "tour");
         scene.add(obj); rotatingObjects.push(obj); permanentModels[idx] = obj;
     });
@@ -853,10 +824,8 @@ const train=new THREE.Mesh(
 );
 scene.add(train);
 
-// xrRig を train の子にする（コントローラーが train の相対座標に乗る）
 train.add(xrRig);
 
-// Speed meter
 const mCv=document.createElement("canvas"); mCv.width=256; mCv.height=128;
 const mCtx=mCv.getContext("2d"), mTex=new THREE.CanvasTexture(mCv);
 const mMesh=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.18),new THREE.MeshBasicMaterial({map:mTex,transparent:true}));
@@ -878,8 +847,7 @@ function drawMeter(speed){
 }
 
 /* =====================================================
-CAMERA MODE (browser selection)
-In VR the sessionstart handler always ensures ride mode.
+CAMERA MODE
 ===================================================== */
 if (CONFIG.camera==="ride") {
     train.add(camera);
@@ -892,7 +860,7 @@ if (CONFIG.camera==="ride") {
 
 
 /* =====================================================
-HUD PANELS — children of train (camera rig)
+HUD PANELS
 ===================================================== */
 function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
     const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
@@ -906,13 +874,10 @@ function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
 }
 const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95);
 const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95);
-// OV: カウントダウン・強制終了などの大型通知パネル
-// 大きく (2.4×1.2)、目の正面近く (z=-0.75)、視線より少し上 (y=1.10)
 const OV =makeHUDPanel(1024,512,  1.6,0.8,   0.00,1.0,-0.9);
 OV.mesh.renderOrder=1000; OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
-// Darkness overlay
 function makeDarkPlane(rx){
     const m=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),
         new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
@@ -1034,7 +999,6 @@ function startCountdown(){
     gameScore=0; gameTimeLeft=GAME_DURATION;
     for(const k in clickCounts) delete clickCounts[k];
     teleportToStart(); setDark(0);
-    // gate removed
     updateHUD();
 
     let cd=3;
@@ -1052,11 +1016,9 @@ function startCountdown(){
 
 function doStart(){
     gamePhase="playing";
-    sfxCountdown(0); // GO! sound
-    // gate removed
+    sfxCountdown(0);
     updateHUD();
     vibrate(300,0.7);
-    // Start rail sound now
     railSound.play().catch(()=>{});
     mainInterval=setInterval(()=>{
         gameTimeLeft--;
@@ -1073,13 +1035,11 @@ function doEnd(){
     railSound.pause();
     if(gameScore>0) saveScore(gameScore);
     updateScoreBoard(); setDark(0.75);
-    showOverlay(`${gameScore}pt`,"🎉 ゲーム終了！お疲れ様でした！");
-    // gate removed
+    showOverlay(`${gameScore}pt`,"🎉 ゲーム終了！");
     cleanCoins();
     phaseTimeout=setTimeout(()=>{
         gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
         setDark(0); hideOverlay(); teleportToStart(); updateHUD();
-        // gate removed
     },10000);
 }
 
@@ -1091,11 +1051,9 @@ function doForceEnd(){
     railSound.pause();
     cleanCoins(); setDark(0.75);
     showOverlay("強制終了","スコアは記録されません");
-    // gate removed
     phaseTimeout=setTimeout(()=>{
         gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
         setDark(0); hideOverlay(); teleportToStart(); updateHUD();
-        // gate removed
     },3000);
 }
 
@@ -1125,7 +1083,6 @@ function spawnCoin(idx,isFirst){
 SPHERE CLICK
 ===================================================== */
 function checkComplete(){
-    // 全アーティファクトを一度でもクリックしていれば COMPLETE
     return ARTIFACTS.every((_,i)=>(clickCounts[i]||0)>0);
 }
 
@@ -1140,7 +1097,6 @@ function onSphereClick(sphere){
     sfxClick(); vibrate(80,0.9);
     spawnCoin(idx,first);
 
-    // コンプリートチェック（全モデル初回クリック済みで +50）
     if(first && checkComplete()){
         gameScore+=50; updateHUD();
         vibrate(500,1.0);
@@ -1192,7 +1148,6 @@ ANIMATION LOOP
 renderer.setAnimationLoop(()=>{
     const now=performance.now(), dt=now-prevTime;
 
-    // ツアーモードは常時走行、ゲームモードは playing 中のみ進行
     const isVR = renderer.xr.isPresenting;
     const isTour = CONFIG.gameMode === "tour";
     if(isTour || gamePhase==="playing") progress=(progress+velocity)%1;
@@ -1208,8 +1163,6 @@ renderer.setAnimationLoop(()=>{
 
     const ACCEL=0.0000001,DECEL=ACCEL*0.5;
     accelState=0;
-    // ツアーモード：スティックのみで加減速（常時有効）
-    // ゲームモード：playing 中のみ加減速
     if(isTour || gamePhase==="playing"){
         if(!isTour && keyUp)  {velocity+=ACCEL*dt;accelState=1;}
         if(!isTour && keyDown){velocity-=DECEL*dt;accelState=-1;}
@@ -1235,12 +1188,10 @@ renderer.setAnimationLoop(()=>{
     scenelines.forEach((l,i)=>{const k=0.5+Math.sin(now*0.003+i)*0.5;l.material.color.setRGB(0.5*k,0.8*k,k);});
     clickSpheres.forEach((s,i)=>{const p=0.9+Math.sin(now*0.003+i*0.8)*0.1;s.scale.setScalar(p);});
 
-    // outside モード（非VR）またはツアーモードでは HUD/SB 非表示
     const showHUD = isVR && !isTour;
     HUD.mesh.visible = showHUD;
     SB.mesh.visible  = showHUD;
 
-    // Coin animations
     const dtSec=dt/1000;
     for(let i=coinAnims.length-1;i>=0;i--){
         const c=coinAnims[i]; c.t+=dtSec; const tr=Math.min(c.t/c.dur,1);
@@ -1266,7 +1217,6 @@ renderer.setAnimationLoop(()=>{
         }
     }
 
-    // Laser + buttons（ゲームモード中のみ有効）
     function updateLaser(ctrl, laserObj) {
         tmpMtx.identity().extractRotation(ctrl.matrixWorld);
         raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
@@ -1280,7 +1230,6 @@ renderer.setAnimationLoop(()=>{
         return hits;
     }
 
-    // Laser + trigger — connected イベントで確定した rightController/leftController を使う
     let bA=false, bB=false, trigRight=false, trigLeft=false;
     let hitsRight=[], hitsLeft=[];
     laserRight.line.visible = false;
@@ -1297,7 +1246,6 @@ renderer.setAnimationLoop(()=>{
         }
     }
 
-    // ボタン状態を handedness で取得
     const xrSess = renderer.xr.getSession();
     if(xrSess){
         for(const src of xrSess.inputSources){
@@ -1323,7 +1271,6 @@ renderer.setAnimationLoop(()=>{
     renderer.render(scene,camera);
     prevTime=now;
 
-    // Rail sound — ツアーモードは常時再生、ゲームモードは playing 中のみ
     if(isTour && isVR && railSound.paused) {
         railSound.play().catch(()=>{});
     }
