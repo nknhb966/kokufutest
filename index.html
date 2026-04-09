@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府発掘2025VRコースター</title>
+<title>1越前国府発掘2025VRコースター</title>
 <style>
     body { margin:0; overflow:hidden; font-family:sans-serif; }
     #uiPanel {
@@ -228,15 +228,15 @@ VR SESSION EVENTS
 renderer.xr.addEventListener("sessionstart", () => {
     // Switch to ride mode if outside mode was selected
     if (CONFIG.camera !== "ride") {
-        // Re-parent camera to train
         if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
         scene.remove(camera);
         train.add(camera);
         camera.position.set(0, 0.2, 0);
         camera.rotation.set(0, 0, 0);
     }
-    // Rail sound is now allowed, but only starts when game starts (see doStart)
     if (audioCtx.state === "suspended") audioCtx.resume();
+    // NOTE: コントローラーの xrRig への移動は上の CONTROLLERS セクションの
+    // sessionstart リスナーで処理済み
 });
 
 renderer.xr.addEventListener("sessionend", () => {
@@ -245,23 +245,15 @@ renderer.xr.addEventListener("sessionend", () => {
 
 /* =====================================================
 CONTROLLERS
-In WebXR the controller/grip objects are automatically placed
-inside the XR reference space — they naturally follow the
-player's physical hand positions.
+WebXR のコントローラーはデフォルトで XR 参照空間（ワールド原点）に
+配置される。ライドモードではカメラが train の子として動くため、
+コントローラーも train と同じ相対空間に乗せる必要がある。
 
-When camera is in "ride" mode, the camera is a child of `train`
-(which moves in world space). Controllers are XR-relative,
-meaning they are in the same world space as the XR camera rig.
-
-To make controllers appear relative to the PLAYER'S HEAD
-(which in ride mode is attached to the train), we need to add
-controllers as children of the train / XRrig.
-The trick: renderer.xr.getController returns objects whose world
-transforms ARE the XR rig pose. In Three.js the XR camera group
-("xrGroup") is what we need to attach them to.
-We access it via renderer.xr.getCamera() parent after session start.
-For simplicity, we place ctrl objects in the scene root (XR space).
-They will track hands correctly in XR regardless of train position.
+解決策:
+  xrRig という THREE.Group を train の子にする。
+  セッション開始時にコントローラー・グリップを xrRig に移動する。
+  これにより train の position / quaternion がそのままコントローラーの
+  ワールド座標に加算され、「視点（頭）の相対位置に手が来る」動作になる。
 ===================================================== */
 const ctrlModelFactory = new XRControllerModelFactory();
 
@@ -269,13 +261,23 @@ const grip0 = renderer.xr.getControllerGrip(0);
 const grip1 = renderer.xr.getControllerGrip(1);
 grip0.add(ctrlModelFactory.createControllerModel(grip0));
 grip1.add(ctrlModelFactory.createControllerModel(grip1));
-scene.add(grip0);
-scene.add(grip1);
 
 const ctrl0 = renderer.xr.getController(0); // right — laser
 const ctrl1 = renderer.xr.getController(1); // left
-scene.add(ctrl0);
-scene.add(ctrl1);
+
+// xrRig: コントローラーを乗せる Group。train.add() は TRAIN セクションで行う。
+const xrRig = new THREE.Group();
+
+// セッション開始時にコントローラー群を xrRig（train の子）へ移す
+renderer.xr.addEventListener("sessionstart", () => {
+    [ctrl0, ctrl1, grip0, grip1].forEach(obj => {
+        if (obj.parent !== xrRig) {
+            // scene や他の親から外して xrRig へ
+            if (obj.parent) obj.parent.remove(obj);
+            xrRig.add(obj);
+        }
+    });
+});
 
 /* -----  LASER  -----
    Attached to ctrl0 (target-ray space). Local forward = -Z.
@@ -467,6 +469,9 @@ const train=new THREE.Mesh(
     new THREE.MeshBasicMaterial({color:15628151})
 );
 scene.add(train);
+
+// xrRig を train の子にする（コントローラーが train の相対座標に乗る）
+train.add(xrRig);
 
 // Speed meter
 const mCv=document.createElement("canvas"); mCv.width=256; mCv.height=128;
