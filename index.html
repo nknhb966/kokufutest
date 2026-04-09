@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府発掘2025VRコースター</title>
+<title>1越前国府発掘2025VRコースター</title>
 <style>
     body { margin:0; overflow:hidden; font-family:sans-serif; }
     #uiPanel {
@@ -263,7 +263,7 @@ grip0.add(ctrlModelFactory.createControllerModel(grip0));
 grip1.add(ctrlModelFactory.createControllerModel(grip1));
 
 const ctrl0 = renderer.xr.getController(0); // right — laser
-const ctrl1 = renderer.xr.getController(1); // left
+const ctrl1 = renderer.xr.getController(1); // left — laser
 
 // xrRig: コントローラーを乗せる Group。train.add() は TRAIN セクションで行う。
 const xrRig = new THREE.Group();
@@ -279,24 +279,28 @@ renderer.xr.addEventListener("sessionstart", () => {
     });
 });
 
-/* -----  LASER  -----
-   Attached to ctrl0 (target-ray space). Local forward = -Z.
-   depthTest:false so it always renders on top.
+/* -----  LASER (両手共通ファクトリ)  -----
+   target-ray space にアタッチ。ローカル前方 = -Z。
+   depthTest:false で常に前面描画。
 ----- */
-const laserMat = new THREE.LineBasicMaterial({ color:0xff2222, depthTest:false, transparent:true, opacity:0.95 });
-const laserGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-LASER_MAX_DIST)
-]);
-const laser = new THREE.Line(laserGeo, laserMat);
-laser.frustumCulled = false; laser.renderOrder = 9999;
-ctrl0.add(laser);
+function makeLaser() {
+    const mat = new THREE.LineBasicMaterial({ color:0xff2222, depthTest:false, transparent:true, opacity:0.95 });
+    const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-LASER_MAX_DIST)
+    ]);
+    const line = new THREE.Line(geo, mat);
+    line.frustumCulled = false; line.renderOrder = 9999;
+    const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.012, 8, 8),
+        new THREE.MeshBasicMaterial({ color:0xffffff, depthTest:false })
+    );
+    dot.renderOrder = 9999; dot.visible = false;
+    line.add(dot);
+    return { line, mat, dot };
+}
 
-const laserDot = new THREE.Mesh(
-    new THREE.SphereGeometry(0.012, 8, 8),
-    new THREE.MeshBasicMaterial({ color:0xffffff, depthTest:false })
-);
-laserDot.renderOrder = 9999; laserDot.visible = false;
-ctrl0.add(laserDot);
+const laser0 = makeLaser(); ctrl0.add(laser0.line); // 右手
+const laser1 = makeLaser(); ctrl1.add(laser1.line); // 左手
 
 /* =====================================================
 CAMERA
@@ -507,75 +511,6 @@ if (CONFIG.camera==="ride") {
     camera.position.set(0,4*MODEL_SCALE,20*MODEL_SCALE);
 }
 
-/* =====================================================
-CURVE START INFO (for gate placement)
-===================================================== */
-const startCurvePos = curve.getPointAt(0).clone();
-startCurvePos.y += 0.2;
-const startTangent  = curve.getTangentAt(0).clone().normalize();
-
-/* =====================================================
-GATE
-レール t=0 の少し先（進行方向へ GATE_FORWARD ユニット）に配置。
-人間サイズに合わせた小さなゲート。
-===================================================== */
-const GATE_FORWARD = 1.5 * MODEL_SCALE; // レール進行方向への前方オフセット
-const gateGrp = new THREE.Group();
-// 進行方向タンジェントに沿って前方へずらす
-const gatePosX = startCurvePos.x + startTangent.x * GATE_FORWARD;
-const gatePosZ = startCurvePos.z + startTangent.z * GATE_FORWARD;
-// Y: レール高さから人が乗る座面分下げた地面相当の高さ
-gateGrp.position.set(gatePosX, RAIL_HEIGHT - MODEL_SCALE * 1.7, gatePosZ);
-const gateYaw = Math.atan2(startTangent.x, startTangent.z);
-gateGrp.rotation.y = gateYaw;
-scene.add(gateGrp);
-
-// ゲート寸法 — 人間スケールに合わせて縮小（元の約 1/3）
-const G_HALF  = 0.5 * MODEL_SCALE;   // 半スパン（幅 1.0 * MODEL_SCALE）
-const G_H     = 1.2 * MODEL_SCALE;   // 高さ
-const G_PW    = 0.10 * MODEL_SCALE;  // 柱幅
-
-const pillarM = new THREE.MeshBasicMaterial({color:0x996622});
-[-G_HALF, G_HALF].forEach(s=>{
-    const p=new THREE.Mesh(new THREE.BoxGeometry(G_PW,G_H,G_PW),pillarM);
-    p.position.set(s, G_H/2, 0); gateGrp.add(p);
-});
-const crossbar=new THREE.Mesh(
-    new THREE.BoxGeometry(G_HALF*2+G_PW, 0.10*MODEL_SCALE, 0.10*MODEL_SCALE),
-    new THREE.MeshBasicMaterial({color:0xcc8833})
-);
-crossbar.position.set(0, G_H, 0); gateGrp.add(crossbar);
-
-// ランタン装飾
-const lanternM = new THREE.MeshBasicMaterial({color:0xff6600});
-[-G_HALF, G_HALF].forEach(s=>{
-    const l=new THREE.Mesh(new THREE.BoxGeometry(G_PW*1.8, 0.14*MODEL_SCALE, G_PW*1.8), lanternM);
-    l.position.set(s, G_H - 0.12*MODEL_SCALE, 0); gateGrp.add(l);
-});
-
-// ゲート看板キャンバス
-const gSignCv=document.createElement("canvas"); gSignCv.width=1024; gSignCv.height=256;
-const gSignCtx=gSignCv.getContext("2d"), gSignTex=new THREE.CanvasTexture(gSignCv);
-function drawGateSign(line1,line2="",col="#ffee44"){
-    gSignCtx.clearRect(0,0,1024,256);
-    gSignCtx.fillStyle="rgba(0,0,0,0.82)"; gSignCtx.fillRect(0,0,1024,256);
-    gSignCtx.strokeStyle="#ffee44"; gSignCtx.lineWidth=8; gSignCtx.strokeRect(8,8,1008,240);
-    gSignCtx.fillStyle=col; gSignCtx.textAlign="center";
-    if(line2){
-        gSignCtx.font="bold 80px sans-serif"; gSignCtx.fillText(line1,512,112);
-        gSignCtx.font="bold 56px sans-serif"; gSignCtx.fillText(line2,512,196);
-    } else {
-        gSignCtx.font="bold 90px sans-serif"; gSignCtx.fillText(line1,512,153);
-    }
-    gSignTex.needsUpdate=true;
-}
-drawGateSign("🏛 スタートゲート 🏛");
-const gSignMesh=new THREE.Mesh(
-    new THREE.PlaneGeometry(G_HALF*2, 0.28*MODEL_SCALE),
-    new THREE.MeshBasicMaterial({map:gSignTex,transparent:true,side:THREE.DoubleSide})
-);
-gSignMesh.position.set(0, G_H + 0.02*MODEL_SCALE, 0.02);
-gateGrp.add(gSignMesh);
 
 /* =====================================================
 HUD PANELS — children of train (camera rig)
@@ -720,7 +655,7 @@ function startCountdown(){
     gameScore=0; gameTimeLeft=GAME_DURATION;
     for(const k in clickCounts) delete clickCounts[k];
     teleportToStart(); setDark(0);
-    drawGateSign("⏳ まもなくスタート！","準備してください","#ffcc22");
+    // gate removed
     updateHUD();
 
     let cd=3;
@@ -739,7 +674,7 @@ function startCountdown(){
 function doStart(){
     gamePhase="playing";
     sfxCountdown(0); // GO! sound
-    drawGateSign("🎮 ゲーム中！","","#ff4444");
+    // gate removed
     updateHUD();
     vibrate(300,0.7);
     // Start rail sound now
@@ -760,12 +695,12 @@ function doEnd(){
     if(gameScore>0) saveScore(gameScore);
     updateScoreBoard(); setDark(0.75);
     showOverlay(`${gameScore}pt`,"🎉 ゲーム終了！お疲れ様でした！");
-    drawGateSign("🏛 スタートゲート 🏛");
+    // gate removed
     cleanCoins();
     phaseTimeout=setTimeout(()=>{
         gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
         setDark(0); hideOverlay(); teleportToStart(); updateHUD();
-        drawGateSign("🏛 スタートゲート 🏛");
+        // gate removed
     },10000);
 }
 
@@ -777,11 +712,11 @@ function doForceEnd(){
     railSound.pause();
     cleanCoins(); setDark(0.75);
     showOverlay("強制終了","スコアは記録されません");
-    drawGateSign("🏛 スタートゲート 🏛");
+    // gate removed
     phaseTimeout=setTimeout(()=>{
         gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
         setDark(0); hideOverlay(); teleportToStart(); updateHUD();
-        drawGateSign("🏛 スタートゲート 🏛");
+        // gate removed
     },3000);
 }
 
@@ -870,7 +805,7 @@ function getRightGP(){
     return null;
 }
 
-let prevA=false,prevB=false,prevTrig=false;
+let prevA=false,prevB=false,prevTrig0=false,prevTrig1=false;
 
 /* =====================================================
 ANIMATION LOOP
@@ -942,27 +877,43 @@ renderer.setAnimationLoop(()=>{
         }
     }
 
-    // Laser + buttons
-    tmpMtx.identity().extractRotation(ctrl0.matrixWorld);
-    raycaster.ray.origin.setFromMatrixPosition(ctrl0.matrixWorld);
-    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tmpMtx);
-    const hits=raycaster.intersectObjects(clickSpheres,false);
-    const hitDist=hits.length>0?hits[0].distance:LASER_MAX_DIST;
-    laser.geometry.setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-hitDist)]);
-    laserMat.color.set(hits.length>0?0x00ff88:0xff3333);
-    laserDot.position.set(0,0,-hitDist); laserDot.visible=hits.length>0;
+    // Laser + buttons (左右両手)
+    function updateLaser(ctrl, laserObj) {
+        tmpMtx.identity().extractRotation(ctrl.matrixWorld);
+        raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
+        raycaster.ray.direction.set(0,0,-1).applyMatrix4(tmpMtx);
+        const hits = raycaster.intersectObjects(clickSpheres, false);
+        const hitDist = hits.length > 0 ? hits[0].distance : LASER_MAX_DIST;
+        laserObj.line.geometry.setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-hitDist)]);
+        laserObj.mat.color.set(hits.length > 0 ? 0x00ff88 : 0xff3333);
+        laserObj.dot.position.set(0, 0, -hitDist);
+        laserObj.dot.visible = hits.length > 0;
+        return hits;
+    }
+    const hits0 = updateLaser(ctrl0, laser0); // 右手
+    const hits1 = updateLaser(ctrl1, laser1); // 左手
 
     const gp=getRightGP();
-    let bA=false,bB=false,bT=false;
+    let bA=false,bB=false,bT0=false,bT1=false;
     if(gp){
-        bT=gp.buttons[0]?.pressed??false;
-        bA=gp.buttons[4]?.pressed??false;
-        bB=gp.buttons[5]?.pressed??false;
+        bT0=gp.buttons[0]?.pressed??false;
+        bA =gp.buttons[4]?.pressed??false;
+        bB =gp.buttons[5]?.pressed??false;
+    }
+    // 左手トリガーは inputSources から取得
+    const s=renderer.xr.getSession();
+    if(s){
+        for(const src of s.inputSources){
+            if(src.handedness==="left"&&src.gamepad){
+                bT1=src.gamepad.buttons[0]?.pressed??false;
+            }
+        }
     }
     if(bA&&!prevA&&gamePhase==="idle") startCountdown();
     if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doForceEnd();
-    if(bT&&!prevTrig&&gamePhase==="playing"&&hits.length>0) onSphereClick(hits[0].object);
-    prevA=bA; prevB=bB; prevTrig=bT;
+    if(bT0&&!prevTrig0&&gamePhase==="playing"&&hits0.length>0) onSphereClick(hits0[0].object);
+    if(bT1&&!prevTrig1&&gamePhase==="playing"&&hits1.length>0) onSphereClick(hits1[0].object);
+    prevA=bA; prevB=bB; prevTrig0=bT0; prevTrig1=bT1;
 
     renderer.render(scene,camera);
     prevTime=now;
