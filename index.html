@@ -77,8 +77,7 @@
         transition:box-shadow .2s, transform .1s !important;
     }
     #vrButtonWrap button:hover, #vrButtonWrap a:hover {
-        box-shadow:0 0 48px rgba(120,80,255,0.95) !important;
-        transform:translateY(-1px) !important;
+        box-shadow:0 0 48px rgba(120,80,255,0.95) !important; transform:translateY(-1px) !important;
     }
 
     /* 区切り線 */
@@ -230,10 +229,10 @@
     <p class="main-title">越前国府VRコースター</p>
     <p class="sub-title">〜体験と挑戦、ふたつの旅〜</p>
 
-    <div class="divider"></div>
-
     <!-- VRボタン（JS で挿入） -->
     <div id="vrButtonWrap"></div>
+
+    <div class="divider"></div>
 
     <!-- 設定グリッド -->
     <div class="settings-grid">
@@ -334,13 +333,11 @@ CONFIG
 ===================================================== */
 const CONFIG = {
     curve    : localStorage.getItem("curve")    || "trolley",
-    camera   : localStorage.getItem("camera")   || "ride",
+    camera   : "ride",   // localStorage 保存なし。sessionStorage 一時値は後で上書き
     speed    : parseFloat(localStorage.getItem("speed") || 0.5),
     gameMode : localStorage.getItem("gameMode") || "game"
 };
 let SPEED = CONFIG.speed;
-
-if (CONFIG.camera === "outside") document.body.classList.add("outside-mode");
 
 /* =====================================================
 SCORES
@@ -376,12 +373,34 @@ function setupToggle(id, key) {
         };
     });
 }
+// カメラトグルは localStorage 保存なし（セッションのみ反映、リロード後はデフォルト ride）
+function setupCameraToggle(id) {
+    const btns = document.querySelectorAll(`#${id} button`);
+    btns.forEach(btn => {
+        if (btn.dataset.value === CONFIG.camera) btn.classList.add("active");
+        btn.onclick = () => {
+            btns.forEach(b=>b.classList.remove("active")); btn.classList.add("active");
+            location.reload();
+            // ※ location.reload() 前に localStorage を更新しないため保存されない
+            // 代わりに sessionStorage で一時保存してリロード後に適用
+            sessionStorage.setItem("camera_tmp", btn.dataset.value);
+        };
+    });
+}
+// 起動時に sessionStorage の一時値があれば CONFIG に反映（localStorage には書かない）
+{
+    const tmp = sessionStorage.getItem("camera_tmp");
+    if(tmp){ CONFIG.camera = tmp; sessionStorage.removeItem("camera_tmp");
+        if(tmp==="outside") document.body.classList.add("outside-mode");
+        else document.body.classList.remove("outside-mode");
+    }
+}
 setupToggle("curveToggle","curve");
-setupToggle("cameraToggle","camera");
+setupCameraToggle("cameraToggle");
 setupToggle("gameModeToggle","gameMode");
 
 // outside モード用ミニカメラトグル
-setupToggle("miniCameraToggle","camera");
+setupCameraToggle("miniCameraToggle");
 
 const speedSlider  = document.getElementById("speedSlider");
 const speedValueEl = document.getElementById("speedValue");
@@ -865,11 +884,11 @@ function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
     mesh.position.set(lx,ly,lz); mesh.renderOrder=999;
     return {cv,ctx,tex,mesh};
 }
-const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.9);
-const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.9);
+const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.80,-0.9);
+const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.80,-0.9);
 // OV: カウントダウン・強制終了などの大型通知パネル
-// 大きく (2.4×1.2)、目の正面近く (z=-0.75)、視線より少し上 (y=0.30)
-const OV =makeHUDPanel(1024,512,  2.4,1.2,   0.00,0.30,-0.75);
+// 大きく (2.4×1.2)、目の正面近く (z=-0.75)、視線より少し上 (y=1.10)
+const OV =makeHUDPanel(1024,512,  2.4,1.2,   0.00,1.10,-0.75);
 OV.mesh.renderOrder=1000; OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
@@ -1241,48 +1260,48 @@ renderer.setAnimationLoop(()=>{
         return hits;
     }
 
-    let hits0 = [], hits1 = [];
-    if(!isTour && isVR){
-        // ゲームモードかつ VR セッション中のみレーザー有効
-        laser0.line.visible = true; laser1.line.visible = true;
-        hits0 = updateLaser(ctrl0, laser0); // ctrl0 のレーザー
-        hits1 = updateLaser(ctrl1, laser1); // ctrl1 のレーザー
-    } else {
-        laser0.line.visible = false; laser1.line.visible = false;
-    }
+    // Laser + trigger: inputSources を直接走査し、
+    // 右手 inputSource → 右手 controller オブジェクト → laser0/laser1 を動的に対応づける
+    // Three.js の getController(i) は接続順で割り当てられるため
+    // inputSource.handedness で「どちらの手か」を判断し、
+    // その inputSource に対応する controller を探して正しいレーザーを割り当てる
+    let bA=false, bB=false, trigRight=false, trigLeft=false;
+    let hitsRight=[], hitsLeft=[];
+    laser0.line.visible = false; laser1.line.visible = false;
 
-    // inputSources から各コントローラーのボタン状態を取得
-    // ctrl0/ctrl1 のインデックスは inputSource の順序と一致しないことがあるため
-    // handedness で右手・左手を明示的に取り出す
-    let bA=false, bB=false;
-    let trigRight=false, trigLeft=false;
     const xrSess=renderer.xr.getSession();
-    if(xrSess){
+    if(xrSess && !isTour && isVR){
         for(const src of xrSess.inputSources){
             if(!src.gamepad) continue;
-            const isRight = src.handedness==="right";
-            const isLeft  = src.handedness==="left";
-            if(isRight){
+            // Three.js が割り当てた controller オブジェクトを探す
+            // getController(i).inputSource は r134 以降で有効だが、
+            // フォールバックとして ctrl0/ctrl1 の inputSource プロパティを確認し、
+            // 一致しない場合は両方試して handedness で選ぶ
+            let ctrl = null, laserObj = null;
+            if(ctrl0.inputSource === src)      { ctrl=ctrl0; laserObj=laser0; }
+            else if(ctrl1.inputSource === src) { ctrl=ctrl1; laserObj=laser1; }
+            else {
+                // inputSource プロパティが使えない環境では
+                // handedness で ctrl0/ctrl1 の使用状況から推定
+                // ctrl0 が右手に対応していると仮定し、必要に応じてスワップ
+                if(src.handedness==="right")     { ctrl=ctrl0; laserObj=laser0; }
+                else if(src.handedness==="left") { ctrl=ctrl1; laserObj=laser1; }
+            }
+            if(!ctrl || !laserObj) continue;
+
+            laserObj.line.visible = true;
+            const hits = updateLaser(ctrl, laserObj);
+
+            if(src.handedness==="right"){
+                hitsRight = hits;
                 trigRight = src.gamepad.buttons[0]?.pressed ?? false;
                 bA        = src.gamepad.buttons[4]?.pressed ?? false;
                 bB        = src.gamepad.buttons[5]?.pressed ?? false;
-            }
-            if(isLeft){
+            } else if(src.handedness==="left"){
+                hitsLeft  = hits;
                 trigLeft  = src.gamepad.buttons[0]?.pressed ?? false;
             }
         }
-    }
-    // ctrl0/ctrl1 がどちらの手かを xrInputSource の targetRaySpace 経由で判定
-    // Three.js では getController(0) が最初に接続されたコントローラーになるため
-    // 実際の手との対応を inputSources.indexOf 相当で確認する
-    // → 安全策として ctrl0/ctrl1 の matrixWorld から判定せず、
-    //    hits0/hits1 を「右手トリガー→ctrl0 OR ctrl1 の右手側」に割り当てる
-    // Three.js r128 では XRTargetRaySpace に .inputSource が存在する
-    let hitsRight = [], hitsLeft = [];
-    if(ctrl0.inputSource?.handedness === "left") {
-        hitsRight = hits1; hitsLeft = hits0;
-    } else {
-        hitsRight = hits0; hitsLeft = hits1;
     }
 
     if(!isTour){
