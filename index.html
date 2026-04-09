@@ -171,10 +171,13 @@ document.body.appendChild(VRButton.createButton(renderer));
 
 /* =====================================================
 CONTROLLERS
+The XR system automatically parents controller objects to the
+XR camera rig when a session starts — adding them to the scene
+is sufficient. They track the real-world hand positions.
 ===================================================== */
 const ctrlModelFactory = new XRControllerModelFactory();
 
-// Grip (shows physical model)
+// Grip spaces — show physical controller model in VR
 const grip0 = renderer.xr.getControllerGrip(0); // right
 const grip1 = renderer.xr.getControllerGrip(1); // left
 grip0.add(ctrlModelFactory.createControllerModel(grip0));
@@ -182,33 +185,35 @@ grip1.add(ctrlModelFactory.createControllerModel(grip1));
 scene.add(grip0);
 scene.add(grip1);
 
-// Ray sources
-const ctrl0 = renderer.xr.getController(0); // right – laser + buttons
+// Target ray spaces — for laser pointer origin/direction
+const ctrl0 = renderer.xr.getController(0); // right
 const ctrl1 = renderer.xr.getController(1); // left
 scene.add(ctrl0);
 scene.add(ctrl1);
 
-/* -----  LASER  ----- */
-// Build laser geometry updated each frame
+/* -----  LASER  -----
+   Attached to ctrl0 (target ray space).
+   In local space, "forward" = -Z, so the line goes from (0,0,0) to (0,0,-dist).
+   depthTest:false → always drawn on top of all geometry.
+----- */
 const laserPts = [new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-LASER_MAX_DIST)];
 const laserGeo = new THREE.BufferGeometry().setFromPoints(laserPts);
 const laserMat = new THREE.LineBasicMaterial({
-    color:0xff2222,
-    depthTest:false,   // renders on top of everything → always visible
-    transparent:true,
-    opacity:0.95
+    color: 0xff2222,
+    depthTest: false,
+    transparent: true,
+    opacity: 0.95
 });
 const laser = new THREE.Line(laserGeo, laserMat);
 laser.frustumCulled = false;
-laser.renderOrder = 9999;
+laser.renderOrder   = 9999;
 ctrl0.add(laser);
 
-// Small dot at hit point
-const dotGeo = new THREE.SphereGeometry(0.010, 8, 8);
+// Hit dot
 const dotMat = new THREE.MeshBasicMaterial({ color:0xffffff, depthTest:false });
-const laserDot = new THREE.Mesh(dotGeo, dotMat);
+const laserDot = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), dotMat);
 laserDot.renderOrder = 9999;
-laserDot.visible = false;
+laserDot.visible     = false;
 ctrl0.add(laserDot);
 
 /* =====================================================
@@ -245,20 +250,25 @@ const curve = new MyCurve();
 
 /* =====================================================
 COASTER MODEL
+addCoaster loads 00101_kokufuhakkutsu3.glb and adds it to scene.
+We must re-scale it to MODEL_SCALE after loading.
 ===================================================== */
 await addCoaster(scene, curve, null,
     "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu3.glb");
 
-let scaled = false;
+// Find the root object that addCoaster added and scale it
+let coasterRoot = null;
 scene.traverse(o => {
-    if (o.isMesh && !scaled) {
+    if (o.isMesh && !coasterRoot) {
         let root = o;
-        while (root.parent && root.parent.type !== "Scene") root = root.parent;
-        root.scale.set(MODEL_SCALE,MODEL_SCALE,MODEL_SCALE);
-        root.rotation.y = THREE.MathUtils.degToRad(-90);
-        scaled = true;
+        while (root.parent && root.parent !== scene) root = root.parent;
+        coasterRoot = root;
     }
 });
+if (coasterRoot) {
+    coasterRoot.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+    coasterRoot.rotation.y = THREE.MathUtils.degToRad(-90);
+}
 
 /* =====================================================
 ARTIFACTS — hidden until first click per sphere
@@ -276,12 +286,11 @@ const ARTIFACTS = [
     {file:"model08_small.glb", x:-1.8, z: 1.2}
 ];
 
-const artifactWorldPos = {}; // idx → THREE.Vector3
-const permanentModels  = {}; // idx → THREE.Object3D (hidden until 1st click)
+const artifactWorldPos = {};
+const permanentModels  = {};
 const rotatingObjects  = [];
 const auras            = [];
 
-// Aura texture
 function makeAuraTex() {
     const c = document.createElement("canvas"); c.width=64; c.height=256;
     const ctx=c.getContext("2d"), g=ctx.createLinearGradient(0,256,0,0);
@@ -300,18 +309,16 @@ ARTIFACTS.forEach((data,idx) => {
     const worldPos = new THREE.Vector3(data.x*MODEL_SCALE, ARTIFACT_HEIGHT, data.z*MODEL_SCALE);
     artifactWorldPos[idx] = worldPos;
 
-    // Aura — always visible
     const aura = new THREE.Mesh(auraGeo, auraMat);
     aura.position.copy(worldPos);
     scene.add(aura);
     auras.push(aura);
 
-    // Model — load and hide
     loader.load(BASE_URL+data.file, gltf => {
         const obj = gltf.scene;
-        obj.scale.set(ARTIFACT_SCALE,ARTIFACT_SCALE,ARTIFACT_SCALE);
+        obj.scale.set(ARTIFACT_SCALE, ARTIFACT_SCALE, ARTIFACT_SCALE);
         obj.position.copy(worldPos);
-        obj.visible = false; // hidden until 1st click
+        obj.visible = false;
         scene.add(obj);
         rotatingObjects.push(obj);
         permanentModels[idx] = obj;
@@ -319,7 +326,7 @@ ARTIFACTS.forEach((data,idx) => {
 });
 
 /* =====================================================
-EXPLANATION PANELS / ANCHORS / LINES (always visible)
+EXPLANATION PANELS / ANCHORS / LINES
 ===================================================== */
 const texLoader  = new THREE.TextureLoader();
 const IMAGE_BASE = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu3/";
@@ -351,14 +358,14 @@ const EXPLAIN_PTS = [
     ["40800_kokufuhakkutsu3.png",-1.8, 1.2, 0.0, 1.3,180]
 ];
 
-const anchors   = [];
-const scenelines= [];
+const anchors      = [];
+const scenelines   = [];
 const clickSpheres = [];
-const SPHERE_R  = 0.20 * MODEL_SCALE;
-const sphereGeo = new THREE.SphereGeometry(SPHERE_R, 24, 24);
-const panelGeo  = new THREE.PlaneGeometry(1.5*MODEL_SCALE,1.5*MODEL_SCALE);
-const anchorGeo = new THREE.SphereGeometry(0.05,16,16);
-const anchorMat = new THREE.MeshBasicMaterial({color:0x66ccff});
+const SPHERE_R     = 0.20 * MODEL_SCALE;
+const sphereGeo    = new THREE.SphereGeometry(SPHERE_R, 24, 24);
+const panelGeo     = new THREE.PlaneGeometry(1.5*MODEL_SCALE,1.5*MODEL_SCALE);
+const anchorGeo    = new THREE.SphereGeometry(0.05,16,16);
+const anchorMat    = new THREE.MeshBasicMaterial({color:0x66ccff});
 
 EXPLAIN_PTS.forEach((data,idx) => {
     const [file,x,z,ox,oz,rot] = data;
@@ -402,7 +409,7 @@ const train = new THREE.Mesh(
 );
 scene.add(train);
 
-// Speed meter panel on train floor
+// Speed meter
 const mCanvas=document.createElement("canvas"); mCanvas.width=256; mCanvas.height=128;
 const mCtx=mCanvas.getContext("2d"), mTex=new THREE.CanvasTexture(mCanvas);
 const mMesh=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.18),
@@ -438,27 +445,52 @@ if (CONFIG.camera==="ride") {
 }
 
 /* =====================================================
-START POSITION = curve t=0
+START POSITION
+The train starts at curve t=0. Compute that world position.
 ===================================================== */
 const startCurvePos = curve.getPointAt(0).clone();
 startCurvePos.y += 0.2;
 
+// Also get the tangent at t=0 to orient the gate perpendicular to the rail
+const startTangent = curve.getTangentAt(0).clone();
+
 /* =====================================================
-GATE at curve start
+GATE
+- Positioned at curve t=0
+- Oriented perpendicular to the rail direction (rotated 90° from tangent)
+- Sized proportionally to the train/player scale (not MODEL_SCALE pillars)
 ===================================================== */
 const gateGrp = new THREE.Group();
+// Place gate at rail start, at ground level
 gateGrp.position.set(startCurvePos.x, 0, startCurvePos.z);
+
+// Orient gate perpendicular to the rail: gate faces along the tangent direction
+// so the player rides through it. atan2 gives rotation around Y axis.
+const gateYaw = Math.atan2(startTangent.x, startTangent.z);
+gateGrp.rotation.y = gateYaw;
+
 scene.add(gateGrp);
 
-const pillarM = new THREE.MeshBasicMaterial({color:0x996622});
-[-2,2].forEach(s=>{
-    const p=new THREE.Mesh(new THREE.BoxGeometry(0.3*MODEL_SCALE,3.5*MODEL_SCALE,0.3*MODEL_SCALE),pillarM);
-    p.position.set(s*MODEL_SCALE,1.75*MODEL_SCALE,0); gateGrp.add(p);
+// Gate size: pillars about 1m wide and 3m tall (human scale, not world scale)
+// The coaster world is MODEL_SCALE=5 times larger than 1 unit, but the player
+// experiences it from the train at normal human scale. Pillars ~1.5 unit wide gap.
+const GATE_HALF = 1.8;   // half-width between pillars (world units)
+const GATE_H    = 3.2;   // pillar height
+const GATE_PW   = 0.25;  // pillar width
+const pillarM   = new THREE.MeshBasicMaterial({color:0x996622});
+[-GATE_HALF, GATE_HALF].forEach(s=>{
+    const p=new THREE.Mesh(new THREE.BoxGeometry(GATE_PW, GATE_H, GATE_PW), pillarM);
+    p.position.set(s, GATE_H/2, 0);
+    gateGrp.add(p);
 });
-const cross=new THREE.Mesh(new THREE.BoxGeometry(4.3*MODEL_SCALE,0.25*MODEL_SCALE,0.25*MODEL_SCALE),
-    new THREE.MeshBasicMaterial({color:0xcc8833}));
-cross.position.set(0,3.5*MODEL_SCALE,0); gateGrp.add(cross);
+const cross=new THREE.Mesh(
+    new THREE.BoxGeometry(GATE_HALF*2+GATE_PW, 0.2, 0.2),
+    new THREE.MeshBasicMaterial({color:0xcc8833})
+);
+cross.position.set(0, GATE_H, 0);
+gateGrp.add(cross);
 
+// Gate sign canvas
 const gSignCanvas=document.createElement("canvas"); gSignCanvas.width=1024; gSignCanvas.height=256;
 const gSignCtx=gSignCanvas.getContext("2d"), gSignTex=new THREE.CanvasTexture(gSignCanvas);
 
@@ -477,69 +509,74 @@ function drawGateSign(line1, line2="", col="#ffee44") {
 }
 drawGateSign("🏛 スタートゲート 🏛");
 
-const gSignMesh=new THREE.Mesh(new THREE.PlaneGeometry(3.5*MODEL_SCALE,0.9*MODEL_SCALE),
-    new THREE.MeshBasicMaterial({map:gSignTex,transparent:true,side:THREE.DoubleSide}));
-gSignMesh.position.set(0,3.55*MODEL_SCALE,0.15*MODEL_SCALE);
+const gSignMesh=new THREE.Mesh(
+    new THREE.PlaneGeometry(GATE_HALF*2+GATE_PW, 0.6),
+    new THREE.MeshBasicMaterial({map:gSignTex,transparent:true,side:THREE.DoubleSide})
+);
+gSignMesh.position.set(0, GATE_H+0.15, 0.05);
 gateGrp.add(gSignMesh);
 
 /* =====================================================
-HUD — score/timer (right), scoreboard (left)
-Canvas resolution 2×, plane geometry 2×
+HUD — attached to train (camera rig)
+Score/timer on right, scoreboard on left, overlay in center
 ===================================================== */
-function makeCanvasTexMesh(cw,ch,planeW,planeH,localPos) {
+function makeHUDPanel(cw,ch,planeW,planeH,lx,ly,lz) {
     const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
     const ctx=cv.getContext("2d"), tex=new THREE.CanvasTexture(cv);
     const mesh=new THREE.Mesh(
         new THREE.PlaneGeometry(planeW,planeH),
         new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false})
     );
-    mesh.position.copy(localPos);
+    mesh.position.set(lx,ly,lz);
     mesh.renderOrder=999;
     return {cv,ctx,tex,mesh};
 }
 
-const HUD  = makeCanvasTexMesh(1024,512, 1.0,0.5, new THREE.Vector3( 0.56, 0.10,-0.9));
-const SB   = makeCanvasTexMesh(1024,1024,0.8,0.8, new THREE.Vector3(-0.56, 0.10,-0.9));
-const OV   = makeCanvasTexMesh(1024,512, 1.8,0.9, new THREE.Vector3( 0.00, 0.15,-1.0));
-OV.mesh.renderOrder = 1000;
-OV.mesh.visible = false;
+const HUD = makeHUDPanel(1024,512,  1.0,0.5,  0.56, 0.10,-0.9);
+const SB  = makeHUDPanel(1024,1024, 0.8,0.8, -0.56, 0.10,-0.9);
+const OV  = makeHUDPanel(1024,512,  1.8,0.9,  0.00, 0.15,-1.0);
+OV.mesh.renderOrder=1000;
+OV.mesh.visible=false;
 train.add(HUD.mesh);
 train.add(SB.mesh);
 train.add(OV.mesh);
 
-// World-space darkness overlay (two large planes)
-function makeDarkPlane(ry) {
+// Darkness overlay planes
+function makeDarkPlane(rx) {
     const m=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),
         new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
-    m.rotation.x=ry; return m;
+    m.rotation.x=rx; return m;
 }
 const dark1=makeDarkPlane(-Math.PI/2); dark1.position.y= 500; scene.add(dark1);
 const dark2=makeDarkPlane( Math.PI/2); dark2.position.y=-100; scene.add(dark2);
-function setDark(a) { dark1.material.opacity=dark2.material.opacity=Math.max(0,Math.min(1,a)); }
+function setDark(a){ dark1.material.opacity=dark2.material.opacity=Math.max(0,Math.min(1,a)); }
 
-function rrect(ctx,x,y,w,h,r) {
+function rrect(ctx,x,y,w,h,r){
     ctx.beginPath();
-    ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
-    ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
-    ctx.lineTo(x+r,y+h);   ctx.arcTo(x,y+h,x,y+h-r,r);
-    ctx.lineTo(x,y+r);     ctx.arcTo(x,y,x+r,y,r);
-    ctx.closePath();
+    ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
+    ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+    ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);
+    ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();
 }
 
-// game state
+/* =====================================================
+GAME STATE
+===================================================== */
 let gamePhase    = "idle"; // idle|countdown|playing|result|forceend
 let gameScore    = 0;
 let gameTimeLeft = GAME_DURATION;
 const clickCounts= {};
 let mainInterval = null, phaseTimeout = null;
-
-function clearTimers() {
-    if (mainInterval) { clearInterval(mainInterval); mainInterval=null; }
-    if (phaseTimeout) { clearTimeout(phaseTimeout);  phaseTimeout=null; }
+function clearTimers(){
+    if(mainInterval){clearInterval(mainInterval);mainInterval=null;}
+    if(phaseTimeout){clearTimeout(phaseTimeout);phaseTimeout=null;}
 }
 
+/* =====================================================
+HUD DRAW FUNCTIONS
+===================================================== */
 function updateHUD() {
-    const {ctx,cv,tex} = HUD;
+    const {ctx,tex} = HUD;
     ctx.clearRect(0,0,1024,512);
     ctx.fillStyle="rgba(0,0,0,0.78)"; rrect(ctx,8,8,1008,496,28); ctx.fill();
     ctx.fillStyle="#ffee44"; ctx.font="bold 64px sans-serif"; ctx.textAlign="left";
@@ -560,7 +597,7 @@ function updateHUD() {
 }
 
 function updateScoreBoard() {
-    const {ctx,cv,tex} = SB;
+    const {ctx,tex} = SB;
     ctx.clearRect(0,0,1024,1024);
     ctx.fillStyle="rgba(0,0,0,0.78)"; rrect(ctx,8,8,1008,1008,28); ctx.fill();
     ctx.fillStyle="#ffcc44"; ctx.font="bold 72px sans-serif"; ctx.textAlign="center";
@@ -592,27 +629,59 @@ function showOverlay(big, small="") {
     ctx.fillStyle="white"; ctx.textAlign="center";
     if(small){
         ctx.font="bold 180px sans-serif"; ctx.fillText(big,512,285);
-        ctx.fillStyle="#ffee44"; ctx.font="bold 60px sans-serif"; ctx.fillText(small,512,390);
+        ctx.fillStyle="#ffee44"; ctx.font="bold 60px sans-serif"; ctx.fillText(small,512,400);
     } else {
         ctx.font="bold 220px sans-serif"; ctx.fillText(big,512,330);
     }
     tex.needsUpdate=true;
     OV.mesh.visible=true;
 }
-function hideOverlay() { OV.mesh.visible=false; }
+function hideOverlay(){ OV.mesh.visible=false; }
 
 updateHUD(); updateScoreBoard();
 
 /* =====================================================
+VIBRATION
+===================================================== */
+function vibrate(hand, duration, intensity) {
+    // hand: "right" or "left"
+    const session = renderer.xr.getSession();
+    if (!session) return;
+    for (const src of session.inputSources) {
+        if (src.handedness === hand && src.gamepad) {
+            const actuators = src.gamepad.hapticActuators;
+            if (actuators && actuators.length > 0) {
+                actuators[0].pulse(intensity, duration);
+            }
+        }
+    }
+}
+// Convenience shortcuts
+function vibrateHit()    { vibrate("right", 80,  0.9); }
+function vibrateStart()  { vibrate("right", 300, 0.7); }
+function vibrateEnd()    { vibrate("right", 600, 1.0); }
+function vibrateABtn()   { vibrate("right", 120, 0.5); }
+function vibrateBBtn()   { vibrate("right", 200, 0.8); }
+
+/* =====================================================
 GAME LOGIC
 ===================================================== */
+// Progress on curve at t=0 where the train starts
+let progress = 0;
+
 function teleportToStart() {
-    progress=0; velocity=0.0001;
+    progress  = 0;
+    velocity  = 0.0001;
+    // Immediately position train at start
+    const p = curve.getPointAt(0).clone();
+    p.y += 0.2;
+    train.position.copy(p);
 }
 
 function startCountdown() {
     if(gamePhase!=="idle") return;
     clearTimers();
+    vibrateABtn();
     gamePhase="countdown";
     gameScore=0; gameTimeLeft=GAME_DURATION;
     for(const k in clickCounts) delete clickCounts[k];
@@ -634,6 +703,7 @@ function doStart(){
     gamePhase="playing";
     drawGateSign("🎮 ゲーム中！","","#ff4444");
     updateHUD();
+    vibrateStart();
     mainInterval=setInterval(()=>{
         gameTimeLeft--;
         updateHUD();
@@ -644,6 +714,7 @@ function doStart(){
 function doEnd(){
     clearTimers();
     gamePhase="result";
+    vibrateEnd();
     if(gameScore>0) saveScore(gameScore);
     updateScoreBoard();
     setDark(0.75);
@@ -660,6 +731,7 @@ function doEnd(){
 function doForceEnd(){
     if(gamePhase!=="playing"&&gamePhase!=="countdown") return;
     clearTimers();
+    vibrateBBtn();
     gamePhase="forceend";
     cleanCoins();
     setDark(0.75);
@@ -668,6 +740,7 @@ function doForceEnd(){
     phaseTimeout=setTimeout(()=>{
         gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
         setDark(0); hideOverlay(); teleportToStart(); updateHUD();
+        drawGateSign("🏛 スタートゲート 🏛");
     },3000);
 }
 
@@ -712,18 +785,28 @@ function onSphereClick(sphere){
     updateHUD();
     sphere.material.color.set(first?0xff4444:0xffffff);
     setTimeout(()=>sphere.material.color.set(0xffdd33),160);
+    vibrateHit();
     spawnCoin(idx,first);
 }
 
 /* =====================================================
 MOTION VARIABLES
 ===================================================== */
-let progress=0, velocity=0.0001, prevTime=performance.now();
+let velocity=0.0001, prevTime=performance.now();
 let keyUp=false, keyDown=false;
 const pos=new THREE.Vector3(), tan=new THREE.Vector3(), lkAt=new THREE.Vector3();
 let prevPos=new THREE.Vector3(), realSpeed=0;
 let lastSpeedUI=0, lastSound=0;
 
+/* =====================================================
+RAYCASTER
+===================================================== */
+const raycaster=new THREE.Raycaster();
+const tmpMtx=new THREE.Matrix4();
+
+/* =====================================================
+KEYBOARD SHORTCUTS
+===================================================== */
 window.addEventListener("keydown",e=>{
     if(e.code==="ArrowUp")   keyUp=true;
     if(e.code==="ArrowDown") keyDown=true;
@@ -754,46 +837,44 @@ function getRightGP(){
 let prevA=false,prevB=false,prevTrig=false;
 
 /* =====================================================
-RAYCASTER
-===================================================== */
-const raycaster=new THREE.Raycaster();
-const tmpMtx=new THREE.Matrix4();
-
-/* =====================================================
 ANIMATION LOOP
 ===================================================== */
 renderer.setAnimationLoop(()=>{
     const now=performance.now(), dt=now-prevTime;
 
-    /* train motion */
-    if(gamePhase!=="countdown"){
+    /* --- Train motion: STOPPED during idle/countdown/result/forceend --- */
+    if(gamePhase==="playing"){
         progress=(progress+velocity)%1;
     }
+    // Always update train position so it snaps to curve
     pos.copy(curve.getPointAt(progress)); pos.y+=0.2;
-    realSpeed=pos.distanceTo(prevPos)/(dt/1000)*3.6;
+    realSpeed = gamePhase==="playing" ? pos.distanceTo(prevPos)/(dt/1000)*3.6 : 0;
     if(now-lastSpeedUI>100){ realSpeedUI.textContent=realSpeed.toFixed(0)+" km/h"; lastSpeedUI=now; }
     prevPos.copy(pos);
     train.position.copy(pos);
     if(now-lastMeter>100){ drawMeter(realSpeed); lastMeter=now; }
     tan.copy(curve.getTangentAt(progress));
 
+    // Speed control only when playing
     const ACCEL=0.0000001, DECEL=ACCEL*0.5;
     accelState=0;
-    if(keyUp)  {velocity+=ACCEL*dt;accelState=1;}
-    if(keyDown){velocity-=DECEL*dt;accelState=-1;}
-    const sy=getStickY();
-    if(sy<-0.2){velocity+=ACCEL*dt*(-sy);accelState=1;}
-    if(sy> 0.2){velocity-=DECEL*dt*sy;accelState=-1;}
-    const tg=accelState?1:0; glowStr+=(tg-glowStr)*0.15;
-    velocity-=tan.y*1e-7*dt*SPEED;
-    const TV=0.00012*SPEED;
-    if(velocity>TV){const d=velocity-TV;velocity-=(d*d*0.0001+d*0.001)*dt;}
-    velocity=Math.max(0.00005*SPEED,Math.min(0.0003*SPEED,velocity));
+    if(gamePhase==="playing"){
+        if(keyUp)  {velocity+=ACCEL*dt;accelState=1;}
+        if(keyDown){velocity-=DECEL*dt;accelState=-1;}
+        const sy=getStickY();
+        if(sy<-0.2){velocity+=ACCEL*dt*(-sy);accelState=1;}
+        if(sy> 0.2){velocity-=DECEL*dt*sy;accelState=-1;}
+        const tg=accelState?1:0; glowStr+=(tg-glowStr)*0.15;
+        velocity-=tan.y*1e-7*dt*SPEED;
+        const TV=0.00012*SPEED;
+        if(velocity>TV){const d=velocity-TV;velocity-=(d*d*0.0001+d*0.001)*dt;}
+        velocity=Math.max(0.00005*SPEED,Math.min(0.0003*SPEED,velocity));
+    }
     train.lookAt(lkAt.copy(pos).sub(tan));
     if(orbitControls) orbitControls.update();
 
     /* artifact rotation */
-    rotatingObjects.forEach(o=>{o.rotation.y+=0.005;});
+    rotatingObjects.forEach(o=>{ if(o.visible) o.rotation.y+=0.005; });
 
     /* aura */
     auras.forEach((a,i)=>{
@@ -824,7 +905,6 @@ renderer.setAnimationLoop(()=>{
             c.mesh.rotation.y+=0.15; c.mesh.rotation.z+=0.05;
             if(tr>=1&&!c.done){
                 c.done=true;
-                // Reveal permanent model, remove flying clone
                 if(c.idx!==undefined&&permanentModels[c.idx]){
                     permanentModels[c.idx].visible=true;
                 }
@@ -847,7 +927,6 @@ renderer.setAnimationLoop(()=>{
     }
 
     /* --- LASER + BUTTONS --- */
-    // Update laser in world space via controller matrix
     tmpMtx.identity().extractRotation(ctrl0.matrixWorld);
     raycaster.ray.origin.setFromMatrixPosition(ctrl0.matrixWorld);
     raycaster.ray.direction.set(0,0,-1).applyMatrix4(tmpMtx);
@@ -855,10 +934,8 @@ renderer.setAnimationLoop(()=>{
     const hits=raycaster.intersectObjects(clickSpheres,false);
     const hitDist=hits.length>0?hits[0].distance:LASER_MAX_DIST;
 
-    // Rewrite laser geometry in controller-local space
-    // Direction in local space is always (0,0,-1); endpoint at hitDist
-    const ep=[new THREE.Vector3(0,0,0),new THREE.Vector3(0,0,-hitDist)];
-    laser.geometry.setFromPoints(ep);
+    // Update laser endpoint in controller local space
+    laser.geometry.setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-hitDist)]);
     laserMat.color.set(hits.length>0?0x00ff88:0xff3333);
     laserDot.position.set(0,0,-hitDist);
     laserDot.visible=hits.length>0;
@@ -867,12 +944,12 @@ renderer.setAnimationLoop(()=>{
     const gp=getRightGP();
     let bA=false,bB=false,bT=false;
     if(gp){
-        bT=gp.buttons[0]?.pressed??false; // trigger index finger
-        bA=gp.buttons[4]?.pressed??false; // A face button
-        bB=gp.buttons[5]?.pressed??false; // B face button
+        bT=gp.buttons[0]?.pressed??false; // index trigger
+        bA=gp.buttons[4]?.pressed??false; // A button
+        bB=gp.buttons[5]?.pressed??false; // B button
     }
-    if(bA&&!prevA&&gamePhase==="idle")          startCountdown();
-    if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doForceEnd();
+    if(bA&&!prevA){ vibrateABtn(); if(gamePhase==="idle") startCountdown(); }
+    if(bB&&!prevB){ vibrateBBtn(); if(gamePhase==="playing"||gamePhase==="countdown") doForceEnd(); }
     if(bT&&!prevTrig&&gamePhase==="playing"&&hits.length>0) onSphereClick(hits[0].object);
     prevA=bA; prevB=bB; prevTrig=bT;
 
