@@ -221,83 +221,47 @@ document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 
 /* =====================================================
-VR SESSION + XR RIG OFFSET
-------------------------------------------------------
-KEY INSIGHT:
-  In Three.js WebXR, renderer.xr manages an internal "XR camera
-  group" (the rig). Every frame, Three.js sets the rig's world
-  matrix from the XRFrame viewer pose. Controllers/grips are
-  children of this same rig.
-
-  To make the entire XR rig (head + both controllers) follow
-  the train, we use XRReferenceSpace.getOffsetReferenceSpace()
-  each frame. This shifts the XR origin so that the train's
-  world position/orientation becomes the player's "floor center".
-
-  Concretely: we build an XRRigidTransform that is the INVERSE
-  of the train's current world pose, then set that as the offset
-  reference space. Three.js will then render head+controllers
-  relative to the train.
-------------------------------------------------------
+VR SESSION EVENTS
+- On session start: force ride-mode camera, start rail sound
+- On session end:   stop rail sound
 ===================================================== */
-
-// Base reference space captured at session start
-let baseRefSpace = null;
-
-renderer.xr.addEventListener("sessionstart", async () => {
-    if (audioCtx.state === "suspended") audioCtx.resume();
-
-    // --- Force RIDE mode in VR regardless of browser toggle ---
-    // Dispose outside mode controls if active
-    if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
-    // Detach camera from scene root (outside mode) and attach to train
-    if (camera.parent !== train) {
-        if (camera.parent) camera.parent.remove(camera);
+renderer.xr.addEventListener("sessionstart", () => {
+    // Switch to ride mode if outside mode was selected
+    if (CONFIG.camera !== "ride") {
+        // Re-parent camera to train
+        if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
+        scene.remove(camera);
         train.add(camera);
         camera.position.set(0, 0.2, 0);
         camera.rotation.set(0, 0, 0);
     }
-
-    // Capture the base local-floor reference space
-    const session = renderer.xr.getSession();
-    baseRefSpace = await session.requestReferenceSpace("local-floor")
-        .catch(() => session.requestReferenceSpace("local"));
-    renderer.xr.setReferenceSpace(baseRefSpace);
-    railSound.pause(); // ensure sound off until game starts
+    // Rail sound is now allowed, but only starts when game starts (see doStart)
+    if (audioCtx.state === "suspended") audioCtx.resume();
 });
 
 renderer.xr.addEventListener("sessionend", () => {
-    baseRefSpace = null;
     railSound.pause();
 });
 
-// Helper: shift the entire XR rig (head + controllers) to the train's world pose.
-// We decompose train.matrixWorld each frame and build an XRRigidTransform with
-// the full position (X, Y, Z) and orientation.  This makes the XR floor origin
-// sit at the train, so both the headset AND controllers track relative to it.
-const _tPos  = new THREE.Vector3();
-const _tQuat = new THREE.Quaternion();
-const _tScl  = new THREE.Vector3();
-
-function applyTrainOffsetToXRRig() {
-    if (!baseRefSpace || !renderer.xr.isPresenting) return;
-    train.updateMatrixWorld(true);
-    train.matrixWorld.decompose(_tPos, _tQuat, _tScl);
-    try {
-        const offsetXform = new XRRigidTransform(
-            { x: _tPos.x,  y: _tPos.y,  z: _tPos.z,  w: 1 },
-            { x: _tQuat.x, y: _tQuat.y, z: _tQuat.z, w: _tQuat.w }
-        );
-        const offsetSpace = baseRefSpace.getOffsetReferenceSpace(offsetXform);
-        renderer.xr.setReferenceSpace(offsetSpace);
-    } catch(e) { /* XRRigidTransform not yet available — skip frame */ }
-}
-
 /* =====================================================
 CONTROLLERS
-Grip + target-ray spaces are children of the XR rig.
-Because we offset the rig to the train every frame,
-controllers will appear as if the player is sitting on the train.
+In WebXR the controller/grip objects are automatically placed
+inside the XR reference space — they naturally follow the
+player's physical hand positions.
+
+When camera is in "ride" mode, the camera is a child of `train`
+(which moves in world space). Controllers are XR-relative,
+meaning they are in the same world space as the XR camera rig.
+
+To make controllers appear relative to the PLAYER'S HEAD
+(which in ride mode is attached to the train), we need to add
+controllers as children of the train / XRrig.
+The trick: renderer.xr.getController returns objects whose world
+transforms ARE the XR rig pose. In Three.js the XR camera group
+("xrGroup") is what we need to attach them to.
+We access it via renderer.xr.getCamera() parent after session start.
+For simplicity, we place ctrl objects in the scene root (XR space).
+They will track hands correctly in XR regardless of train position.
 ===================================================== */
 const ctrlModelFactory = new XRControllerModelFactory();
 
@@ -365,21 +329,25 @@ const curve = new MyCurve();
 
 /* =====================================================
 COASTER SCENE MODEL (00101_kokufuhakkutsu3.glb)
-addCoaster() builds the rail/track and loads the environment GLB.
-We snapshot scene.children before/after to find what was added,
-then apply MODEL_SCALE to every new root-level object.
+addCoaster adds the environment model to scene.
+We scale it to MODEL_SCALE and rotate.
 ===================================================== */
-const beforeChildren = new Set(scene.children.map(c => c.uuid));
-
 await addCoaster(scene, curve, null,
     "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu3.glb");
 
-// Apply scale to every root object that addCoaster added
-scene.children.forEach(child => {
-    if (beforeChildren.has(child.uuid)) return; // was already there
-    child.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
-    child.rotation.y = THREE.MathUtils.degToRad(-90);
+// Scale and rotate the environment root
+let coasterRoot = null;
+scene.traverse(o => {
+    if (!coasterRoot && o.isMesh) {
+        let root = o;
+        while (root.parent && root.parent !== scene) root = root.parent;
+        coasterRoot = root;
+    }
 });
+if (coasterRoot) {
+    coasterRoot.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+    coasterRoot.rotation.y = THREE.MathUtils.degToRad(-90);
+}
 
 /* =====================================================
 ARTIFACT MODELS — hidden until first click
@@ -522,18 +490,16 @@ function drawMeter(speed){
 }
 
 /* =====================================================
-CAMERA MODE (browser / non-VR only)
-In VR: camera is managed by WebXR + our XRReferenceSpace offset.
-In browser: ride mode attaches camera to train; outside uses OrbitControls.
+CAMERA MODE (browser selection)
+In VR the sessionstart handler always ensures ride mode.
 ===================================================== */
-if (CONFIG.camera === "ride") {
-    // Non-VR: attach camera to train for browser preview
+if (CONFIG.camera==="ride") {
     train.add(camera);
-    camera.position.set(0, 0.2, 0);
+    camera.position.set(0,0.2,0);
 } else {
-    orbitControls = new OrbitControls(camera, renderer.domElement);
+    orbitControls=new OrbitControls(camera,renderer.domElement);
     orbitControls.listenToKeyEvents(window);
-    camera.position.set(0, 4*MODEL_SCALE, 20*MODEL_SCALE);
+    camera.position.set(0,4*MODEL_SCALE,20*MODEL_SCALE);
 }
 
 /* =====================================================
@@ -975,9 +941,6 @@ renderer.setAnimationLoop(()=>{
     if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doForceEnd();
     if(bT&&!prevTrig&&gamePhase==="playing"&&hits.length>0) onSphereClick(hits[0].object);
     prevA=bA; prevB=bB; prevTrig=bT;
-
-    // Apply train offset to XR rig so head+controllers follow the train
-    applyTrainOffsetToXRRig();
 
     renderer.render(scene,camera);
     prevTime=now;
