@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府発掘2025VRコースター</title>
+<title>越前国府発掘2025VRコースター</title>
 <style>
     body { margin:0; overflow:hidden; font-family:sans-serif; }
     #uiPanel {
@@ -516,22 +516,24 @@ const startTangent  = curve.getTangentAt(0).clone().normalize();
 
 /* =====================================================
 GATE
-Placed at the rail t=0 position, spanning the rail width.
-Scale matches MODEL_SCALE world — pillars are world units.
-Gate faces perpendicular to the rail tangent so you ride through it.
+レール t=0 の少し先（進行方向へ GATE_FORWARD ユニット）に配置。
+人間サイズに合わせた小さなゲート。
 ===================================================== */
+const GATE_FORWARD = 1.5 * MODEL_SCALE; // レール進行方向への前方オフセット
 const gateGrp = new THREE.Group();
-// Y position: ground = RAIL_HEIGHT - some offset; place at RAIL_HEIGHT level
-gateGrp.position.set(startCurvePos.x, RAIL_HEIGHT - MODEL_SCALE*1.7, startCurvePos.z);
-// Rotate so the gate spans across the rail direction
+// 進行方向タンジェントに沿って前方へずらす
+const gatePosX = startCurvePos.x + startTangent.x * GATE_FORWARD;
+const gatePosZ = startCurvePos.z + startTangent.z * GATE_FORWARD;
+// Y: レール高さから人が乗る座面分下げた地面相当の高さ
+gateGrp.position.set(gatePosX, RAIL_HEIGHT - MODEL_SCALE * 1.7, gatePosZ);
 const gateYaw = Math.atan2(startTangent.x, startTangent.z);
 gateGrp.rotation.y = gateYaw;
 scene.add(gateGrp);
 
-// Gate proportions scaled to world (MODEL_SCALE=5)
-const G_HALF  = 1.5 * MODEL_SCALE;  // half-span across the rail
-const G_H     = 3.5 * MODEL_SCALE;  // total height
-const G_PW    = 0.3 * MODEL_SCALE;  // pillar width
+// ゲート寸法 — 人間スケールに合わせて縮小（元の約 1/3）
+const G_HALF  = 0.5 * MODEL_SCALE;   // 半スパン（幅 1.0 * MODEL_SCALE）
+const G_H     = 1.2 * MODEL_SCALE;   // 高さ
+const G_PW    = 0.10 * MODEL_SCALE;  // 柱幅
 
 const pillarM = new THREE.MeshBasicMaterial({color:0x996622});
 [-G_HALF, G_HALF].forEach(s=>{
@@ -539,19 +541,19 @@ const pillarM = new THREE.MeshBasicMaterial({color:0x996622});
     p.position.set(s, G_H/2, 0); gateGrp.add(p);
 });
 const crossbar=new THREE.Mesh(
-    new THREE.BoxGeometry(G_HALF*2+G_PW, 0.3*MODEL_SCALE, 0.3*MODEL_SCALE),
+    new THREE.BoxGeometry(G_HALF*2+G_PW, 0.10*MODEL_SCALE, 0.10*MODEL_SCALE),
     new THREE.MeshBasicMaterial({color:0xcc8833})
 );
 crossbar.position.set(0, G_H, 0); gateGrp.add(crossbar);
 
-// Lantern decorations on pillars
+// ランタン装飾
 const lanternM = new THREE.MeshBasicMaterial({color:0xff6600});
 [-G_HALF, G_HALF].forEach(s=>{
-    const l=new THREE.Mesh(new THREE.BoxGeometry(G_PW*1.8, 0.4*MODEL_SCALE, G_PW*1.8), lanternM);
-    l.position.set(s, G_H - 0.4*MODEL_SCALE, 0); gateGrp.add(l);
+    const l=new THREE.Mesh(new THREE.BoxGeometry(G_PW*1.8, 0.14*MODEL_SCALE, G_PW*1.8), lanternM);
+    l.position.set(s, G_H - 0.12*MODEL_SCALE, 0); gateGrp.add(l);
 });
 
-// Gate sign canvas
+// ゲート看板キャンバス
 const gSignCv=document.createElement("canvas"); gSignCv.width=1024; gSignCv.height=256;
 const gSignCtx=gSignCv.getContext("2d"), gSignTex=new THREE.CanvasTexture(gSignCv);
 function drawGateSign(line1,line2="",col="#ffee44"){
@@ -569,10 +571,10 @@ function drawGateSign(line1,line2="",col="#ffee44"){
 }
 drawGateSign("🏛 スタートゲート 🏛");
 const gSignMesh=new THREE.Mesh(
-    new THREE.PlaneGeometry(G_HALF*2, 0.8*MODEL_SCALE),
+    new THREE.PlaneGeometry(G_HALF*2, 0.28*MODEL_SCALE),
     new THREE.MeshBasicMaterial({map:gSignTex,transparent:true,side:THREE.DoubleSide})
 );
-gSignMesh.position.set(0, G_H+0.05*MODEL_SCALE, 0.05);
+gSignMesh.position.set(0, G_H + 0.02*MODEL_SCALE, 0.02);
 gateGrp.add(gSignMesh);
 
 /* =====================================================
@@ -590,7 +592,9 @@ function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
 }
 const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.9);
 const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.9);
-const OV =makeHUDPanel(1024,512,  1.8,0.9,   0.00,0.15,-1.0);
+// OV: カウントダウン・強制終了などの大型通知パネル
+// 大きく (2.4×1.2)、目の正面近く (z=-0.75)、視線より少し上 (y=0.30)
+const OV =makeHUDPanel(1024,512,  2.4,1.2,   0.00,0.30,-0.75);
 OV.mesh.renderOrder=1000; OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
@@ -806,6 +810,11 @@ function spawnCoin(idx,isFirst){
 /* =====================================================
 SPHERE CLICK
 ===================================================== */
+function checkComplete(){
+    // 全アーティファクトを一度でもクリックしていれば COMPLETE
+    return ARTIFACTS.every((_,i)=>(clickCounts[i]||0)>0);
+}
+
 function onSphereClick(sphere){
     if(gamePhase!=="playing") return;
     const idx=sphere.userData.artifactIndex;
@@ -816,6 +825,14 @@ function onSphereClick(sphere){
     setTimeout(()=>sphere.material.color.set(0xffdd33),160);
     sfxClick(); vibrate(80,0.9);
     spawnCoin(idx,first);
+
+    // コンプリートチェック（全モデル初回クリック済みで +50）
+    if(first && checkComplete()){
+        gameScore+=50; updateHUD();
+        vibrate(500,1.0);
+        showOverlay("🎊 COMPLETE!","+50pt ボーナス！");
+        setTimeout(hideOverlay,2500);
+    }
 }
 
 /* =====================================================
