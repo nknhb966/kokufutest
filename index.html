@@ -60,17 +60,25 @@
         width:100%; margin-bottom:22px;
     }
     #vrButtonWrap button, #vrButtonWrap a {
-        display:block !important; width:100% !important;
+        display:block !important;
+        position: static !important;
+        width:100% !important;
         padding:18px 0 !important;
-        font-size:clamp(16px,2.5vw,22px) !important; font-weight:800 !important; letter-spacing:1px !important;
+        font-size:clamp(16px,2.5vw,22px) !important;
+        font-weight:800 !important;
+        letter-spacing:1px !important;
         background:linear-gradient(135deg,#7c3aed,#1d4ed8) !important;
-        color:#fff !important; border:none !important; border-radius:12px !important;
-        cursor:pointer !important; text-decoration:none !important;
+        color:#fff !important;
+        border:none !important;
+        border-radius:12px !important;
+        cursor:pointer !important;
+        text-decoration:none !important;
         box-shadow:0 0 32px rgba(120,80,255,0.7), inset 0 1px 0 rgba(255,255,255,0.15) !important;
         transition:box-shadow .2s, transform .1s !important;
     }
     #vrButtonWrap button:hover, #vrButtonWrap a:hover {
-        box-shadow:0 0 48px rgba(120,80,255,0.95) !important; transform:translateY(-1px) !important;
+        box-shadow:0 0 48px rgba(120,80,255,0.95) !important;
+        transform:translateY(-1px) !important;
     }
 
     /* 区切り線 */
@@ -222,10 +230,10 @@
     <p class="main-title">越前国府VRコースター</p>
     <p class="sub-title">〜体験と挑戦、ふたつの旅〜</p>
 
+    <div class="divider"></div>
+
     <!-- VRボタン（JS で挿入） -->
     <div id="vrButtonWrap"></div>
-
-    <div class="divider"></div>
 
     <!-- 設定グリッド -->
     <div class="settings-grid">
