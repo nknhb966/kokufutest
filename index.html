@@ -433,7 +433,6 @@ const MODAL_TEXT = {
         <ul>
           <li>右スティック ↑↓：加速 / 減速</li>
           <li>右トリガー：右レーザーで球を撃つ</li>
-          <li>左トリガー：左レーザーで球を撃つ</li>
           <li><span class="tag">A</span> ボタン（右）：ゲームスタート</li>
           <li><span class="tag">B</span> ボタン（右）：強制終了</li>
         </ul>`,
@@ -445,10 +444,7 @@ const MODAL_TEXT = {
         <ul>
           <li>右スティック ↑：加速</li>
           <li>右スティック ↓：減速</li>
-        </ul>
-        <p style="margin-top:10px;color:rgba(200,185,255,0.7);font-size:13px">
-        ※ レーザー・クリック・得点は無効です。<br>
-        ※ すべての発掘モデルが最初から表示されます。</p>`
+        </ul>`
 };
 
 function renderModal() {
@@ -603,15 +599,11 @@ renderer.xr.addEventListener("sessionend", () => {
 
 /* =====================================================
 CONTROLLERS
-WebXR のコントローラーはデフォルトで XR 参照空間（ワールド原点）に
-配置される。ライドモードではカメラが train の子として動くため、
-コントローラーも train と同じ相対空間に乗せる必要がある。
-
-解決策:
-  xrRig という THREE.Group を train の子にする。
-  セッション開始時にコントローラー・グリップを xrRig に移動する。
-  これにより train の position / quaternion がそのままコントローラーの
-  ワールド座標に加算され、「視点（頭）の相対位置に手が来る」動作になる。
+右手のみレーザー有効。
+getController(i) のインデックスは接続順のため handedness が不定。
+レーザー計算は毎フレーム inputSources から handedness==="right" の
+targetRaySpace を直接使うことで確実に右手に追従させる。
+グリップモデルは両手とも表示する。
 ===================================================== */
 const ctrlModelFactory = new XRControllerModelFactory();
 
@@ -620,45 +612,34 @@ const grip1 = renderer.xr.getControllerGrip(1);
 grip0.add(ctrlModelFactory.createControllerModel(grip0));
 grip1.add(ctrlModelFactory.createControllerModel(grip1));
 
-const ctrl0 = renderer.xr.getController(0); // right — laser
-const ctrl1 = renderer.xr.getController(1); // left — laser
-
 // xrRig: コントローラーを乗せる Group。train.add() は TRAIN セクションで行う。
 const xrRig = new THREE.Group();
 
 // セッション開始時にコントローラー群を xrRig（train の子）へ移す
 renderer.xr.addEventListener("sessionstart", () => {
-    [ctrl0, ctrl1, grip0, grip1].forEach(obj => {
+    [grip0, grip1].forEach(obj => {
         if (obj.parent !== xrRig) {
-            // scene や他の親から外して xrRig へ
             if (obj.parent) obj.parent.remove(obj);
             xrRig.add(obj);
         }
     });
 });
 
-/* -----  LASER (両手共通ファクトリ)  -----
-   target-ray space にアタッチ。ローカル前方 = -Z。
-   depthTest:false で常に前面描画。
------ */
-function makeLaser() {
-    const mat = new THREE.LineBasicMaterial({ color:0xff2222, depthTest:false, transparent:true, opacity:0.95 });
-    const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-LASER_MAX_DIST)
-    ]);
-    const line = new THREE.Line(geo, mat);
-    line.frustumCulled = false; line.renderOrder = 9999;
-    const dot = new THREE.Mesh(
-        new THREE.SphereGeometry(0.012, 8, 8),
-        new THREE.MeshBasicMaterial({ color:0xffffff, depthTest:false })
-    );
-    dot.renderOrder = 9999; dot.visible = false;
-    line.add(dot);
-    return { line, mat, dot };
-}
+/* ----- 右手レーザー（右手 targetRaySpace に毎フレーム追従） ----- */
+const laserMat = new THREE.LineBasicMaterial({ color:0xff2222, depthTest:false, transparent:true, opacity:0.95 });
+const laserGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-LASER_MAX_DIST)
+]);
+const laserLine = new THREE.Line(laserGeo, laserMat);
+laserLine.frustumCulled = false; laserLine.renderOrder = 9999; laserLine.visible = false;
+scene.add(laserLine); // scene に置き、毎フレーム matrixWorld を手動セット
 
-const laser0 = makeLaser(); ctrl0.add(laser0.line); // 右手
-const laser1 = makeLaser(); ctrl1.add(laser1.line); // 左手
+const laserDot = new THREE.Mesh(
+    new THREE.SphereGeometry(0.012, 8, 8),
+    new THREE.MeshBasicMaterial({ color:0xffffff, depthTest:false })
+);
+laserDot.renderOrder = 9999; laserDot.visible = false;
+scene.add(laserDot);
 
 /* =====================================================
 CAMERA
@@ -884,11 +865,11 @@ function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
     mesh.position.set(lx,ly,lz); mesh.renderOrder=999;
     return {cv,ctx,tex,mesh};
 }
-const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.80,-0.9);
-const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.80,-0.9);
+const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95);
+const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95);
 // OV: カウントダウン・強制終了などの大型通知パネル
 // 大きく (2.4×1.2)、目の正面近く (z=-0.75)、視線より少し上 (y=1.10)
-const OV =makeHUDPanel(1024,512,  2.4,1.2,   0.00,1.10,-0.75);
+const OV =makeHUDPanel(1024,512,  2.4,1.2,   0.00,1.0,-0.90);
 OV.mesh.renderOrder=1000; OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
@@ -1136,7 +1117,7 @@ let prevTime=performance.now(), keyUp=false, keyDown=false;
 const pos=new THREE.Vector3(), tan=new THREE.Vector3(), lkAt=new THREE.Vector3();
 let prevPos=new THREE.Vector3(), realSpeed=0;
 let lastSpeedUI=0, lastSound=0;
-const raycaster=new THREE.Raycaster(), tmpMtx=new THREE.Matrix4();
+const raycaster=new THREE.Raycaster();
 
 window.addEventListener("keydown",e=>{
     if(e.code==="ArrowUp")   keyUp=true;
@@ -1158,13 +1139,9 @@ function getStickY(){
     }
     return 0;
 }
-function getRightGP(){
-    const s=renderer.xr.getSession(); if(!s) return null;
-    for(const src of s.inputSources){ if(src.handedness==="right"&&src.gamepad) return src.gamepad; }
-    return null;
-}
 
-let prevA=false,prevB=false,prevTrig0=false,prevTrig1=false;
+
+let prevA=false,prevB=false,prevTrig0=false;
 
 /* =====================================================
 ANIMATION LOOP
@@ -1246,61 +1223,57 @@ renderer.setAnimationLoop(()=>{
         }
     }
 
-    // Laser + buttons（ゲームモード中のみ有効）
-    function updateLaser(ctrl, laserObj) {
-        tmpMtx.identity().extractRotation(ctrl.matrixWorld);
-        raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
-        raycaster.ray.direction.set(0,0,-1).applyMatrix4(tmpMtx);
-        const hits = raycaster.intersectObjects(clickSpheres, false);
-        const hitDist = hits.length > 0 ? hits[0].distance : LASER_MAX_DIST;
-        laserObj.line.geometry.setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-hitDist)]);
-        laserObj.mat.color.set(hits.length > 0 ? 0x00ff88 : 0xff3333);
-        laserObj.dot.position.set(0, 0, -hitDist);
-        laserObj.dot.visible = hits.length > 0;
-        return hits;
-    }
+    // 右手レーザー＋ボタン（右手のみ、inputSources から確実に右手を取得）
+    laserLine.visible = false;
+    laserDot.visible  = false;
 
-    // Laser + trigger: inputSources を直接走査し、
-    // 右手 inputSource → 右手 controller オブジェクト → laser0/laser1 を動的に対応づける
-    // Three.js の getController(i) は接続順で割り当てられるため
-    // inputSource.handedness で「どちらの手か」を判断し、
-    // その inputSource に対応する controller を探して正しいレーザーを割り当てる
-    let bA=false, bB=false, trigRight=false, trigLeft=false;
-    let hitsRight=[], hitsLeft=[];
-    laser0.line.visible = false; laser1.line.visible = false;
+    let bA=false, bB=false, trigRight=false;
+    let hitsRight = [];
 
-    const xrSess=renderer.xr.getSession();
+    const xrSess = renderer.xr.getSession();
     if(xrSess && !isTour && isVR){
         for(const src of xrSess.inputSources){
-            if(!src.gamepad) continue;
-            // Three.js が割り当てた controller オブジェクトを探す
-            // getController(i).inputSource は r134 以降で有効だが、
-            // フォールバックとして ctrl0/ctrl1 の inputSource プロパティを確認し、
-            // 一致しない場合は両方試して handedness で選ぶ
-            let ctrl = null, laserObj = null;
-            if(ctrl0.inputSource === src)      { ctrl=ctrl0; laserObj=laser0; }
-            else if(ctrl1.inputSource === src) { ctrl=ctrl1; laserObj=laser1; }
-            else {
-                // inputSource プロパティが使えない環境では
-                // handedness で ctrl0/ctrl1 の使用状況から推定
-                // ctrl0 が右手に対応していると仮定し、必要に応じてスワップ
-                if(src.handedness==="right")     { ctrl=ctrl0; laserObj=laser0; }
-                else if(src.handedness==="left") { ctrl=ctrl1; laserObj=laser1; }
-            }
-            if(!ctrl || !laserObj) continue;
+            if(src.handedness !== "right" || !src.gamepad) continue;
 
-            laserObj.line.visible = true;
-            const hits = updateLaser(ctrl, laserObj);
+            // 右手 targetRaySpace の world matrix を直接 XRFrame から取得
+            // renderer.xr.getFrame() で現フレームの XRFrame にアクセス
+            const frame = renderer.xr.getFrame();
+            const refSpace = renderer.xr.getReferenceSpace();
+            if(frame && refSpace && src.targetRaySpace){
+                const pose = frame.getPose(src.targetRaySpace, refSpace);
+                if(pose){
+                    const m = pose.transform.matrix;
+                    // レーザー起点（位置）
+                    const ox = m[12], oy = m[13], oz = m[14];
+                    // レーザー方向（-Z を変換行列で回転）
+                    const dx = -m[8], dy = -m[9], dz = -m[10];
 
-            if(src.handedness==="right"){
-                hitsRight = hits;
-                trigRight = src.gamepad.buttons[0]?.pressed ?? false;
-                bA        = src.gamepad.buttons[4]?.pressed ?? false;
-                bB        = src.gamepad.buttons[5]?.pressed ?? false;
-            } else if(src.handedness==="left"){
-                hitsLeft  = hits;
-                trigLeft  = src.gamepad.buttons[0]?.pressed ?? false;
+                    raycaster.ray.origin.set(ox, oy, oz);
+                    raycaster.ray.direction.set(dx, dy, dz).normalize();
+                    hitsRight = raycaster.intersectObjects(clickSpheres, false);
+
+                    const hitDist = hitsRight.length > 0 ? hitsRight[0].distance : LASER_MAX_DIST;
+                    const ex = ox + dx * hitDist;
+                    const ey = oy + dy * hitDist;
+                    const ez = oz + dz * hitDist;
+
+                    // レーザー線を世界座標で更新
+                    laserLine.geometry.setFromPoints([
+                        new THREE.Vector3(ox, oy, oz),
+                        new THREE.Vector3(ex, ey, ez)
+                    ]);
+                    laserMat.color.set(hitsRight.length > 0 ? 0x00ff88 : 0xff3333);
+                    laserLine.visible = true;
+
+                    laserDot.position.set(ex, ey, ez);
+                    laserDot.visible = hitsRight.length > 0;
+                }
             }
+
+            trigRight = src.gamepad.buttons[0]?.pressed ?? false;
+            bA        = src.gamepad.buttons[4]?.pressed ?? false;
+            bB        = src.gamepad.buttons[5]?.pressed ?? false;
+            break; // 右手は1つだけ
         }
     }
 
@@ -1308,9 +1281,8 @@ renderer.setAnimationLoop(()=>{
         if(bA&&!prevA&&gamePhase==="idle") startCountdown();
         if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doForceEnd();
         if(trigRight&&!prevTrig0&&gamePhase==="playing"&&hitsRight.length>0) onSphereClick(hitsRight[0].object);
-        if(trigLeft &&!prevTrig1&&gamePhase==="playing"&&hitsLeft.length>0)  onSphereClick(hitsLeft[0].object);
     }
-    prevA=bA; prevB=bB; prevTrig0=trigRight; prevTrig1=trigLeft;
+    prevA=bA; prevB=bB; prevTrig0=trigRight;
 
     renderer.render(scene,camera);
     prevTime=now;
