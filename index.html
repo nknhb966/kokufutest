@@ -5,172 +5,293 @@
 <meta name="viewport" content="width=device-width">
 <title>越前国府VRコースター</title>
 <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { margin:0; overflow:hidden; font-family:'Helvetica Neue',sans-serif; background:#000; }
+    *, *::before, *::after { box-sizing:border-box; }
+    body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
 
-    /* ── メインUIパネル（非VR表示） ── */
+    /* ═══════════════════════════════════════════════
+       フルスクリーン タイトルパネル（ride モード）
+    ═══════════════════════════════════════════════ */
     #uiPanel {
-        position:absolute; top:0; left:0; width:340px; max-height:100vh;
+        position:absolute; inset:0;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        background:
+            radial-gradient(ellipse at 30% 20%, rgba(120,60,240,0.55) 0%, transparent 60%),
+            radial-gradient(ellipse at 70% 80%, rgba(30,80,220,0.50) 0%, transparent 60%),
+            linear-gradient(160deg, #04040f 0%, #0a0620 50%, #060818 100%);
+        color:#fff; z-index:10;
         overflow-y:auto;
-        background:linear-gradient(160deg,rgba(10,10,30,0.97) 0%,rgba(20,15,50,0.97) 100%);
-        color:white; z-index:10;
-        border-right:1px solid rgba(180,140,255,0.25);
-        padding-bottom:20px;
+    }
+    /* 背景粒子風装飾 */
+    #uiPanel::before {
+        content:''; position:absolute; inset:0; pointer-events:none;
+        background:
+            radial-gradient(circle 1px at 15% 25%, rgba(200,160,255,0.5) 0%, transparent 100%),
+            radial-gradient(circle 1px at 80% 15%, rgba(160,200,255,0.4) 0%, transparent 100%),
+            radial-gradient(circle 1px at 60% 70%, rgba(200,160,255,0.3) 0%, transparent 100%),
+            radial-gradient(circle 2px at 40% 55%, rgba(100,180,255,0.3) 0%, transparent 100%);
     }
 
-    /* タイトルヘッダー */
-    #titleArea {
-        padding:28px 24px 16px;
-        background:linear-gradient(135deg,rgba(80,40,160,0.6),rgba(30,80,180,0.4));
-        border-bottom:1px solid rgba(180,140,255,0.3);
-        text-align:center;
-    }
-    #titleArea .main-title {
-        font-size:22px; font-weight:900; letter-spacing:2px;
-        background:linear-gradient(90deg,#c8a0ff,#80c8ff,#c8a0ff);
-        -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-        background-clip:text;
-        margin:0 0 6px;
-        text-shadow:none;
-    }
-    #titleArea .sub-title {
-        font-size:12px; color:rgba(200,200,255,0.75); letter-spacing:1px; margin:0;
+    .panel-inner {
+        position:relative; z-index:1;
+        width:min(680px,92vw);
+        display:flex; flex-direction:column; align-items:center; gap:0;
     }
 
-    /* VRボタンラッパー */
+    /* タイトル */
+    .main-title {
+        font-size:clamp(28px,5vw,52px); font-weight:900; letter-spacing:3px;
+        text-align:center; margin:0 0 8px;
+        background:linear-gradient(90deg,#e0b0ff 0%,#90d0ff 45%,#e0b0ff 100%);
+        -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+        filter:drop-shadow(0 0 18px rgba(180,120,255,0.7));
+        animation:titleGlow 3s ease-in-out infinite alternate;
+    }
+    @keyframes titleGlow {
+        from { filter:drop-shadow(0 0 14px rgba(180,120,255,0.5)); }
+        to   { filter:drop-shadow(0 0 28px rgba(140,200,255,0.9)); }
+    }
+    .sub-title {
+        font-size:clamp(14px,2.2vw,20px); color:rgba(200,185,255,0.80);
+        letter-spacing:2px; margin:0 0 28px; text-align:center;
+    }
+
+    /* VR ボタンラッパー */
     #vrButtonWrap {
-        padding:14px 20px 10px;
-        text-align:center;
-        border-bottom:1px solid rgba(180,140,255,0.2);
+        width:100%; margin-bottom:22px;
     }
-    /* VRButton の見た目を上書き */
     #vrButtonWrap button, #vrButtonWrap a {
-        display:inline-block !important;
-        padding:13px 28px !important;
-        font-size:15px !important; font-weight:700 !important;
-        background:linear-gradient(135deg,#7c3aed,#2563eb) !important;
-        color:#fff !important; border:none !important;
-        border-radius:8px !important; cursor:pointer !important;
-        box-shadow:0 0 18px rgba(120,80,255,0.6) !important;
-        text-decoration:none !important;
-        transition:box-shadow .2s;
-        width:100% !important;
+        display:block !important; width:100% !important;
+        padding:18px 0 !important;
+        font-size:clamp(16px,2.5vw,22px) !important; font-weight:800 !important; letter-spacing:1px !important;
+        background:linear-gradient(135deg,#7c3aed,#1d4ed8) !important;
+        color:#fff !important; border:none !important; border-radius:12px !important;
+        cursor:pointer !important; text-decoration:none !important;
+        box-shadow:0 0 32px rgba(120,80,255,0.7), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+        transition:box-shadow .2s, transform .1s !important;
     }
     #vrButtonWrap button:hover, #vrButtonWrap a:hover {
-        box-shadow:0 0 28px rgba(120,80,255,0.9) !important;
+        box-shadow:0 0 48px rgba(120,80,255,0.95) !important; transform:translateY(-1px) !important;
     }
 
-    /* コントロールセクション */
-    .ctrl-section { padding:12px 20px 4px; }
-    .ctrl-section .sec-label {
-        font-size:10px; font-weight:700; letter-spacing:2px;
-        color:rgba(180,160,255,0.6); text-transform:uppercase; margin:0 0 10px;
+    /* 区切り線 */
+    .divider {
+        width:100%; height:1px;
+        background:linear-gradient(90deg,transparent,rgba(180,140,255,0.4),transparent);
+        margin:4px 0 18px;
     }
-    .uiRow {
-        display:flex; align-items:center;
-        justify-content:space-between; margin:10px 0;
-        gap:10px;
-    }
-    .uiRow > span:first-child {
-        font-size:12px; color:rgba(200,200,255,0.7);
-        white-space:nowrap; min-width:60px;
-    }
-    .toggle { display:flex; }
-    .toggle button {
-        border:none; padding:10px 14px; min-width:90px;
-        background:rgba(80,80,120,0.7); color:rgba(255,255,255,0.7);
-        cursor:pointer; font-size:12px; font-weight:600;
-        transition:background .15s,color .15s;
-    }
-    .toggle button:first-child { border-radius:6px 0 0 6px; }
-    .toggle button:last-child  { border-radius:0 6px 6px 0; }
-    .toggle button.active { background:linear-gradient(135deg,#7c3aed,#2563eb); color:#fff; }
-    input[type=range] { flex:1; accent-color:#a78bfa; }
-    #speedValue { font-size:12px; color:#a78bfa; min-width:28px; text-align:right; }
-    #realSpeed  { font-size:12px; color:#67e8f9; }
 
-    /* 説明ボックス */
-    #infoBox {
-        margin:12px 20px 4px;
+    /* 設定グリッド */
+    .settings-grid {
+        width:100%; display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:12px; margin-bottom:16px;
+    }
+    .setting-card {
         background:rgba(255,255,255,0.05);
         border:1px solid rgba(180,140,255,0.2);
-        border-radius:8px; padding:12px 14px;
-        font-size:12px; line-height:1.7;
-        color:rgba(210,210,255,0.85);
+        border-radius:10px; padding:12px 14px;
     }
-    #infoBox b { color:#c4b5fd; }
-    #infoBox .info-title {
-        font-size:13px; font-weight:700; color:#a78bfa;
-        margin-bottom:6px; display:block;
+    .setting-label {
+        font-size:11px; font-weight:700; letter-spacing:2px;
+        color:rgba(180,160,255,0.65); text-transform:uppercase; margin-bottom:8px;
+    }
+    .toggle { display:flex; width:100%; }
+    .toggle button {
+        flex:1; border:none; padding:10px 6px;
+        background:rgba(80,70,130,0.7); color:rgba(255,255,255,0.65);
+        cursor:pointer; font-size:13px; font-weight:600;
+        transition:background .15s, color .15s;
+    }
+    .toggle button:first-child { border-radius:7px 0 0 7px; }
+    .toggle button:last-child  { border-radius:0 7px 7px 0; }
+    .toggle button.active {
+        background:linear-gradient(135deg,#7c3aed,#1d4ed8); color:#fff;
     }
 
-    /* リセットボタン */
-    #resetBtn {
-        position:absolute; bottom:16px; right:16px; padding:9px 18px;
-        background:rgba(160,20,20,0.85); color:white;
-        border:1px solid rgba(255,100,100,0.5); border-radius:6px;
-        cursor:pointer; font-size:13px; z-index:10;
-    }
-    #resetBtn:hover { background:rgba(210,40,40,0.95); }
+    /* スピードカード（幅フル） */
+    .setting-card.full { grid-column:1/-1; }
+    .speed-row { display:flex; align-items:center; gap:10px; }
+    input[type=range] { flex:1; accent-color:#a78bfa; height:4px; }
+    #speedValue { font-size:15px; font-weight:700; color:#a78bfa; min-width:32px; text-align:right; }
 
-    /* outsideモード時はパネル非表示 */
+    /* ボタン行 */
+    .btn-row {
+        width:100%; display:flex; gap:10px; margin-bottom:4px;
+    }
+    .action-btn {
+        flex:1; padding:13px 0; font-size:clamp(13px,1.8vw,16px); font-weight:700;
+        border:none; border-radius:9px; cursor:pointer; transition:opacity .15s, transform .1s;
+    }
+    .action-btn:hover { opacity:.85; transform:translateY(-1px); }
+    .btn-help   { background:linear-gradient(135deg,#0f766e,#0891b2); color:#fff; }
+    .btn-reset  { background:linear-gradient(135deg,#991b1b,#b45309); color:#fff; }
+
+    /* ═══════════════════════════════════════════════
+       モーダル（操作説明）
+    ═══════════════════════════════════════════════ */
+    #modal {
+        display:none; position:fixed; inset:0; z-index:100;
+        background:rgba(0,0,5,0.88);
+        align-items:center; justify-content:center;
+    }
+    #modal.open { display:flex; }
+    .modal-box {
+        width:min(640px,90vw); max-height:80vh; overflow-y:auto;
+        background:linear-gradient(150deg,#0d0820,#080d25);
+        border:1px solid rgba(180,140,255,0.35);
+        border-radius:16px; padding:28px 30px 24px;
+        position:relative; color:#e8e0ff;
+    }
+    .modal-close {
+        position:absolute; top:14px; right:18px;
+        background:none; border:none; color:rgba(200,180,255,0.6);
+        font-size:26px; cursor:pointer; line-height:1;
+    }
+    .modal-close:hover { color:#fff; }
+    .modal-tabs {
+        display:flex; gap:8px; margin-bottom:22px;
+    }
+    .modal-tab {
+        flex:1; padding:11px 0; font-size:15px; font-weight:700;
+        border:1px solid rgba(180,140,255,0.3); border-radius:8px;
+        background:rgba(80,70,130,0.4); color:rgba(200,185,255,0.6);
+        cursor:pointer; transition:all .15s;
+    }
+    .modal-tab.active {
+        background:linear-gradient(135deg,#7c3aed,#1d4ed8);
+        color:#fff; border-color:transparent;
+    }
+    .modal-content { font-size:15px; line-height:1.85; }
+    .modal-content h3 {
+        font-size:17px; color:#c4b5fd; margin:0 0 10px; font-weight:800;
+    }
+    .modal-content .tag {
+        display:inline-block; background:rgba(120,80,255,0.3);
+        border:1px solid rgba(180,140,255,0.4);
+        border-radius:5px; padding:1px 8px; font-size:13px;
+        margin:0 2px; color:#c4b5fd; font-weight:700;
+    }
+    .modal-content ul { margin:6px 0 14px; padding-left:20px; }
+    .modal-content li { margin:4px 0; }
+    .modal-nav {
+        display:flex; align-items:center; justify-content:center;
+        gap:16px; margin-top:20px;
+    }
+    .modal-nav button {
+        background:rgba(100,80,180,0.5); border:1px solid rgba(180,140,255,0.3);
+        color:#c4b5fd; border-radius:8px; padding:9px 18px;
+        font-size:22px; cursor:pointer; transition:background .15s;
+    }
+    .modal-nav button:hover { background:rgba(120,90,200,0.7); }
+    .modal-nav .mode-label {
+        font-size:15px; font-weight:700; color:#a78bfa; min-width:120px; text-align:center;
+    }
+
+    /* ═══════════════════════════════════════════════
+       outsideモード: ミニUI（左上 10%×10%領域）
+    ═══════════════════════════════════════════════ */
+    #miniUI {
+        display:none;
+        position:absolute; top:1vh; left:1vw;
+        width:clamp(160px,18vw,220px);
+        background:rgba(5,5,20,0.82);
+        border:1px solid rgba(180,140,255,0.25);
+        border-radius:8px; padding:8px 10px;
+        z-index:10; color:#fff;
+    }
     body.outside-mode #uiPanel { display:none; }
-    body.outside-mode #resetBtn { display:none; }
+    body.outside-mode #miniUI  { display:block; }
+    .mini-label { font-size:10px; color:rgba(180,160,255,0.6); letter-spacing:1px; margin-bottom:6px; }
+    .mini-toggle { display:flex; width:100%; }
+    .mini-toggle button {
+        flex:1; border:none; padding:8px 4px;
+        background:rgba(80,70,130,0.7); color:rgba(255,255,255,0.65);
+        cursor:pointer; font-size:12px; font-weight:600;
+    }
+    .mini-toggle button:first-child { border-radius:5px 0 0 5px; }
+    .mini-toggle button:last-child  { border-radius:0 5px 5px 0; }
+    .mini-toggle button.active { background:linear-gradient(135deg,#7c3aed,#1d4ed8); color:#fff; }
 </style>
 </head>
 <body>
-<audio id="railSound" src="trolley_clatter.mp3" loop></audio>
+<audio id="railSound" src="trolley_clatter.mp3" loop preload="auto"></audio>
 
+<!-- ═══ フルスクリーン タイトルパネル（ride モード） ═══ -->
 <div id="uiPanel">
-    <!-- タイトル -->
-    <div id="titleArea">
-        <p class="main-title">越前国府VRコースター</p>
-        <p class="sub-title">〜体験と挑戦、ふたつの旅〜</p>
-    </div>
+  <div class="panel-inner">
+    <p class="main-title">越前国府VRコースター</p>
+    <p class="sub-title">〜体験と挑戦、ふたつの旅〜</p>
 
     <!-- VRボタン（JS で挿入） -->
     <div id="vrButtonWrap"></div>
 
-    <!-- コントロール -->
-    <div class="ctrl-section">
-        <p class="sec-label">設定</p>
-        <div class="uiRow">
-            <span>スピード</span>
-            <input id="speedSlider" type="range" min="0.1" max="2" step="0.1" value="1">
-            <span id="speedValue"></span>
+    <div class="divider"></div>
+
+    <!-- 設定グリッド -->
+    <div class="settings-grid">
+      <div class="setting-card">
+        <div class="setting-label">カーブ</div>
+        <div class="toggle" id="curveToggle">
+          <button data-value="trolley">TROLLEY</button>
+          <button data-value="coaster">COASTER</button>
         </div>
-        <div class="uiRow">
-            <span>カーブ</span>
-            <div class="toggle" id="curveToggle">
-                <button data-value="trolley">TROLLEY</button>
-                <button data-value="coaster">COASTER</button>
-            </div>
+      </div>
+      <div class="setting-card">
+        <div class="setting-label">カメラ</div>
+        <div class="toggle" id="cameraToggle">
+          <button data-value="ride">RIDE</button>
+          <button data-value="outside">OUTSIDE</button>
         </div>
-        <div class="uiRow">
-            <span>カメラ</span>
-            <div class="toggle" id="cameraToggle">
-                <button data-value="ride">RIDE</button>
-                <button data-value="outside">OUTSIDE</button>
-            </div>
+      </div>
+      <div class="setting-card">
+        <div class="setting-label">モード</div>
+        <div class="toggle" id="gameModeToggle">
+          <button data-value="game">🎮 ゲーム</button>
+          <button data-value="tour">🚃 ツアー</button>
         </div>
-        <div class="uiRow">
-            <span>モード</span>
-            <div class="toggle" id="gameModeToggle">
-                <button data-value="game">🎮 ゲーム</button>
-                <button data-value="tour">🚃 ツアー</button>
-            </div>
+      </div>
+      <div class="setting-card full">
+        <div class="setting-label">スピード</div>
+        <div class="speed-row">
+          <input id="speedSlider" type="range" min="0.1" max="2" step="0.1" value="1">
+          <span id="speedValue"></span>
         </div>
-        <div class="uiRow">
-            <span>現在速度</span>
-            <span id="realSpeed">0 km/h</span>
-        </div>
+      </div>
     </div>
 
-    <!-- 説明ボックス（モードに応じてJS で書き換え） -->
-    <div id="infoBox"></div>
+    <!-- ボタン行 -->
+    <div class="btn-row">
+      <button class="action-btn btn-help" id="helpBtn">📖 操作方法</button>
+      <button class="action-btn btn-reset" id="resetBtn">🗑 記録リセット</button>
+    </div>
+  </div>
 </div>
 
-<button id="resetBtn">🗑 記録リセット</button>
+<!-- ═══ outside モード用ミニUI ═══ -->
+<div id="miniUI">
+  <div class="mini-label">CAMERA</div>
+  <div class="mini-toggle" id="miniCameraToggle">
+    <button data-value="ride">RIDE</button>
+    <button data-value="outside">OUTSIDE</button>
+  </div>
+</div>
+
+<!-- ═══ 操作説明モーダル ═══ -->
+<div id="modal">
+  <div class="modal-box">
+    <button class="modal-close" id="modalClose">×</button>
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-mode="game">🎮 ゲームモード</button>
+      <button class="modal-tab" data-mode="tour">🚃 ツアーモード</button>
+    </div>
+    <div class="modal-content" id="modalContent"></div>
+    <div class="modal-nav">
+      <button id="modalPrev">◀</button>
+      <span class="mode-label" id="modalModeLabel">ゲームモード</span>
+      <button id="modalNext">▶</button>
+    </div>
+  </div>
+</div>
 
 <script type="importmap">
 {
@@ -207,11 +328,10 @@ const CONFIG = {
     curve    : localStorage.getItem("curve")    || "trolley",
     camera   : localStorage.getItem("camera")   || "ride",
     speed    : parseFloat(localStorage.getItem("speed") || 0.5),
-    gameMode : localStorage.getItem("gameMode") || "game"  // "game" | "tour"
+    gameMode : localStorage.getItem("gameMode") || "game"
 };
 let SPEED = CONFIG.speed;
 
-// outside モード時は body クラスで CSS 側パネルを隠す
 if (CONFIG.camera === "outside") document.body.classList.add("outside-mode");
 
 /* =====================================================
@@ -252,9 +372,12 @@ setupToggle("curveToggle","curve");
 setupToggle("cameraToggle","camera");
 setupToggle("gameModeToggle","gameMode");
 
+// outside モード用ミニカメラトグル
+setupToggle("miniCameraToggle","camera");
+
 const speedSlider  = document.getElementById("speedSlider");
 const speedValueEl = document.getElementById("speedValue");
-const realSpeedUI  = document.getElementById("realSpeed");
+const realSpeedUI  = null; // パネルから削除済み（VR内 HUD のみ表示）
 speedSlider.value = SPEED;
 speedValueEl.textContent = SPEED.toFixed(1);
 speedSlider.oninput = () => {
@@ -263,33 +386,79 @@ speedSlider.oninput = () => {
     localStorage.setItem("speed", SPEED);
 };
 
-// 説明ボックスの内容をモードに応じて更新
-function updateInfoBox() {
-    if (CONFIG.camera === "outside") return; // outside では表示なし
-    const box = document.getElementById("infoBox");
-    if (CONFIG.gameMode === "game") {
-        box.innerHTML = `
-            <span class="info-title">🎮 ゲームモード ルール</span>
-            制限時間 <b>60秒</b> 以内に、レール沿いに浮かぶ<b>黄色い球</b>をできるだけ多く撃ってください。<br><br>
-            <b>得点</b><br>
-            ・初回クリック：<b>+5pt</b><br>
-            ・同じ球を再クリック：<b>+1pt</b><br>
-            ・全モデル表示コンプリート：<b>+50pt ボーナス</b><br><br>
-            <b>VR コントローラー操作</b><br>
-            ・右スティック↑↓：加速 / 減速<br>
-            ・右トリガー / 左トリガー：球を撃つ<br>
-            ・右 <b>A</b> ボタン：ゲームスタート<br>
-            ・右 <b>B</b> ボタン：強制終了`;
-    } else {
-        box.innerHTML = `
-            <span class="info-title">🚃 ツアーモード</span>
-            制限時間なし。レール上をのんびり走り回って遺跡を観覧できます。<br><br>
-            <b>VR コントローラー操作</b><br>
-            ・右スティック↑：加速<br>
-            ・右スティック↓：減速`;
-    }
+/* ── モーダル 操作説明 ── */
+const MODAL_MODES = ["game","tour"];
+let modalModeIdx = MODAL_MODES.indexOf(CONFIG.gameMode);
+if (modalModeIdx < 0) modalModeIdx = 0;
+
+const MODAL_TEXT = {
+    game: `
+        <h3>🎮 ゲームモード</h3>
+        <p>制限時間 <strong>60秒</strong> 以内に、レール沿いに浮かぶ
+        <span class="tag">黄色い球</span> をできるだけ多く撃ちましょう！</p>
+        <h3 style="margin-top:14px">📊 得点</h3>
+        <ul>
+          <li>初回クリック：<strong>+5pt</strong></li>
+          <li>同じ球を再クリック：<strong>+1pt</strong></li>
+          <li>全モデル コンプリート：<strong>+50pt ボーナス🎊</strong></li>
+        </ul>
+        <h3>🕹 VR コントローラー操作</h3>
+        <ul>
+          <li>右スティック ↑↓：加速 / 減速</li>
+          <li>右トリガー：右レーザーで球を撃つ</li>
+          <li>左トリガー：左レーザーで球を撃つ</li>
+          <li><span class="tag">A</span> ボタン（右）：ゲームスタート</li>
+          <li><span class="tag">B</span> ボタン（右）：強制終了</li>
+        </ul>`,
+    tour: `
+        <h3>🚃 ツアーモード</h3>
+        <p>制限時間なし。遺跡の発掘モデルを眺めながら<br>
+        レール上をのんびり走り回れます。</p>
+        <h3 style="margin-top:14px">🕹 VR コントローラー操作</h3>
+        <ul>
+          <li>右スティック ↑：加速</li>
+          <li>右スティック ↓：減速</li>
+        </ul>
+        <p style="margin-top:10px;color:rgba(200,185,255,0.7);font-size:13px">
+        ※ レーザー・クリック・得点は無効です。<br>
+        ※ すべての発掘モデルが最初から表示されます。</p>`
+};
+
+function renderModal() {
+    const mode = MODAL_MODES[modalModeIdx];
+    document.getElementById("modalContent").innerHTML = MODAL_TEXT[mode];
+    document.getElementById("modalModeLabel").textContent =
+        mode === "game" ? "ゲームモード" : "ツアーモード";
+    document.querySelectorAll(".modal-tab").forEach(t => {
+        t.classList.toggle("active", t.dataset.mode === mode);
+    });
 }
-updateInfoBox();
+renderModal();
+
+document.getElementById("helpBtn").onclick = () => {
+    document.getElementById("modal").classList.add("open");
+    renderModal();
+};
+document.getElementById("modalClose").onclick = () =>
+    document.getElementById("modal").classList.remove("open");
+document.getElementById("modal").addEventListener("click", e => {
+    if (e.target === document.getElementById("modal"))
+        document.getElementById("modal").classList.remove("open");
+});
+document.getElementById("modalPrev").onclick = () => {
+    modalModeIdx = (modalModeIdx - 1 + MODAL_MODES.length) % MODAL_MODES.length;
+    renderModal();
+};
+document.getElementById("modalNext").onclick = () => {
+    modalModeIdx = (modalModeIdx + 1) % MODAL_MODES.length;
+    renderModal();
+};
+document.querySelectorAll(".modal-tab").forEach(tab => {
+    tab.onclick = () => {
+        modalModeIdx = MODAL_MODES.indexOf(tab.dataset.mode);
+        renderModal();
+    };
+});
 
 /* =====================================================
 WEB AUDIO — synthesised SFX
@@ -372,9 +541,12 @@ VR SESSION EVENTS
 - On session end:   stop rail sound
 ===================================================== */
 renderer.xr.addEventListener("sessionstart", () => {
+    // タイトルUIを非表示（VR中は Three.js が全画面を使う）
+    document.getElementById("uiPanel").style.display = "none";
+    document.getElementById("miniUI").style.display  = "none";
+
     // VR セッション中は outside/ride どちらの設定でも必ず ride モードに強制
     if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
-    // camera が scene 直下にあれば train へ移動
     if (camera.parent !== train) {
         if (camera.parent) camera.parent.remove(camera);
         train.add(camera);
@@ -382,7 +554,6 @@ renderer.xr.addEventListener("sessionstart", () => {
     camera.position.set(0, 0.2, 0);
     camera.rotation.set(0, 0, 0);
     if (audioCtx.state === "suspended") audioCtx.resume();
-    // HUD パネルを表示（outside 設定でも VR 中は有効）
     HUD.mesh.visible = true;
     SB.mesh.visible  = true;
     // ツアーモードはセッション開始と同時に走行開始・rail sound 再生
@@ -393,7 +564,15 @@ renderer.xr.addEventListener("sessionstart", () => {
 
 renderer.xr.addEventListener("sessionend", () => {
     railSound.pause();
+    // タイトルUIを復元
+    if (CONFIG.camera === "outside") {
+        document.getElementById("miniUI").style.display = "block";
+    } else {
+        document.getElementById("uiPanel").style.display = "";
+    }
 });
+
+
 
 /* =====================================================
 CONTROLLERS
@@ -548,7 +727,8 @@ ARTIFACTS.forEach((data,idx) => {
         const obj = gltf.scene;
         obj.scale.set(ARTIFACT_SCALE, ARTIFACT_SCALE, ARTIFACT_SCALE);
         obj.position.copy(wp);
-        obj.visible = false;
+        // ツアーモードは最初から全モデル表示、ゲームモードは初回クリックまで非表示
+        obj.visible = (CONFIG.gameMode === "tour");
         scene.add(obj); rotatingObjects.push(obj); permanentModels[idx] = obj;
     });
 });
@@ -973,7 +1153,7 @@ renderer.setAnimationLoop(()=>{
     pos.copy(curve.getPointAt(progress)); pos.y+=0.2;
     const moving = isTour || gamePhase==="playing";
     realSpeed = moving ? pos.distanceTo(prevPos)/(dt/1000)*3.6 : 0;
-    if(now-lastSpeedUI>100){ realSpeedUI.textContent=realSpeed.toFixed(0)+" km/h"; lastSpeedUI=now; }
+    if(now-lastSpeedUI>100){ if(realSpeedUI) realSpeedUI.textContent=realSpeed.toFixed(0)+" km/h"; lastSpeedUI=now; }
     prevPos.copy(pos);
     train.position.copy(pos);
     if(now-lastMeter>100){ drawMeter(realSpeed); lastMeter=now; }
@@ -1008,8 +1188,8 @@ renderer.setAnimationLoop(()=>{
     scenelines.forEach((l,i)=>{const k=0.5+Math.sin(now*0.003+i)*0.5;l.material.color.setRGB(0.5*k,0.8*k,k);});
     clickSpheres.forEach((s,i)=>{const p=0.9+Math.sin(now*0.003+i*0.8)*0.1;s.scale.setScalar(p);});
 
-    // outside モード（非VR）では HUD 非表示
-    const showHUD = isVR || CONFIG.camera === "ride";
+    // outside モード（非VR）またはツアーモードでは HUD/SB 非表示
+    const showHUD = isVR && !isTour;
     HUD.mesh.visible = showHUD;
     SB.mesh.visible  = showHUD;
 
@@ -1057,41 +1237,62 @@ renderer.setAnimationLoop(()=>{
     if(!isTour && isVR){
         // ゲームモードかつ VR セッション中のみレーザー有効
         laser0.line.visible = true; laser1.line.visible = true;
-        hits0 = updateLaser(ctrl0, laser0);
-        hits1 = updateLaser(ctrl1, laser1);
+        hits0 = updateLaser(ctrl0, laser0); // ctrl0 のレーザー
+        hits1 = updateLaser(ctrl1, laser1); // ctrl1 のレーザー
     } else {
         laser0.line.visible = false; laser1.line.visible = false;
     }
 
-    const gp=getRightGP();
-    let bA=false,bB=false,bT0=false,bT1=false;
-    if(gp){
-        bT0=gp.buttons[0]?.pressed??false;
-        bA =gp.buttons[4]?.pressed??false;
-        bB =gp.buttons[5]?.pressed??false;
-    }
+    // inputSources から各コントローラーのボタン状態を取得
+    // ctrl0/ctrl1 のインデックスは inputSource の順序と一致しないことがあるため
+    // handedness で右手・左手を明示的に取り出す
+    let bA=false, bB=false;
+    let trigRight=false, trigLeft=false;
     const xrSess=renderer.xr.getSession();
     if(xrSess){
         for(const src of xrSess.inputSources){
-            if(src.handedness==="left"&&src.gamepad){
-                bT1=src.gamepad.buttons[0]?.pressed??false;
+            if(!src.gamepad) continue;
+            const isRight = src.handedness==="right";
+            const isLeft  = src.handedness==="left";
+            if(isRight){
+                trigRight = src.gamepad.buttons[0]?.pressed ?? false;
+                bA        = src.gamepad.buttons[4]?.pressed ?? false;
+                bB        = src.gamepad.buttons[5]?.pressed ?? false;
+            }
+            if(isLeft){
+                trigLeft  = src.gamepad.buttons[0]?.pressed ?? false;
             }
         }
     }
-    // ゲームモードのみボタン操作有効
+    // ctrl0/ctrl1 がどちらの手かを xrInputSource の targetRaySpace 経由で判定
+    // Three.js では getController(0) が最初に接続されたコントローラーになるため
+    // 実際の手との対応を inputSources.indexOf 相当で確認する
+    // → 安全策として ctrl0/ctrl1 の matrixWorld から判定せず、
+    //    hits0/hits1 を「右手トリガー→ctrl0 OR ctrl1 の右手側」に割り当てる
+    // Three.js r128 では XRTargetRaySpace に .inputSource が存在する
+    let hitsRight = [], hitsLeft = [];
+    if(ctrl0.inputSource?.handedness === "left") {
+        hitsRight = hits1; hitsLeft = hits0;
+    } else {
+        hitsRight = hits0; hitsLeft = hits1;
+    }
+
     if(!isTour){
         if(bA&&!prevA&&gamePhase==="idle") startCountdown();
         if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doForceEnd();
-        if(bT0&&!prevTrig0&&gamePhase==="playing"&&hits0.length>0) onSphereClick(hits0[0].object);
-        if(bT1&&!prevTrig1&&gamePhase==="playing"&&hits1.length>0) onSphereClick(hits1[0].object);
+        if(trigRight&&!prevTrig0&&gamePhase==="playing"&&hitsRight.length>0) onSphereClick(hitsRight[0].object);
+        if(trigLeft &&!prevTrig1&&gamePhase==="playing"&&hitsLeft.length>0)  onSphereClick(hitsLeft[0].object);
     }
-    prevA=bA; prevB=bB; prevTrig0=bT0; prevTrig1=bT1;
+    prevA=bA; prevB=bB; prevTrig0=trigRight; prevTrig1=trigLeft;
 
     renderer.render(scene,camera);
     prevTime=now;
 
-    // Rail sound
-    if(!railSound.paused&&now-lastSound>500){
+    // Rail sound — ツアーモードは常時再生、ゲームモードは playing 中のみ
+    if(isTour && isVR && railSound.paused) {
+        railSound.play().catch(()=>{});
+    }
+    if(!railSound.paused && now-lastSound>500){
         lastSound=now;
         const sr=velocity*1000*MODEL_SCALE;
         railSound.volume=CONFIG.curve==="trolley"?0.6:Math.min(1,sr);
