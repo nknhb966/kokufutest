@@ -904,11 +904,11 @@ function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
     mesh.position.set(lx,ly,lz); mesh.renderOrder=999;
     return {cv,ctx,tex,mesh};
 }
-const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.80,-0.9);
-const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.80,-0.9);
+const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95);
+const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95);
 // OV: カウントダウン・強制終了などの大型通知パネル
 // 大きく (2.4×1.2)、目の正面近く (z=-0.75)、視線より少し上 (y=1.10)
-const OV =makeHUDPanel(1024,512,  2.4,1.2,   0.00,1.10,-0.75);
+const OV =makeHUDPanel(1024,512,  1.6,0.8,   0.00,1.0,-0.9);
 OV.mesh.renderOrder=1000; OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
