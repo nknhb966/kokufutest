@@ -246,6 +246,18 @@ let baseRefSpace = null;
 
 renderer.xr.addEventListener("sessionstart", async () => {
     if (audioCtx.state === "suspended") audioCtx.resume();
+
+    // --- Force RIDE mode in VR regardless of browser toggle ---
+    // Dispose outside mode controls if active
+    if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
+    // Detach camera from scene root (outside mode) and attach to train
+    if (camera.parent !== train) {
+        if (camera.parent) camera.parent.remove(camera);
+        train.add(camera);
+        camera.position.set(0, 0.2, 0);
+        camera.rotation.set(0, 0, 0);
+    }
+
     // Capture the base local-floor reference space
     const session = renderer.xr.getSession();
     baseRefSpace = await session.requestReferenceSpace("local-floor")
@@ -259,25 +271,26 @@ renderer.xr.addEventListener("sessionend", () => {
     railSound.pause();
 });
 
-// Helper: decompose train world matrix into XRRigidTransform (inverse)
-// Called every frame in the animation loop BEFORE renderer.render()
-const _trainInvPos  = new THREE.Vector3();
-const _trainInvQuat = new THREE.Quaternion();
-const _trainScale   = new THREE.Vector3();
-const _trainQuat    = new THREE.Quaternion();
+// Helper: shift the entire XR rig (head + controllers) to the train's world pose.
+// We decompose train.matrixWorld each frame and build an XRRigidTransform with
+// the full position (X, Y, Z) and orientation.  This makes the XR floor origin
+// sit at the train, so both the headset AND controllers track relative to it.
+const _tPos  = new THREE.Vector3();
+const _tQuat = new THREE.Quaternion();
+const _tScl  = new THREE.Vector3();
 
 function applyTrainOffsetToXRRig() {
     if (!baseRefSpace || !renderer.xr.isPresenting) return;
-    // Get train's current world position and quaternion
-    train.matrixWorld.decompose(_trainInvPos, _trainQuat, _trainScale);
-    // We want XR origin = train position, so offset = train world pose
-    // XRRigidTransform takes position {x,y,z,w} and orientation {x,y,z,w}
-    const offsetXform = new XRRigidTransform(
-        { x: _trainInvPos.x, y: _trainInvPos.y, z: _trainInvPos.z, w: 1 },
-        { x: _trainQuat.x,   y: _trainQuat.y,   z: _trainQuat.z,   w: _trainQuat.w }
-    );
-    const offsetSpace = baseRefSpace.getOffsetReferenceSpace(offsetXform);
-    renderer.xr.setReferenceSpace(offsetSpace);
+    train.updateMatrixWorld(true);
+    train.matrixWorld.decompose(_tPos, _tQuat, _tScl);
+    try {
+        const offsetXform = new XRRigidTransform(
+            { x: _tPos.x,  y: _tPos.y,  z: _tPos.z,  w: 1 },
+            { x: _tQuat.x, y: _tQuat.y, z: _tQuat.z, w: _tQuat.w }
+        );
+        const offsetSpace = baseRefSpace.getOffsetReferenceSpace(offsetXform);
+        renderer.xr.setReferenceSpace(offsetSpace);
+    } catch(e) { /* XRRigidTransform not yet available — skip frame */ }
 }
 
 /* =====================================================
@@ -352,25 +365,21 @@ const curve = new MyCurve();
 
 /* =====================================================
 COASTER SCENE MODEL (00101_kokufuhakkutsu3.glb)
-addCoaster adds the environment model to scene.
-We scale it to MODEL_SCALE and rotate.
+addCoaster() builds the rail/track and loads the environment GLB.
+We snapshot scene.children before/after to find what was added,
+then apply MODEL_SCALE to every new root-level object.
 ===================================================== */
+const beforeChildren = new Set(scene.children.map(c => c.uuid));
+
 await addCoaster(scene, curve, null,
     "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu3.glb");
 
-// Scale and rotate the environment root
-let coasterRoot = null;
-scene.traverse(o => {
-    if (!coasterRoot && o.isMesh) {
-        let root = o;
-        while (root.parent && root.parent !== scene) root = root.parent;
-        coasterRoot = root;
-    }
+// Apply scale to every root object that addCoaster added
+scene.children.forEach(child => {
+    if (beforeChildren.has(child.uuid)) return; // was already there
+    child.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+    child.rotation.y = THREE.MathUtils.degToRad(-90);
 });
-if (coasterRoot) {
-    coasterRoot.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
-    coasterRoot.rotation.y = THREE.MathUtils.degToRad(-90);
-}
 
 /* =====================================================
 ARTIFACT MODELS — hidden until first click
