@@ -353,7 +353,6 @@ function saveScore(score) {
 document.getElementById("resetBtn").addEventListener("click", () => {
     if (confirm("記録をリセットしますか？")) {
         localStorage.removeItem(LS_KEY);
-        localStorage.removeItem("speed_user_set");
         updateScoreBoard();
     }
 });
@@ -395,7 +394,6 @@ function setupCameraToggle(id) {
         else document.body.classList.remove("outside-mode");
     }
 }
-// curveToggle: カーブ変更時にスピード初期値を設定（ユーザー未変更の場合のみ）
 {
     const CURVE_DEFAULT_SPEED = { trolley: 0.5, coaster: 1.5 };
     const btns = document.querySelectorAll("#curveToggle button");
@@ -405,11 +403,8 @@ function setupCameraToggle(id) {
             btns.forEach(b => b.classList.remove("active")); btn.classList.add("active");
             const newCurve = btn.dataset.value;
             localStorage.setItem("curve", newCurve);
-            // ユーザーがスピードを手動変更していない場合のみデフォルト値を適用
-            if (!localStorage.getItem("speed_user_set")) {
-                const defaultSpeed = CURVE_DEFAULT_SPEED[newCurve] ?? 1.0;
-                localStorage.setItem("speed", defaultSpeed);
-            }
+            const defaultSpeed = CURVE_DEFAULT_SPEED[newCurve] ?? 1.0;
+            localStorage.setItem("speed", defaultSpeed);
             location.reload();
         };
     });
@@ -428,8 +423,6 @@ speedSlider.oninput = () => {
     SPEED = parseFloat(speedSlider.value);
     speedValueEl.textContent = SPEED.toFixed(1);
     localStorage.setItem("speed", SPEED);
-    // スライダーを操作したらユーザー変更済みフラグを立てる
-    localStorage.setItem("speed_user_set", "1");
 };
 
 const MODAL_MODES = ["game","tour"];
