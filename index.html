@@ -1939,7 +1939,8 @@ renderer.setAnimationLoop(()=>{
     if(isLearning){
         clickSpheres.forEach((s,i)=>updateLearnSphereVisual(i,now));
         tickLearnExcavation(dt/1000);
-        if(now-lastSpeedUI>100){ updateLearnHUD(); }
+        // if(now-lastSpeedUI>100){ updateLearnHUD(); }
+        updateLearnHUD();
         // rotate hand models
         learnHandModels.forEach(h=>{ h.mesh.rotation.y+=0.012; });
     } else {
