@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>11越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1554,31 +1554,55 @@ ARTIFACTS.forEach((_,i)=>prepareExcavImagePanel(i));
  *         showContent=false: 「発掘中...」テキスト表示（fly-in 中）
  *         showContent=true : 説明画像パネルに切り替え（Step 2 表示中）
  */
+const SIZE = 1024;
+
 function drawExcavPanel(idx, showContent){
+    const {ctx,tex}=EXP;
+
     // "loading"表示（テキスト）
     if(!showContent){
-        const {ctx,tex}=EXP;
-        ctx.clearRect(0,0,1024,768);
-        ctx.fillStyle="rgba(0,5,20,0.88)"; rrect(ctx,8,8,1008,752,32); ctx.fill();
-        ctx.strokeStyle="rgba(68,200,255,0.6)"; ctx.lineWidth=6; rrect(ctx,8,8,1008,752,32); ctx.stroke();
-        ctx.fillStyle="#44ddff"; ctx.font="bold 80px sans-serif"; ctx.textAlign="center";
-        ctx.fillText("⛏ 発掘中...",512,512);
+        ctx.clearRect(0,0,SIZE,SIZE);
+
+        // 背景
+        ctx.fillStyle="rgba(0,5,20,0.88)";
+        rrect(ctx,8,8,SIZE-16,SIZE-16,32);
+        ctx.fill();
+
+        // 枠
+        ctx.strokeStyle="rgba(68,200,255,0.6)";
+        ctx.lineWidth=6;
+        rrect(ctx,8,8,SIZE-16,SIZE-16,32);
+        ctx.stroke();
+
+        // テキスト（完全中央）
+        ctx.fillStyle="#44ddff";
+        ctx.font="bold 80px sans-serif";
+        ctx.textAlign="center";
+        ctx.textBaseline="middle";
+        ctx.fillText("⛏ 発掘中...", SIZE/2, SIZE/2);
+
         tex.needsUpdate=true;
+
         EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
         EXP.mesh.visible=true;
+
         // 画像パネルは非表示
-        if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible=false;
+        if(learnExcavImageMesh[idx]) {
+            learnExcavImageMesh[idx].visible=false;
+        }
         return;
     }
+
+    // 完了時
     EXP.mesh.position.set(0, EXP_LY, EXP_LZ);
-    // 画像パネルに切り替え
     EXP.mesh.visible = false;
+
     const imgMesh = learnExcavImageMesh[idx];
     if(imgMesh){
         imgMesh.visible = true;
         imgMesh.position.set(0, EXP_LY, EXP_LZ);
     } else {
-        // 画像未ロード時はフォールバック
+        // フォールバック
         EXP.mesh.visible=true;
     }
 }
