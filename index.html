@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>a越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1777,9 +1777,6 @@ function tickLearnExcavation(dt){
                 if(c.isMesh){
                     c.renderOrder = 0;
                     c.material.depthTest = true;
-                    c.material.depthWrite = true;
-                    c.material.transparent = false;
-                    c.material.opacity = 1.0;
                 }
             });
         }
@@ -1919,22 +1916,22 @@ function addHandModel(idx, slot){
     clone.rotation.set(0, 0, 0);
     clone.visible = true;
 
-    clone.renderOrder = 1100;
+    // clone.renderOrder = 1100;
 
-    clone.traverse(c=>{
-        if(c.isMesh){
+    // clone.traverse(c=>{
+    //     if(c.isMesh){
 
-            c.frustumCulled = false;
+    //         c.frustumCulled = false;
 
-            if(c.material){
-                c.material.depthTest = false;   // 深度判定しない
-                c.material.depthWrite = false;  // Zバッファ書き込みなし
+    //         if(c.material){
+    //             c.material.depthTest = false;   // 深度判定しない
+    //             c.material.depthWrite = false;  // Zバッファ書き込みなし
 
-                // 念のため（透明対応）
-                c.material.transparent = true;
-            }
-        }
-    });
+    //             // 念のため（透明対応）
+    //             c.material.transparent = true;
+    //         }
+    //     }
+    // });
 
     handModelGroup.add(clone);
 
