@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1528,7 +1528,7 @@ train.add(EXP.mesh);
 const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1;
 const GOBT = makeHUDPanel(512,200, 0.5,0.18, 0, GOBT_LY, EXP_LZ);
 GOBT.mesh.visible=false;
-GOBT.mesh.material.depthTest=false;
+GOBT.mesh.material.depthTest=true;
 train.add(GOBT.mesh);
 learnGoButton = GOBT;
 
