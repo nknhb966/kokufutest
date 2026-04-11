@@ -928,6 +928,10 @@ const anchorMat = new THREE.MeshBasicMaterial({color:0x66ccff});
 // Learning mode: sphere state (declared early to be available in EXPLAIN_PTS.forEach)
 const learnSphereState = {}; // idx -> {state, count}
 
+// Learning mode: per-idx references to scene explanation panels/lines
+const learnScenePanels = {}; // idx -> THREE.Mesh (scene panel)
+const learnSceneLines  = {}; // idx -> THREE.Line
+
 EXPLAIN_PTS.forEach((data,idx)=>{
     const [file,x,z,ox,oz,rot]=data;
     const anchor=new THREE.Mesh(anchorGeo,anchorMat);
@@ -955,11 +959,20 @@ EXPLAIN_PTS.forEach((data,idx)=>{
         const mesh=new THREE.Mesh(panelGeo,m);
         mesh.position.set((x+ox)*MODEL_SCALE,2.9*MODEL_SCALE,(z+oz)*MODEL_SCALE);
         mesh.rotation.y=THREE.MathUtils.degToRad(rot); scene.add(mesh);
+
         const pts=[new THREE.Vector3(x*MODEL_SCALE,1.25*MODEL_SCALE,z*MODEL_SCALE),
                    new THREE.Vector3((x+ox)*MODEL_SCALE,2.2*MODEL_SCALE,(z+oz)*MODEL_SCALE)];
         const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
                                 new THREE.LineBasicMaterial({color:0x88ccff}));
         scene.add(ln); scenelines.push(ln);
+
+        // ① 学びモードでは初期非表示（発掘完了時に表示）
+        if(isLearningMode){
+            mesh.visible = false;
+            ln.visible   = false;
+            learnScenePanels[idx] = mesh;
+            learnSceneLines[idx]  = ln;
+        }
     });
 });
 
@@ -1153,11 +1166,16 @@ function updateLearnHUD(){
 
     if(gamePhase==="idle"){
         ctx.fillStyle="#88ffcc"; ctx.font="bold 34px sans-serif"; ctx.textAlign="center";
-        ctx.fillText("Aボタン: スタート",512,440);
-    }
-    if(learningSubState==="excavating"){
-        ctx.fillStyle="#ffcc44"; ctx.font="bold 40px sans-serif"; ctx.textAlign="center";
+        ctx.fillText("Aボタン: スタート  Bボタン: 強制終了",512,440);
+    } else if(gamePhase==="countdown"){
+        ctx.fillStyle="#ffcc44"; ctx.font="bold 34px sans-serif"; ctx.textAlign="center";
+        ctx.fillText("⏳ カウントダウン中...",512,440);
+    } else if(learningSubState==="excavating"){
+        ctx.fillStyle="#ffcc44"; ctx.font="bold 36px sans-serif"; ctx.textAlign="center";
         ctx.fillText("⛏ 発掘中... GO を押してください",512,440);
+    } else if(gamePhase==="playing"){
+        ctx.fillStyle="#aaaaaa"; ctx.font="bold 28px sans-serif"; ctx.textAlign="center";
+        ctx.fillText("Bボタン: 強制終了",512,460);
     }
     tex.needsUpdate=true;
 }
@@ -1265,78 +1283,90 @@ let learnExcavT = 0;
 const EXCAV_ANIM_DUR = 1.2; // seconds for model to fly to camera
 
 // Panel for excavation (attached to train like HUD)
-const EXP = makeHUDPanel(1024,768, 1.2,0.9, 0,0.3,-1.1);
+// ③B: サイズ 1.2*1.5=1.8, 0.9*1.5=1.35 / 位置Z *= 1.5 → -1.65, Y += 0.5*MODEL_SCALE
+const EXP_PW = 1.8, EXP_PH = 1.35;
+const EXP_LZ = -1.65;
+const EXP_LY = 0.3 + 0.5 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
+const EXP = makeHUDPanel(1024,768, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
 EXP.mesh.renderOrder=1001; EXP.mesh.visible=false;
 train.add(EXP.mesh);
 
-const GOBT = makeHUDPanel(512,200, 0.4,0.16, 0,-0.28,-1.0);
+// ④: GOボタン3Dメッシュのみ残す / 位置をEXPに合わせ上方向 +0.2*MODEL_SCALE
+const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1 + 0.2*MODEL_SCALE;
+const GOBT = makeHUDPanel(512,200, 0.5,0.18, 0, GOBT_LY, EXP_LZ);
 GOBT.mesh.renderOrder=1002; GOBT.mesh.visible=false;
+GOBT.mesh.material.depthTest=false;
 train.add(GOBT.mesh);
 learnGoButton = GOBT;
 
-function drawExcavPanel(idx, showContent){
-    const {ctx,tex}=EXP;
-    ctx.clearRect(0,0,1024,768);
-    ctx.fillStyle="rgba(0,5,20,0.88)"; rrect(ctx,8,8,1008,752,32); ctx.fill();
-    ctx.strokeStyle="rgba(68,200,255,0.6)"; ctx.lineWidth=6; rrect(ctx,8,8,1008,752,32); ctx.stroke();
+// ③A: drawExcavPanel → 画像表示（3Dテクスチャとして別途ロード）
+// "loading"フェーズ用の簡易テキスト描画は維持し、画像ロード後に切り替え
+const learnExcavImageMesh = {}; // idx -> THREE.Mesh (train-attached image panel)
 
+function prepareExcavImagePanel(idx){
+    if(learnExcavImageMesh[idx]) return; // 既にロード済み
+    const imgFile = `4${String(idx+1).padStart(2,"0")}00_kokufuhakkutsu3.png`;
+    texLoader.load(IMAGE_BASE+imgFile, tex=>{
+        tex.colorSpace=THREE.SRGBColorSpace;
+        const mat = new THREE.MeshBasicMaterial({
+            map:tex, transparent:true, toneMapped:false,
+            side:THREE.DoubleSide, depthTest:false
+        });
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(EXP_PW, EXP_PH), mat);
+        mesh.position.set(0, EXP_LY, EXP_LZ);
+        mesh.renderOrder = 1001;
+        mesh.visible = false;
+        train.add(mesh);
+        learnExcavImageMesh[idx] = mesh;
+    });
+}
+
+// 全モデル分を事前ロード
+ARTIFACTS.forEach((_,i)=>prepareExcavImagePanel(i));
+
+function drawExcavPanel(idx, showContent){
+    // "loading"表示（テキスト）
     if(!showContent){
+        const {ctx,tex}=EXP;
+        ctx.clearRect(0,0,1024,768);
+        ctx.fillStyle="rgba(0,5,20,0.88)"; rrect(ctx,8,8,1008,752,32); ctx.fill();
+        ctx.strokeStyle="rgba(68,200,255,0.6)"; ctx.lineWidth=6; rrect(ctx,8,8,1008,752,32); ctx.stroke();
         ctx.fillStyle="#44ddff"; ctx.font="bold 80px sans-serif"; ctx.textAlign="center";
         ctx.fillText("⛏ 発掘中...",512,350);
-        tex.needsUpdate=true; return;
+        tex.needsUpdate=true;
+        EXP.mesh.visible=true;
+        // 画像パネルは非表示
+        if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible=false;
+        return;
     }
-
-    const names = ["土師器 坏","須恵器 壺","緑釉陶器","灰釉陶器","瓦器 椀","白磁 碗","青磁 碗","銭貨"];
-    const descs = [
-        "奈良時代の食器。粘土を低温で焼いた素焼きの坏です。",
-        "古墳〜奈良時代の貯蔵容器。高温で焼いた灰色の壺です。",
-        "奈良〜平安時代の高級陶器。緑色の釉薬が特徴です。",
-        "平安時代の陶器。灰色がかった釉薬を掛けた器です。",
-        "平安〜鎌倉時代の土器。黒灰色で薄手の椀形土器です。",
-        "中国から輸入された白い磁器。平安〜鎌倉時代のものです。",
-        "中国製の青みがかった磁器。越前国府の繁栄を示します。",
-        "宋銭など中国から渡来した銅銭。流通の証しです。"
-    ];
-
-    ctx.fillStyle="#44ddff"; ctx.font="bold 96px sans-serif"; ctx.textAlign="center";
-    ctx.fillText(`No.${idx+1} 発掘！`,512,110);
-    ctx.strokeStyle="rgba(68,200,255,0.4)"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(60,135); ctx.lineTo(964,135); ctx.stroke();
-
-    ctx.fillStyle="#ffffff"; ctx.font="bold 72px sans-serif"; ctx.textAlign="center";
-    ctx.fillText(names[idx]||`遺物 ${idx+1}`,512,230);
-
-    ctx.fillStyle="#ccddff"; ctx.font="36px sans-serif"; ctx.textAlign="left";
-    // word wrap
-    const desc = descs[idx]||""; const maxW=880;
-    let line="", y=310;
-    for(const ch of desc){
-        if(ctx.measureText(line+ch).width > maxW){ ctx.fillText(line,72,y); line=ch; y+=52; }
-        else line+=ch;
+    // 画像パネルに切り替え
+    EXP.mesh.visible = false;
+    const imgMesh = learnExcavImageMesh[idx];
+    if(imgMesh){
+        imgMesh.visible = true;
+        imgMesh.position.set(0, EXP_LY, EXP_LZ);
+    } else {
+        // 画像未ロード時はフォールバック
+        EXP.mesh.visible=true;
     }
-    ctx.fillText(line,72,y);
-
-    ctx.fillStyle="rgba(68,200,255,0.15)"; rrect(ctx,200,560,624,156,20); ctx.fill();
-    ctx.strokeStyle="rgba(68,200,255,0.5)"; ctx.lineWidth=4; rrect(ctx,200,560,624,156,20); ctx.stroke();
-    ctx.fillStyle="#ffee44"; ctx.font="bold 88px sans-serif"; ctx.textAlign="center";
-    ctx.fillText("▶ GO",512,670);
-    tex.needsUpdate=true;
 }
 
 function drawGoButton(blink){
     const {ctx,tex}=GOBT;
     ctx.clearRect(0,0,512,200);
-    if(!blink) return;
-    ctx.fillStyle="rgba(255,220,0,0.92)"; rrect(ctx,10,10,492,180,30); ctx.fill();
-    ctx.fillStyle="#000"; ctx.font="bold 100px sans-serif"; ctx.textAlign="center";
-    ctx.fillText("▶ GO",256,130);
+    const alpha = blink ? 1.0 : 0.4;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle="#ffee00"; rrect(ctx,8,8,496,184,30); ctx.fill();
+    ctx.fillStyle="#000"; ctx.font="bold 96px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("▶  GO",256,128);
+    ctx.globalAlpha=1.0;
     tex.needsUpdate=true;
 }
 
 // Position excavating model in front of train camera
+// ③C: 現在位置 + 0.3*MODEL_SCALE 上方向
 function getExcavModelTarget(){
-    // In front of train, slightly elevated
-    return new THREE.Vector3(0, 0.4, -0.9);
+    return new THREE.Vector3(0, 0.4 + 0.3*MODEL_SCALE, -0.9);
 }
 
 function startLearnExcavation(idx){
@@ -1345,6 +1375,9 @@ function startLearnExcavation(idx){
     learnExcavStep = 0;
     learnExcavT = 0;
     learningSubState = "excavating";
+
+    // ⑤ 演出中はレール音停止
+    railSound.pause();
 
     // Pause timer
     learnTimerPause();
@@ -1360,10 +1393,17 @@ function startLearnExcavation(idx){
         learnExcavModel = model;
         learnExcavOrigPos = model.position.clone();
         model.visible = true;
+        // ⑩ renderOrder: モデルをパネルより前面に
+        model.traverse(c=>{
+            if(c.isMesh){
+                c.renderOrder=1003;
+                c.material = c.material.clone();
+                c.material.depthTest=false;
+            }
+        });
     }
 
     // Show excavation panel (loading state)
-    EXP.mesh.visible = true;
     drawExcavPanel(idx, false);
     GOBT.mesh.visible = false;
     learnGoReady = false;
@@ -1418,7 +1458,7 @@ function tickLearnExcavation(dt){
     }
 
     if(learnExcavStep===2){
-        // Waiting 0.5s then show description
+        // Waiting 0.5s then show description image
         learnExcavShowTimer += dt;
         if(learnExcavShowTimer >= 0.5 && !learnGoReady){
             drawExcavPanel(idx, true);
@@ -1430,8 +1470,8 @@ function tickLearnExcavation(dt){
             const blink = Math.floor(performance.now()*0.004)%2===0;
             drawGoButton(blink);
         }
-        // Rotate model slowly
-        if(model) model.rotation.y += dt * Math.PI * 3;
+        // ③C: Y軸回転のみ、3秒で1回転 = 2π/3 rad/sec
+        if(model) model.rotation.y += dt * (2*Math.PI/3);
         // Wait for GO
         return;
     }
@@ -1475,6 +1515,8 @@ function onLearnGoPressed(){
     learnGoReady = false;
     GOBT.mesh.visible = false;
     EXP.mesh.visible = false;
+    const idx = learnExcavIdx;
+    if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible = false;
     learnExcavFlyT = 0;
     learnExcavStep = 3;
 }
@@ -1483,19 +1525,42 @@ function finishLearnExcavation(idx){
     learnSphereState[idx].state = "done";
     learnDoneCount++;
 
+    // ② 発掘完了 → シーン説明パネル・ライン表示
+    if(learnScenePanels[idx]) learnScenePanels[idx].visible = true;
+    if(learnSceneLines[idx])  learnSceneLines[idx].visible  = true;
+
+    // 発掘演出用画像パネルを非表示
+    if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible = false;
+
+    // ⑩ renderOrder復元
+    const model = permanentModels[idx];
+    if(model){
+        model.traverse(c=>{
+            if(c.isMesh){
+                c.renderOrder=0;
+                c.material.depthTest=true;
+            }
+        });
+        model.position.copy(artifactWorldPos[idx]);
+        model.scale.setScalar(ARTIFACT_SCALE);
+        model.visible = true;
+    }
+
     // Add to hand models (attached to train)
     addHandModel(idx, learnDoneCount-1);
 
-    // Mark sphere as done (remove from raycaster by hiding)
+    // Mark sphere as done
     clickSpheres[idx].visible = false;
 
-    // Show explanation panels (existing scene lines already there)
     // Resume train
     setDark(0);
     learnTimerResume();
     learningSubState = "exploring";
     learnIsExcavating = false;
     learnExcavModel = null;
+
+    // ⑤ 演出終了 → レール音再開
+    if(gamePhase==="playing") railSound.play().catch(()=>{});
 
     // Process next in queue
     setTimeout(()=>processLearnQueue(), 300);
@@ -1582,6 +1647,10 @@ function resetLearningMode(){
     clearTimers();
     EXP.mesh.visible=false;
     GOBT.mesh.visible=false;
+    // 発掘演出用画像パネルを全非表示
+    ARTIFACTS.forEach((_,i)=>{
+        if(learnExcavImageMesh[i]) learnExcavImageMesh[i].visible=false;
+    });
     setDark(0);
     gamePhase="idle";
     learningSubState="exploring";
@@ -1589,6 +1658,7 @@ function resetLearningMode(){
     learnExcavStep=0; learnIsExcavating=false;
     learnGoReady=false;
     learnExcavFlyT=0;
+    learnExcavIdx=-1;
     // Remove hand models
     learnHandModels.forEach(h=>handModelGroup.remove(h.mesh));
     learnHandModels.length=0;
@@ -1596,9 +1666,19 @@ function resetLearningMode(){
     initLearnSpheres();
     // Restore sphere visibility
     clickSpheres.forEach(s=>{ s.visible=true; });
-    // Hide permanent models
+    // Hide permanent models & restore renderOrder
     ARTIFACTS.forEach((_,i)=>{
-        if(permanentModels[i]) permanentModels[i].visible=false;
+        if(permanentModels[i]){
+            permanentModels[i].visible=false;
+            permanentModels[i].traverse(c=>{
+                if(c.isMesh){ c.renderOrder=0; c.material.depthTest=true; }
+            });
+        }
+    });
+    // ① シーン説明パネル・ライン再非表示
+    ARTIFACTS.forEach((_,i)=>{
+        if(learnScenePanels[i]) learnScenePanels[i].visible=false;
+        if(learnSceneLines[i])  learnSceneLines[i].visible=false;
     });
     updateLearnHUD();
     updateLearnScoreBoard();
@@ -1606,17 +1686,41 @@ function resetLearningMode(){
 
 function startLearningMode(){
     if(gamePhase!=="idle") return;
-    gamePhase="playing";
+    gamePhase="countdown";
     learningSubState="exploring";
-    learnTimerStart=performance.now();
-    learnTimerPaused=0; learnPauseStart=0;
     learnDoneCount=0;
     initLearnSpheres();
     teleportToStart();
     setDark(0);
-    vibrate(300,0.7);
-    railSound.play().catch(()=>{});
+    vibrate(120,0.5);
     updateLearnHUD();
+
+    // ⑨ 3→2→1→GO カウントダウン
+    let cd=3;
+    function tick(){
+        if(cd>0){
+            sfxCountdown(cd);
+            showOverlay(String(cd),"準備！");
+            cd--; phaseTimeout=setTimeout(tick,1000);
+        } else {
+            hideOverlay();
+            // GO → 本番開始
+            sfxCountdown(0);
+            showOverlay("GO！");
+            setTimeout(()=>{
+                hideOverlay();
+                gamePhase="playing";
+                learnTimerStart=performance.now();
+                learnTimerPaused=0; learnPauseStart=0;
+                vibrate(300,0.7);
+                railSound.play().catch(()=>{});
+                updateLearnHUD();
+            },700);
+        }
+    }
+    sfxCountdown(cd);
+    showOverlay(String(cd),"準備！"); cd=2;
+    phaseTimeout=setTimeout(tick,1000);
 }
 function onLearnSphereClick(sphere){
     if(gamePhase!=="playing") return;
@@ -1730,6 +1834,32 @@ function teleportToStart(){
     progress=0; velocity=0.0001;
     const p=curve.getPointAt(0).clone(); p.y+=0.2;
     train.position.copy(p);
+    // ⑧ train rotation初期化
+    const tan0=curve.getTangentAt(0);
+    const lk=p.clone().sub(tan0);
+    train.lookAt(lk);
+}
+
+// ⑦ 学びモード強制終了
+function doLearnForceEnd(){
+    if(CONFIG.gameMode!=="learning") return;
+    if(gamePhase==="idle"||gamePhase==="result") return;
+    clearTimers();
+    vibrate(200,0.8);
+    learnTimerPause();
+    railSound.pause();
+    // 発掘中パネルを閉じる
+    EXP.mesh.visible=false;
+    GOBT.mesh.visible=false;
+    const idx=learnExcavIdx;
+    if(idx>=0&&learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible=false;
+    setDark(0.75);
+    // OVオーバーレイ（ゲームモードと共用）
+    showOverlay("強制終了","スコアは記録されません");
+    phaseTimeout=setTimeout(()=>{
+        hideOverlay();
+        resetLearningMode();
+    },3000);
 }
 
 function startCountdown(){
@@ -1862,7 +1992,10 @@ window.addEventListener("keydown",e=>{
         if(CONFIG.gameMode==="learning") startLearningMode();
         else startCountdown();
     }
-    if(e.code==="KeyE") doForceEnd();
+    if(e.code==="KeyE"){
+        if(CONFIG.gameMode==="learning") doLearnForceEnd();
+        else doForceEnd();
+    }
     if(e.code==="KeyG"&&CONFIG.gameMode==="learning") onLearnGoPressed();
 });
 window.addEventListener("keyup",e=>{
@@ -1939,8 +2072,7 @@ renderer.setAnimationLoop(()=>{
     if(isLearning){
         clickSpheres.forEach((s,i)=>updateLearnSphereVisual(i,now));
         tickLearnExcavation(dt/1000);
-        // if(now-lastSpeedUI>100){ updateLearnHUD(); }
-        updateLearnHUD();
+        updateLearnHUD(); // ⑥ 毎フレーム更新
         // rotate hand models
         learnHandModels.forEach(h=>{ h.mesh.rotation.y+=0.012; });
     } else {
@@ -2030,6 +2162,8 @@ renderer.setAnimationLoop(()=>{
     if(!isTour){
         if(isLearning){
             if(bA&&!prevA&&gamePhase==="idle") startLearningMode();
+            // ⑦ Bボタン強制終了（学びモード、いつでも有効）
+            if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doLearnForceEnd();
             // Trigger: click sphere or Go button
             const allHits = [...hitsRight,...hitsLeft];
             const trigPressed = (trigRight&&!prevTrig0)||(trigLeft&&!prevTrig1);
