@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>a越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -752,14 +752,9 @@ document.getElementById("vrButtonWrap").appendChild(VRButton.createButton(render
 
 /* =====================================================
 VR セッションイベント
-  - sessionstart : VR開始時にUIを隠し、カメラをtrainに接続
-  - sessionend   : VR終了時にUIを再表示
+  - sessionstart : VR開始時にカメラをtrainに接続
 ===================================================== */
 renderer.xr.addEventListener("sessionstart", () => {
-    // VR開始：UIパネルを非表示にしてVR空間へ移行
-    // document.getElementById("uiPanel").style.display = "none";
-    // document.getElementById("miniUI").style.display  = "none";
-
     if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
     if (camera.parent !== train) {
         if (camera.parent) camera.parent.remove(camera);
@@ -786,21 +781,6 @@ renderer.xr.addEventListener("sessionstart", () => {
     }
 });
 
-// renderer.xr.addEventListener("sessionend", () => {
-//     railSound.pause();
-//     if (CONFIG.camera === "outside") {
-//         document.getElementById("miniUI").style.display = "block";
-//     } else {
-//         document.getElementById("uiPanel").style.display = "";
-//     }
-// });
-renderer.xr.addEventListener("sessionend", () => {
-    railSound.pause();
-    // renderer.xr.enabled = false;
-    // document.getElementById("miniUI").style.display  = "none";
-    // document.getElementById("uiPanel").style.display = "block";
-    // location.reload();
-});
 /* =====================================================
 VR コントローラー設定
   - 左右コントローラーグリップにモデルを追加
@@ -1681,7 +1661,7 @@ function startLearnExcavation(idx){
                 c.material.depthWrite = false;
 
                 // 透明対応（UI安定）
-                c.material.transparent = true;
+                c.material.transparent = false;
 
                 // カリング防止
                 c.frustumCulled = false;
