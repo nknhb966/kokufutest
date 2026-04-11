@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>a越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -763,21 +763,6 @@ renderer.xr.addEventListener("sessionstart", () => {
     }
     camera.position.set(0, 0.2, 0);
     camera.rotation.set(0, 0, 0);
-
-    // ★① 元カメラ
-    camera.layers.enable(1);
-
-    // ★② XRカメラ
-    const xrCam = renderer.xr.getCamera(camera);
-    xrCam.layers.enable(1);
-
-    // ★③ 左右の実カメラ（これが重要）
-    if (xrCam.cameras) {
-        xrCam.cameras.forEach(cam=>{
-            cam.layers.enable(1);
-        });
-    }
-
     if (audioCtx.state === "suspended") audioCtx.resume();
 
     if (CONFIG.gameMode === "learning") {
@@ -899,8 +884,6 @@ ctrl1.addEventListener("disconnected", onControllerDisconnected);
   - outside モード: OrbitControls で自由視点
 ===================================================== */
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
-camera.layers.enable(0);
-camera.layers.enable(1);
 let orbitControls = null;
 
 /* =====================================================
@@ -1923,43 +1906,32 @@ function addHandModel(idx, slot){
     if(!model) return;
 
     const clone = model.clone();
-    clone.layers.set(1);
 
     const total = ARTIFACTS.length;        // 通常8
     const spacing = 1.6 / (total - 1);     // 横幅1.6内に配置
     const xPos = -0.8 + slot * spacing;
 
-    clone.position.set(xPos, -0.15, -1.0);
-
-    camera.near = 0.01;
-    camera.updateProjectionMatrix();
-
+    clone.position.set(xPos, 0.22, -0.78);
     clone.scale.setScalar(ARTIFACT_SCALE * 0.13);
     clone.rotation.set(0, 0, 0);
     clone.visible = true;
 
     clone.traverse(c=>{
-        // if(c.isMesh){
+        if(c.isMesh){
 
-            // ★レイヤー分離
-            c.layers.set(1);
+            c.frustumCulled = false;
 
-            // ★前面表示（UI的に）
-            c.renderOrder = 1100;
-
-            // ★深度無効（UI扱い）
             if(c.material){
                 c.material = c.material.clone();
-                c.material.depthTest  = false;
-                c.material.depthWrite = false;
+                c.material.depthTest = false;   // 深度判定しない
+                c.material.depthWrite = false;  // Zバッファ書き込みなし
+
                 c.material.transparent = true;
                 c.material.opacity = 1.0;
             }
-        // }
+            c.renderOrder = 1100;
+        }
     });
-
-    // 位置（trainローカル）
-    train.add(clone);
 
     handModelGroup.add(clone);
 
