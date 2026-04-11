@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>a越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1958,14 +1958,12 @@ function addHandModel(idx, slot){
     // 位置（trainローカル）
     train.add(clone);
 
-    // handModelGroup.add(clone);
+    handModelGroup.add(clone);
 
-    // learnHandModels.push({
-    //     mesh: clone,
-    //     slot: slot
-    // });
-
-    handModels[slot] = clone;
+    learnHandModels.push({
+        mesh: clone,
+        slot: slot
+    });
 }
 
 /*
