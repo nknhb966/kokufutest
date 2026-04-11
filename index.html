@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>a越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1929,7 +1929,11 @@ function addHandModel(idx, slot){
     const spacing = 1.6 / (total - 1);     // 横幅1.6内に配置
     const xPos = -0.8 + slot * spacing;
 
-    clone.position.set(xPos, 0.22, -0.78);
+    clone.position.set(xPos, -0.15, -1.0);
+
+    camera.near = 0.01;
+    camera.updateProjectionMatrix();
+
     clone.scale.setScalar(ARTIFACT_SCALE * 0.13);
     clone.rotation.set(0, 0, 0);
     clone.visible = true;
