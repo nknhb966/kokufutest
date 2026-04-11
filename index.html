@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1547,8 +1547,12 @@ function prepareExcavImagePanel(idx){
     texLoader.load(IMAGE_BASE+imgFile, tex=>{
         tex.colorSpace=THREE.SRGBColorSpace;
         const mat = new THREE.MeshBasicMaterial({
-            map:tex, transparent:true, toneMapped:false,
-            side:THREE.DoubleSide, depthTest:false
+            map:tex,
+            transparent:true,
+            toneMapped:false,
+            side:THREE.DoubleSide,
+            depthTest:true,
+            depthWrite:false
         });
         const mesh = new THREE.Mesh(new THREE.PlaneGeometry(EXP_PW, EXP_PH), mat);
         mesh.position.set(0, EXP_LY, EXP_LZ);
@@ -1578,13 +1582,13 @@ function drawExcavPanel(idx, showContent){
 
         // 背景
         ctx.fillStyle="rgba(0,5,20,0.88)";
-        rrect(ctx,8,8,SIZE-16,SIZE-16,32);
+        rrect(ctx,8,8,SIZE-16,SIZE/3-16,32);
         ctx.fill();
 
         // 枠
         ctx.strokeStyle="rgba(68,200,255,0.6)";
         ctx.lineWidth=6;
-        rrect(ctx,8,8,SIZE-16,SIZE-16,32);
+        rrect(ctx,8,8,SIZE-16,SIZE/3-16,32);
         ctx.stroke();
 
         // テキスト（完全中央）
