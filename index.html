@@ -752,10 +752,14 @@ document.getElementById("vrButtonWrap").appendChild(VRButton.createButton(render
 
 /* =====================================================
 VR セッションイベント
-  - sessionstart : VR開始時にカメラをtrainに接続
+  - sessionstart : VR開始時にUIを隠し、カメラをtrainに接続
   - sessionend   : VR終了時にUIを再表示
 ===================================================== */
 renderer.xr.addEventListener("sessionstart", () => {
+    // VR開始：UIパネルを非表示にしてVR空間へ移行
+    document.getElementById("uiPanel").style.display = "none";
+    document.getElementById("miniUI").style.display  = "none";
+
     if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
     if (camera.parent !== train) {
         if (camera.parent) camera.parent.remove(camera);
@@ -784,11 +788,11 @@ renderer.xr.addEventListener("sessionstart", () => {
 
 renderer.xr.addEventListener("sessionend", () => {
     railSound.pause();
-    // renderer.xr.enabled = false;
-    // document.getElementById("miniUI").style.display  = "none";
-    // document.getElementById("uiPanel").style.display = "block";
-    // location.reload();
-    // setCameraMode("ride");
+    if (CONFIG.camera === "outside") {
+        document.getElementById("miniUI").style.display = "block";
+    } else {
+        document.getElementById("uiPanel").style.display = "";
+    }
 });
 
 /* =====================================================
@@ -1511,16 +1515,15 @@ const EXCAV_ANIM_DUR = 1.2; // fly-in 秒数（現在は 1.0 秒に上書き）
 
 // Panel for excavation (attached to train like HUD)
 // ③B: サイズ 1.2*1.5=1.8, 0.9*1.5=1.35 / 位置Z *= 1.5 → -1.65, Y += 0.5*MODEL_SCALE
-const EXP_PW = 1.8, EXP_PH = 1.8;
+const EXP_PW = 1.8, EXP_PH = 1.35;
 const EXP_LZ = -1.65;
-const EXP_LY = 1.8;
-const EXP_LOADING_OFFSET_Y = -0.8;
-const EXP = makeHUDPanel(1024,1024, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
+const EXP_LY = 0.3 + 0.5 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
+const EXP = makeHUDPanel(1024,768, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
 EXP.mesh.renderOrder=1001; EXP.mesh.visible=false;
 train.add(EXP.mesh);
 
 // ④: GOボタン3Dメッシュのみ残す / 位置をEXPに合わせ上方向 +0.2*MODEL_SCALE
-const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1;
+const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1 + 0.2*MODEL_SCALE;
 const GOBT = makeHUDPanel(512,200, 0.5,0.18, 0, GOBT_LY, EXP_LZ);
 GOBT.mesh.renderOrder=1002; GOBT.mesh.visible=false;
 GOBT.mesh.material.depthTest=false;
@@ -1573,13 +1576,11 @@ function drawExcavPanel(idx, showContent){
         ctx.fillStyle="#44ddff"; ctx.font="bold 80px sans-serif"; ctx.textAlign="center";
         ctx.fillText("⛏ 発掘中...",512,350);
         tex.needsUpdate=true;
-        EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
         EXP.mesh.visible=true;
         // 画像パネルは非表示
         if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible=false;
         return;
     }
-    EXP.mesh.position.set(0, EXP_LY, EXP_LZ);
     // 画像パネルに切り替え
     EXP.mesh.visible = false;
     const imgMesh = learnExcavImageMesh[idx];
@@ -1616,7 +1617,7 @@ function drawGoButton(blink){
  */
 function getExcavModelTarget(){
     // 列車前方かつ上方向（0.3*MODEL_SCALE 分上げる）
-    return new THREE.Vector3(0, 0.4, -1.4);
+    return new THREE.Vector3(0, 0.4 + 0.3*MODEL_SCALE, -0.9);
 }
 
 /*
@@ -1627,7 +1628,6 @@ function getExcavModelTarget(){
  *         - モデルを取得して Step 1（fly-in）を開始する
  */
 function startLearnExcavation(idx){
-
     learnIsExcavating = true;
     learnExcavIdx = idx;
     learnExcavStep = 0;
@@ -1637,70 +1637,42 @@ function startLearnExcavation(idx){
     // ⑤ 演出中はレール音停止
     railSound.pause();
 
-    // タイマー停止
+    // Pause timer
     learnTimerPause();
 
-    // 画面暗転
+    // Darken scene
     setDark(0.68);
     sfxLearningExcavate();
     vibrate(200, 0.8);
 
-    // =====================================================
-    // 発掘モデル取得（←ここが主役）
-    // =====================================================
+    // Grab the permanent model and move it
     const model = permanentModels[idx];
     if(model){
-
         learnExcavModel = model;
         learnExcavOrigPos = model.position.clone();
         model.visible = true;
-
-        // =====================================================
-        // ★最前面表示設定（今回の核心）
-        // =====================================================
-        model.renderOrder = 2000;   // ← 最大レイヤー
-
+        // ⑩ renderOrder: モデルをパネルより前面に
         model.traverse(c=>{
             if(c.isMesh){
-
-                // メッシュ自体の描画順も統一
-                // c.renderOrder = 2000;
-
-                // マテリアル安全コピー
+                c.renderOrder=1003;
                 c.material = c.material.clone();
-
-                // 透明対応（UI安定）
-                c.material.transparent = true;
-
-                // 深度無効（絶対前に出す）
-                c.material.depthTest  = false;
-                c.material.depthWrite = false;
-
-                // カリング防止
-                c.frustumCulled = false;
+                c.material.depthTest=false;
             }
         });
     }
 
-    // =====================================================
-    // UI制御
-    // =====================================================
+    // Show excavation panel (loading state)
     drawExcavPanel(idx, false);
-
     GOBT.mesh.visible = false;
     learnGoReady = false;
     learnGoButton.mesh.visible = false;
 
-    // 球体非表示
+    // Hide the sphere
     clickSpheres[idx].visible = false;
 
-    // アニメ開始
     learnExcavFlyT = 0;
-    learnExcavStep = 1;
+    learnExcavStep = 1; // animate model to front
 }
-
-let learnExcavFlyT = 0;
-let learnExcavShowTimer = 0;
 
 /*
  * 関数名：tickLearnExcavation
@@ -1758,8 +1730,8 @@ function tickLearnExcavation(dt){
             const blink = Math.floor(performance.now()*0.004)%2===0;
             drawGoButton(blink);
         }
-        // Y軸回転のみ：30秒で1回転（2π/3 rad/sec）
-        if(model) model.rotation.y += dt * (2*Math.PI/30);
+        // Y軸回転のみ：3秒で1回転（2π/3 rad/sec）
+        if(model) model.rotation.y += dt * (2*Math.PI/3);
         // GOが押されるまで無限待機
         return;
     }
@@ -1883,51 +1855,25 @@ const handModelGroup = new THREE.Group();
 train.add(handModelGroup);
 
 /*
-手元モデル追加（学びモード）
-役割：
-  - 発掘済みモデルを手元スロットに表示
-  - 常にUIより手前に表示する
-*/
+ * 関数名：addHandModel
+ * 役割  ：発掘完了モデルのクローンを列車内の手元スロットに追加する
+ * 引数  ：idx=モデルインデックス, slot=配置スロット番号（0始まり）
+ */
 function addHandModel(idx, slot){
-
-    // 対応モデル取得
     const model = permanentModels[idx];
     if(!model) return;
-
+    // Clone for hand display
     const clone = model.clone();
-
-    const total = ARTIFACTS.length;        // 通常8
-    const spacing = 1.6 / (total - 1);     // 横幅1.6内に配置
-    const xPos = -0.8 + slot * spacing;
-
+    const total = ARTIFACTS.length;
+    const spacing = 0.8 / (total-1);
+    const xPos = -0.4 + slot * spacing;
     clone.position.set(xPos, 0.22, -0.78);
-    clone.scale.setScalar(ARTIFACT_SCALE * 0.13);
-    clone.rotation.set(0, 0, 0);
+    clone.scale.setScalar(ARTIFACT_SCALE * 0.065);
+    clone.rotation.set(0,0,0);
     clone.visible = true;
-
-    clone.renderOrder = 1100;
-
-    clone.traverse(c=>{
-        if(c.isMesh){
-
-            c.frustumCulled = false;
-
-            if(c.material){
-                c.material.depthTest = false;   // 深度判定しない
-                c.material.depthWrite = false;  // Zバッファ書き込みなし
-
-                // 念のため（透明対応）
-                c.material.transparent = true;
-            }
-        }
-    });
-
+    clone.traverse(c=>{if(c.isMesh)c.frustumCulled=false;});
     handModelGroup.add(clone);
-
-    learnHandModels.push({
-        mesh: clone,
-        slot: slot
-    });
+    learnHandModels.push({mesh:clone, slot});
 }
 
 /*
@@ -2571,40 +2517,47 @@ renderer.setAnimationLoop(()=>{
     scenelines.forEach((l,i)=>{const k=0.5+Math.sin(now*0.003+i)*0.5;l.material.color.setRGB(0.5*k,0.8*k,k);});
 
     if(isLearning){
+        // 学びモード：球体ビジュアル更新・発掘演出・HUD更新・手元モデル回転
         clickSpheres.forEach((s,i)=>updateLearnSphereVisual(i,now));
         tickLearnExcavation(dt/1000);
-        updateLearnHUD(); // ⑥ 毎フレーム更新
-        // rotate hand models
+        updateLearnHUD(); // タイマー表示のため毎フレーム更新
         learnHandModels.forEach(h=>{ h.mesh.rotation.y+=0.012; });
     } else {
+        // ゲーム・ツアーモード：球体の脈動スケール
         clickSpheres.forEach((s,i)=>{const p=0.9+Math.sin(now*0.003+i*0.8)*0.1;s.scale.setScalar(p);});
     }
 
+    // HUD 表示切替（モードに応じて表示パネルを切り替える）
     const showHUD = isVR && !isTour && !isLearning;
-    HUD.mesh.visible = showHUD;
-    SB.mesh.visible  = showHUD;
+    HUD.mesh.visible = showHUD;   // ゲームモード HUD
+    SB.mesh.visible  = showHUD;   // ゲームモード スコアボード
     const showLearnHUD = isVR && isLearning;
-    LHUD.mesh.visible = showLearnHUD;
-    LSB.mesh.visible  = showLearnHUD;
+    LHUD.mesh.visible = showLearnHUD; // 学びモード HUD
+    LSB.mesh.visible  = showLearnHUD; // 学びモード スコアボード
 
+    // コインアニメーション処理（ゲームモード）
     const dtSec=dt/1000;
     for(let i=coinAnims.length-1;i>=0;i--){
         const c=coinAnims[i]; c.t+=dtSec; const tr=Math.min(c.t/c.dur,1);
         if(c.mode==="place"){
+            // 着地アニメーション：放物線弧を描いて球体位置に収まる
             const arc=Math.sin(tr*Math.PI)*2*MODEL_SCALE;
             c.mesh.position.lerpVectors(c.startPos,c.targetPos,tr); c.mesh.position.y+=arc;
             c.mesh.rotation.y+=0.15; c.mesh.rotation.z+=0.05;
             if(tr>=1&&!c.done){
                 c.done=true;
+                // 着地完了：永続モデルを表示してクローンを削除
                 if(c.idx!==undefined&&permanentModels[c.idx]) permanentModels[c.idx].visible=true;
                 scene.remove(c.mesh); coinAnims.splice(i,1);
             }
         } else if(c.mode==="fountain"){
+            // 噴水アニメーション：物理放物線で飛散しフェードアウト
             const g=9.8*MODEL_SCALE,e=c.t;
             c.mesh.position.set(c.startPos.x+c.vx*e,c.startPos.y+c.vy*e-0.5*g*e*e,c.startPos.z+c.vz*e);
             c.mesh.rotation.y+=0.2; c.mesh.rotation.x+=0.1;
             const peak=c.vy/g;
             if(e>peak){
+                // 頂点通過後：フェードアウト
                 const fr=Math.max(0,1-(e-peak)/(c.dur-peak));
                 c.mesh.traverse(ch=>{if(ch.isMesh&&ch.material){ch.material.transparent=true;ch.material.opacity=fr;}});
             }
@@ -2612,11 +2565,16 @@ renderer.setAnimationLoop(()=>{
         }
     }
 
+    /*
+     * 関数名：updateLaser（ループ内インライン）
+     * 役割  ：コントローラーの向きから raycaster を更新しヒット対象を返す
+     *         学びモード：発掘済み球体を除外し GOボタンをターゲットに追加
+     */
     function updateLaser(ctrl, laserObj) {
         tmpMtx.identity().extractRotation(ctrl.matrixWorld);
         raycaster.ray.origin.setFromMatrixPosition(ctrl.matrixWorld);
         raycaster.ray.direction.set(0,0,-1).applyMatrix4(tmpMtx);
-        // Learning mode: exclude done spheres (already hidden), plus check Go button
+        // 学びモード：非表示（done）球体を除外 / GOボタンをターゲットに追加
         let targets = [...clickSpheres.filter(s=>s.visible)];
         if(isLearning && learnGoReady && GOBT.mesh.visible){
             targets.push(GOBT.mesh);
@@ -2624,6 +2582,7 @@ renderer.setAnimationLoop(()=>{
         const hits = raycaster.intersectObjects(targets, false);
         const hitDist = hits.length > 0 ? hits[0].distance : LASER_MAX_DIST;
         laserObj.line.geometry.setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-hitDist)]);
+        // ヒット時：緑 / 未ヒット時：赤
         laserObj.mat.color.set(hits.length > 0 ? 0x00ff88 : 0xff3333);
         laserObj.dot.position.set(0, 0, -hitDist);
         laserObj.dot.visible = hits.length > 0;
@@ -2635,6 +2594,7 @@ renderer.setAnimationLoop(()=>{
     laserRight.line.visible = false;
     laserLeft.line.visible  = false;
 
+    // ツアーモード以外かつ VR 中のみレーザーを有効にする
     if(!isTour && isVR){
         if(rightController){
             laserRight.line.visible = true;
@@ -2646,41 +2606,43 @@ renderer.setAnimationLoop(()=>{
         }
     }
 
+    // XR コントローラーボタン状態を取得
     const xrSess = renderer.xr.getSession();
     if(xrSess){
         for(const src of xrSess.inputSources){
             if(!src.gamepad) continue;
             if(src.handedness==="right"){
-                trigRight = src.gamepad.buttons[0]?.pressed ?? false;
-                bA        = src.gamepad.buttons[4]?.pressed ?? false;
-                bB        = src.gamepad.buttons[5]?.pressed ?? false;
+                trigRight = src.gamepad.buttons[0]?.pressed ?? false; // 右トリガー
+                bA        = src.gamepad.buttons[4]?.pressed ?? false; // Aボタン
+                bB        = src.gamepad.buttons[5]?.pressed ?? false; // Bボタン
             } else if(src.handedness==="left"){
-                trigLeft  = src.gamepad.buttons[0]?.pressed ?? false;
+                trigLeft  = src.gamepad.buttons[0]?.pressed ?? false; // 左トリガー
             }
         }
     }
 
+    // ボタン処理（ツアーモードは入力不要なので除外）
     if(!isTour){
         if(isLearning){
-            if(bA&&!prevA&&gamePhase==="idle") startLearningMode();
-            // ⑦ Bボタン強制終了（学びモード、いつでも有効）
-            if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doLearnForceEnd();
-            // Trigger: click sphere or Go button
+            // 学びモード入力処理
+            if(bA&&!prevA&&gamePhase==="idle") startLearningMode();         // スタート
+            if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doLearnForceEnd(); // 強制終了
             const allHits = [...hitsRight,...hitsLeft];
             const trigPressed = (trigRight&&!prevTrig0)||(trigLeft&&!prevTrig1);
             if(trigPressed && gamePhase==="playing"){
-                // Check if Go button hit
                 if(learnGoReady && allHits.some(h=>h.object===GOBT.mesh)){
+                    // GOボタンをレーザーでクリック
                     onLearnGoPressed();
                 } else {
-                    // Click a sphere
+                    // 球体をレーザーでクリック
                     const sphereHit = allHits.find(h=>h.object!==GOBT.mesh);
                     if(sphereHit) onLearnSphereClick(sphereHit.object);
                 }
             }
         } else {
-            if(bA&&!prevA&&gamePhase==="idle") startCountdown();
-            if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doForceEnd();
+            // ゲームモード入力処理
+            if(bA&&!prevA&&gamePhase==="idle") startCountdown();            // スタート
+            if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doForceEnd(); // 強制終了
             if(trigRight&&!prevTrig0&&gamePhase==="playing"&&hitsRight.length>0) onSphereClick(hitsRight[0].object);
             if(trigLeft &&!prevTrig1&&gamePhase==="playing"&&hitsLeft.length>0)  onSphereClick(hitsLeft[0].object);
         }
@@ -2690,9 +2652,11 @@ renderer.setAnimationLoop(()=>{
     renderer.render(scene,camera);
     prevTime=now;
 
+    // ツアーモードのレール走行音制御
     if(isTour && isVR && railSound.paused) {
         railSound.play().catch(()=>{});
     }
+    // 走行音のボリューム・速度を速度に合わせて更新（500msごと）
     if(!railSound.paused && now-lastSound>500){
         lastSound=now;
         const sr=velocity*1000*MODEL_SCALE;
@@ -2702,7 +2666,8 @@ renderer.setAnimationLoop(()=>{
 });
 
 /* =====================================================
-RESIZE
+リサイズ対応
+  - ウィンドウサイズ変更時にカメラ比率とレンダラーサイズを更新する
 ===================================================== */
 window.addEventListener("resize",()=>{
     camera.aspect=window.innerWidth/window.innerHeight;
@@ -2712,3 +2677,4 @@ window.addEventListener("resize",()=>{
 </script>
 </body>
 </html>
+
