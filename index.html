@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>p越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1582,7 +1582,7 @@ function drawExcavPanel(idx, showContent){
     const imgMesh = learnExcavImageMesh[idx];
     if(imgMesh){
         imgMesh.visible = true;
-        imgMesh.position.set(0, EXP_LY, EXP_LZ);
+        imgMesh.position.set(0, EXP_LY -1.0, EXP_LZ);
     } else {
         // 画像未ロード時はフォールバック
         EXP.mesh.visible=true;
