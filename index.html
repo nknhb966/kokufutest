@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>11越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1177,6 +1177,19 @@ const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95);
 const OV =makeHUDPanel(1024,512,  1.6,0.8,   0.00,1.0,-0.9);
 OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
+
+/*
+ * 関数名：makeDarkPlane
+ * 役割  ：シーン全体を暗くするための巨大な黒い半透明平面を生成する
+ *         発掘演出・ゲーム終了時に使用
+ */
+function makeDarkPlane(rx){
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),
+        new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
+    m.rotation.x=rx; return m;
+}
+const dark1=makeDarkPlane(-Math.PI/2); dark1.position.y=500; scene.add(dark1);
+const dark2=makeDarkPlane( Math.PI/2); dark2.position.y=-100; scene.add(dark2);
 
 /*
  * 関数名：setDark
