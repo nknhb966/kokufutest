@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>s越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1275,6 +1275,7 @@ train.add(LHUD.mesh);
 LHUD.mesh.visible = false;
 
 const LSB = makeHUDPanel(1024,1024, 0.8,0.8, -0.56,0.10,-0.95);
+LSB.mesh.renderOrder=2001;
 train.add(LSB.mesh);
 LSB.mesh.visible = false;
 
