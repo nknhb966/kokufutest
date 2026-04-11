@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1522,7 +1522,7 @@ const EXP_LY = 1.8;
 const EXP_LOADING_OFFSET_Y = -0.8;
 const EXP = makeHUDPanel(1024,1024, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
 EXP.mesh.visible=false;
-GOBT.mesh.material.depthTest=true;
+EXP.mesh.material.depthTest=true;
 train.add(EXP.mesh);
 
 // ④: GOボタン3Dメッシュのみ残す / 位置をEXPに合わせ上方向 +0.2*MODEL_SCALE
