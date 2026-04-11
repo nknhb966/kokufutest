@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>p越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1511,10 +1511,10 @@ const EXCAV_ANIM_DUR = 1.2; // fly-in 秒数（現在は 1.0 秒に上書き）
 
 // Panel for excavation (attached to train like HUD)
 // ③B: サイズ 1.2*1.5=1.8, 0.9*1.5=1.35 / 位置Z *= 1.5 → -1.65, Y += 0.5*MODEL_SCALE
-const EXP_PW = 1.8, EXP_PH = 1.35;
+const EXP_PW = 1.8, EXP_PH = 1.8;
 const EXP_LZ = -1.65;
 const EXP_LY = 0.3 + 0.3 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
-const EXP = makeHUDPanel(1024,768, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
+const EXP = makeHUDPanel(1024,1024, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
 EXP.mesh.renderOrder=1001; EXP.mesh.visible=false;
 train.add(EXP.mesh);
 
@@ -1755,7 +1755,7 @@ function tickLearnExcavation(dt){
             const blink = Math.floor(performance.now()*0.004)%2===0;
             drawGoButton(blink);
         }
-        // Y軸回転のみ：3秒で1回転（2π/3 rad/sec）
+        // Y軸回転のみ：30秒で1回転（2π/3 rad/sec）
         if(model) model.rotation.y += dt * (2*Math.PI/30);
         // GOが押されるまで無限待機
         return;
