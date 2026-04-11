@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>o越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1513,7 +1513,8 @@ const EXCAV_ANIM_DUR = 1.2; // fly-in 秒数（現在は 1.0 秒に上書き）
 // ③B: サイズ 1.2*1.5=1.8, 0.9*1.5=1.35 / 位置Z *= 1.5 → -1.65, Y += 0.5*MODEL_SCALE
 const EXP_PW = 1.8, EXP_PH = 1.8;
 const EXP_LZ = -1.65;
-const EXP_LY = 0.3 + 0.3 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
+const EXP_LY = 1.8;
+const EXP_LOADING_OFFSET_Y = -0.8;
 const EXP = makeHUDPanel(1024,1024, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
 EXP.mesh.renderOrder=1001; EXP.mesh.visible=false;
 train.add(EXP.mesh);
@@ -1545,7 +1546,7 @@ function prepareExcavImagePanel(idx){
             side:THREE.DoubleSide, depthTest:false
         });
         const mesh = new THREE.Mesh(new THREE.PlaneGeometry(EXP_PW, EXP_PH), mat);
-        mesh.position.set(0, EXP_LY - 0.8, EXP_LZ);
+        mesh.position.set(0, EXP_LY, EXP_LZ);
         mesh.renderOrder = 1001;
         mesh.visible = false;
         train.add(mesh);
@@ -1572,11 +1573,13 @@ function drawExcavPanel(idx, showContent){
         ctx.fillStyle="#44ddff"; ctx.font="bold 80px sans-serif"; ctx.textAlign="center";
         ctx.fillText("⛏ 発掘中...",512,350);
         tex.needsUpdate=true;
+        EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
         EXP.mesh.visible=true;
         // 画像パネルは非表示
         if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible=false;
         return;
     }
+    EXP.mesh.position.set(0, EXP_LY, EXP_LZ);
     // 画像パネルに切り替え
     EXP.mesh.visible = false;
     const imgMesh = learnExcavImageMesh[idx];
