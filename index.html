@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>a越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1052,7 +1052,9 @@ EXPLAIN_PTS.forEach((data,idx)=>{
     const sphMat=new THREE.MeshBasicMaterial({
         color: isLearningMode ? 0x2266ff : 0xffdd33,
         transparent:true,
-        opacity:0.78
+        opacity:0.78,
+        depthTest:true,
+        depthWrite:false
     });
     const sph=new THREE.Mesh(sphereGeo,sphMat);
     sph.position.set(x*MODEL_SCALE,1.25*MODEL_SCALE,z*MODEL_SCALE);
@@ -1768,6 +1770,13 @@ function tickLearnExcavation(dt){
         // モデルを元の世界座標へ easing で戻す（fly-out）
         if(learnExcavFlyT === 0 && model){
             model.userData._flyStart = model.position.clone();
+            // fly-out開始時にrenderOrderを演出用から通常HUD相当に戻す
+            model.renderOrder = 1003;
+            model.traverse(c=>{
+                if(c.isMesh){
+                    c.renderOrder = 1003;
+                }
+            });
         }
         learnExcavFlyT += dt;
         const dur = 0.8;
@@ -1988,6 +1997,7 @@ function showLearnResult(elapsed){
         ctx.fillText(`${medals[i]} ${(s.time/1000).toFixed(1)}s${isNew?" ← NEW":""}`,80,y);
     });
     tex.needsUpdate=true;
+    EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
     EXP.mesh.visible=true;
 
     // Auto reset after 12s
@@ -2041,6 +2051,7 @@ function resetLearningMode(){
     });
     updateLearnHUD();
     updateLearnScoreBoard();
+    teleportToStart();
 }
 
 /*
@@ -2393,6 +2404,11 @@ function spawnCoin(idx, isFirst){
     const src = permanentModels[idx];
     if(!src) return;
 
+    // 初回クリック時：永続モデルを即座に表示する
+    if(isFirst){
+        src.visible = true;
+    }
+
     const coin = src.clone();
     coin.scale.set(ARTIFACT_SCALE*0.7, ARTIFACT_SCALE*0.7, ARTIFACT_SCALE*0.7);
     coin.position.copy(sp);
@@ -2405,25 +2421,16 @@ function spawnCoin(idx, isFirst){
     });
     scene.add(coin);
 
-    if(isFirst){
-        // 着地アニメーション
-        coinAnims.push({
-            mesh:coin, idx, mode:"place",
-            startPos:sp.clone(), targetPos:sp.clone(),
-            t:0, dur:1.2, done:false
-        });
-    } else {
-        // 噴水アニメーション
-        const ang = Math.random()*Math.PI*2;
-        const spd = (0.5+Math.random()*1.2)*MODEL_SCALE;
-        coinAnims.push({
-            mesh:coin, mode:"fountain",
-            startPos:sp.clone(),
-            vx:Math.cos(ang)*spd, vz:Math.sin(ang)*spd,
-            vy:(2.0+Math.random()*1.5)*MODEL_SCALE,
-            t:0, dur:2.0
-        });
-    }
+    // 初回・再クリックともに噴水アニメーションで即時視覚的フィードバック
+    const ang = Math.random()*Math.PI*2;
+    const spd = (0.5+Math.random()*1.2)*MODEL_SCALE;
+    coinAnims.push({
+        mesh:coin, mode:"fountain",
+        startPos:sp.clone(),
+        vx:Math.cos(ang)*spd, vz:Math.sin(ang)*spd,
+        vy:(2.0+Math.random()*1.5)*MODEL_SCALE,
+        t:0, dur:2.0
+    });
 }
 
 /* =====================================================
