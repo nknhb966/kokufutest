@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -317,7 +317,12 @@ import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 import {XRControllerModelFactory} from "three/addons/webxr/XRControllerModelFactory.js";
 
 /* =====================================================
-CONSTANTS
+定数定義
+  - MODEL_SCALE    : シーン全体のスケール倍率
+  - ARTIFACT_HEIGHT: 発掘モデルを配置するY座標
+  - RAIL_RADIUS    : レールの半径
+  - GAME_DURATION  : ゲームモードの制限時間（秒）
+  - LASER_MAX_DIST : レーザーの最大射程距離
 ===================================================== */
 const MODEL_SCALE    = 5;
 const ARTIFACT_SCALE = MODEL_SCALE;
@@ -329,7 +334,9 @@ const GAME_DURATION  = 60;
 const LASER_MAX_DIST = 25;
 
 /* =====================================================
-CONFIG
+設定（CONFIG）
+  - localStorage から前回の設定を復元する
+  - gameMode: "game" / "tour" / "learning"
 ===================================================== */
 const CONFIG = {
     curve    : localStorage.getItem("curve")    || "trolley",
@@ -340,12 +347,23 @@ const CONFIG = {
 let SPEED = CONFIG.speed;
 
 /* =====================================================
-SCORES
+スコア管理（ゲームモード）
+  - localStorage に TOP5 を降順で保存・読み込む
 ===================================================== */
 const LS_KEY = "vr_coaster_scores_v2";
+
+/*
+ * 関数名：loadScores
+ * 役割  ：ゲームモードのスコア一覧を localStorage から読み込む
+ */
 function loadScores() {
     try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch(e) { return []; }
 }
+
+/*
+ * 関数名：saveScore
+ * 役割  ：ゲームモードのスコアを保存し、上位5件を維持する
+ */
 function saveScore(score) {
     const arr = loadScores();
     arr.push({ score, date: new Date().toLocaleDateString("ja-JP") });
@@ -360,12 +378,18 @@ document.getElementById("resetBtn").addEventListener("click", () => {
 });
 
 /* =====================================================
-UI SETUP
+UI セットアップ
+  - トグルボタン、スピードスライダー、モーダルの初期化
 ===================================================== */
 const railSound = document.getElementById("railSound");
 railSound.pause();
 railSound.volume = 0.6;
 
+/*
+ * 関数名：setupToggle
+ * 役割  ：指定IDのトグルボタンをCONFIGキーに連動させる
+ *         ボタン選択時に localStorage へ保存してリロード
+ */
 function setupToggle(id, key) {
     const btns = document.querySelectorAll(`#${id} button`);
     btns.forEach(btn => {
@@ -523,10 +547,18 @@ document.querySelectorAll(".modal-tab").forEach(tab => {
 });
 
 /* =====================================================
-WEB AUDIO — synthesised SFX
+Web Audio — 合成 SFX（ゲームモード共通）
+  - AudioContext で動的に音を合成する
+  - sfxClick      : 球体クリック音
+  - sfxCountdown  : カウントダウンビープ
+  - sfxTimeUp     : 時間切れ音
 ===================================================== */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+/*
+ * 関数名：sfxClick
+ * 役割  ：球体クリック時の「ピッ」音を再生する
+ */
 function sfxClick() {
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
@@ -538,8 +570,13 @@ function sfxClick() {
     o.start(); o.stop(audioCtx.currentTime + 0.18);
 }
 
+/*
+ * 関数名：sfxCountdown
+ * 役割  ：カウントダウン音を再生する
+ *         n=1,2,3 のビープ音 / n=0 でGOの和音
+ */
 function sfxCountdown(n) {
-    // n=1,2,3
+    // n が正の場合：単音ビープ
     if (n > 0) {
         const o = audioCtx.createOscillator();
         const g = audioCtx.createGain();
@@ -551,7 +588,7 @@ function sfxCountdown(n) {
         g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
         o.start(); o.stop(audioCtx.currentTime + 0.25);
     } else {
-        // GO!
+        // n=0：GO！の和音（上昇アルペジオ）
         [440, 554, 659, 880].forEach((f, i) => {
             const o = audioCtx.createOscillator();
             const g = audioCtx.createGain();
@@ -566,6 +603,10 @@ function sfxCountdown(n) {
     }
 }
 
+/*
+ * 関数名：sfxTimeUp
+ * 役割  ：制限時間終了時の下降音を再生する
+ */
 function sfxTimeUp() {
     [880, 660, 440, 330].forEach((f, i) => {
         const o = audioCtx.createOscillator();
@@ -583,8 +624,19 @@ document.addEventListener("click", ()=>{ if(audioCtx.state==="suspended") audioC
 document.addEventListener("touchstart", ()=>{ if(audioCtx.state==="suspended") audioCtx.resume(); }, {once:true});
 
 /* =====================================================
-LEARNING SFX
+Web Audio — 合成 SFX（学びモード専用）
+  - sfxLearningClick    : クリック蓄積音（ピッチ上昇）
+  - sfxLearningReady    : 20回達成「ドン」
+  - sfxLearningExcavate : 発掘演出中「フワーン」
+  - sfxLearningGo       : GOボタン押下「ポン」
+  - sfxLearningBlock    : 演出中クリック不可「カツッ」
+  - sfxLearningComplete : 全発掘ファンファーレ
 ===================================================== */
+
+/*
+ * 関数名：sfxLearningClick
+ * 役割  ：蓄積クリック音（count に応じてピッチが上昇する）
+ */
 function sfxLearningClick(count) {
     // ピッチ上昇（蓄積回数に応じて）
     const o = audioCtx.createOscillator();
@@ -599,6 +651,10 @@ function sfxLearningClick(count) {
     o.start(); o.stop(audioCtx.currentTime + 0.12);
 }
 
+/*
+ * 関数名：sfxLearningReady
+ * 役割  ：20回クリック到達時の「ドン」重低音を再生する
+ */
 function sfxLearningReady() {
     // 「ドン」20回到達
     [220, 330, 440].forEach((f, i) => {
@@ -613,6 +669,10 @@ function sfxLearningReady() {
     });
 }
 
+/*
+ * 関数名：sfxLearningExcavate
+ * 役割  ：発掘演出開始時の「フワーン」環境音を再生する
+ */
 function sfxLearningExcavate() {
     // 「フワーン」演出中環境音
     const o = audioCtx.createOscillator();
@@ -628,6 +688,10 @@ function sfxLearningExcavate() {
     o.start(); o.stop(audioCtx.currentTime + 1.5);
 }
 
+/*
+ * 関数名：sfxLearningGo
+ * 役割  ：GOボタン押下時の「ポン」上昇音を再生する
+ */
 function sfxLearningGo() {
     // 「ポン」Goボタン
     [523, 659, 784].forEach((f, i) => {
@@ -642,6 +706,10 @@ function sfxLearningGo() {
     });
 }
 
+/*
+ * 関数名：sfxLearningBlock
+ * 役割  ：演出中に球体をクリックしようとした際の「カツッ」音
+ */
 function sfxLearningBlock() {
     // 「カツッ」演出中クリック不可
     const o = audioCtx.createOscillator();
@@ -653,6 +721,10 @@ function sfxLearningBlock() {
     o.start(); o.stop(audioCtx.currentTime + 0.08);
 }
 
+/*
+ * 関数名：sfxLearningComplete
+ * 役割  ：全8モデル発掘完了時のファンファーレを再生する
+ */
 function sfxLearningComplete() {
     // 全発掘完了ファンファーレ
     [523,659,784,1047].forEach((f,i)=>{
@@ -666,7 +738,9 @@ function sfxLearningComplete() {
 }
 
 /* =====================================================
-SCENE / RENDERER
+シーン・レンダラー初期化
+  - WebGLRenderer を生成し DOM に追加
+  - XR（WebXR）を有効化する
 ===================================================== */
 const scene    = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({ antialias:true });
@@ -677,9 +751,12 @@ document.body.appendChild(renderer.domElement);
 document.getElementById("vrButtonWrap").appendChild(VRButton.createButton(renderer));
 
 /* =====================================================
-VR SESSION EVENTS
+VR セッションイベント
+  - sessionstart : VR開始時にUIを隠し、カメラをtrainに接続
+  - sessionend   : VR終了時にUIを再表示
 ===================================================== */
 renderer.xr.addEventListener("sessionstart", () => {
+    // VR開始：UIパネルを非表示にしてVR空間へ移行
     document.getElementById("uiPanel").style.display = "none";
     document.getElementById("miniUI").style.display  = "none";
 
@@ -719,7 +796,9 @@ renderer.xr.addEventListener("sessionend", () => {
 });
 
 /* =====================================================
-CONTROLLERS
+VR コントローラー設定
+  - 左右コントローラーグリップにモデルを追加
+  - レーザーポインターを各コントローラーに接続
 ===================================================== */
 const ctrlModelFactory = new XRControllerModelFactory();
 
@@ -742,7 +821,11 @@ renderer.xr.addEventListener("sessionstart", () => {
     });
 });
 
-/* -----  LASER  ----- */
+/* -----  レーザーポインター生成  ----- */
+/*
+ * 関数名：makeLaser
+ * 役割  ：コントローラー先端から伸びるレーザーラインと着弾点ドットを生成する
+ */
 function makeLaser() {
     const mat = new THREE.LineBasicMaterial({ color:0xff2222, depthTest:false, transparent:true, opacity:0.95 });
     const geo = new THREE.BufferGeometry().setFromPoints([
@@ -765,6 +848,10 @@ const laserLeft  = makeLaser();
 let rightController = null;
 let leftController  = null;
 
+/*
+ * 関数名：onControllerConnected
+ * 役割  ：コントローラー接続時に左右を判別しレーザーを割り当てる
+ */
 function onControllerConnected(event) {
     const ctrl = event.target;
     const hand = event.data.handedness;
@@ -779,6 +866,10 @@ function onControllerConnected(event) {
     }
 }
 
+/*
+ * 関数名：onControllerDisconnected
+ * 役割  ：コントローラー切断時に参照をクリアする
+ */
 function onControllerDisconnected(event) {
     const ctrl = event.target;
     if (ctrl === rightController) rightController = null;
@@ -791,20 +882,26 @@ ctrl1.addEventListener("connected",    onControllerConnected);
 ctrl1.addEventListener("disconnected", onControllerDisconnected);
 
 /* =====================================================
-CAMERA
+カメラ設定
+  - ride モード   : カメラを train の子として追従
+  - outside モード: OrbitControls で自由視点
 ===================================================== */
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
 let orbitControls = null;
 
 /* =====================================================
-LIGHTS
+ライト設定
+  - AmbientLight    : 環境光（全体を均一に照らす）
+  - DirectionalLight: 太陽光（影なし）
 ===================================================== */
 scene.add(new THREE.AmbientLight(0xffffff, 1.5));
 const sun = new THREE.DirectionalLight(0xffffff, 1.2);
 sun.position.set(80, 120, 60); scene.add(sun);
 
 /* =====================================================
-CURVE
+レールカーブ定義
+  - trolley: sin 曲線によるなだらかなコース
+  - coaster : sin/cos 合成による起伏の激しいコース
 ===================================================== */
 class MyCurve extends Curve {
     getPointAt(t) {
@@ -822,7 +919,9 @@ class MyCurve extends Curve {
 const curve = new MyCurve();
 
 /* =====================================================
-COASTER SCENE MODEL
+コースターシーンモデル読み込み
+  - 越前国府発掘現場の3Dシーンを GLB から非同期ロード
+  - ロード後にスケール・回転を調整する
 ===================================================== */
 await addCoaster(scene, curve, null,
     "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu3.glb");
@@ -841,7 +940,10 @@ if (coasterRoot) {
 }
 
 /* =====================================================
-ARTIFACT MODELS
+発掘モデル（アーティファクト）管理
+  - 8種の発掘品モデルを GLB から非同期ロード
+  - tour モード: 最初から表示 / game・learning モード: 初期非表示
+  - permanentModels[idx]: 各モデルへの参照を保持
 ===================================================== */
 const loader   = new GLTFLoader();
 const BASE_URL = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu3/";
@@ -861,6 +963,10 @@ const permanentModels  = {};
 const rotatingObjects  = [];
 const auras            = [];
 
+/*
+ * 関数名：makeAuraTex
+ * 役割  ：発掘モデル周囲のオーラ（光の柱）用グラデーションテクスチャを生成する
+ */
 function makeAuraTex() {
     const c=document.createElement("canvas"); c.width=64; c.height=256;
     const ctx=c.getContext("2d"), g=ctx.createLinearGradient(0,256,0,0);
@@ -887,11 +993,19 @@ ARTIFACTS.forEach((data,idx) => {
 });
 
 /* =====================================================
-EXPLANATION PANELS / ANCHORS / LINES
+説明パネル・アンカー・ライン配置
+  - EXPLAIN_PTS: 各発掘品の位置・説明画像・パネル向きの定義
+  - 学びモード: 初期非表示、発掘完了時に表示
+  - game/tour モード: 最初から表示
 ===================================================== */
 const texLoader  = new THREE.TextureLoader();
 const IMAGE_BASE = "https://raw.githubusercontent.com/echizencity/opendata/main/kokufuhakkutsu3/";
 
+/*
+ * 関数名：addInfoPanel
+ * 役割  ：シーン内に画像テクスチャのパネルを配置する（40000_...png 等の概要パネル用）
+ * 引数  ：file=画像URL, x/y/z=座標, rx/ry/rz=回転角度(度), w/h=サイズ
+ */
 function addInfoPanel(file,x,y,z,rx,ry,rz,w,h) {
     texLoader.load(file, tex => {
         tex.colorSpace=THREE.SRGBColorSpace;
@@ -977,7 +1091,9 @@ EXPLAIN_PTS.forEach((data,idx)=>{
 });
 
 /* =====================================================
-TRAIN
+列車（train）オブジェクト
+  - カーブ上を移動するルートオブジェクト
+  - カメラ・コントローラー・HUD・手元モデルをすべて子として持つ
 ===================================================== */
 const train=new THREE.Mesh(
     new THREE.BoxGeometry(0.1*MODEL_SCALE,0.1*MODEL_SCALE,0.2*MODEL_SCALE),
@@ -993,6 +1109,12 @@ const mMesh=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.18),new THREE.MeshBasic
 mMesh.position.set(0,0.4,-0.45); mMesh.rotation.x=THREE.MathUtils.degToRad(-90);
 train.add(mMesh);
 let accelState=0,glowStr=0,lastMeter=0;
+
+/*
+ * 関数名：drawMeter
+ * 役割  ：列車前方の速度メーターCanvas を更新する
+ *         加速中は赤グロー、減速中は青グローを表示
+ */
 function drawMeter(speed){
     mCtx.clearRect(0,0,256,128);
     mCtx.fillStyle="rgba(0,0,0,0.65)"; mCtx.fillRect(0,0,256,128);
@@ -1008,7 +1130,9 @@ function drawMeter(speed){
 }
 
 /* =====================================================
-CAMERA MODE
+カメラモード設定
+  - ride   : カメラを train の子として固定追従
+  - outside: OrbitControls で俯瞰自由視点
 ===================================================== */
 if (CONFIG.camera==="ride") {
     train.add(camera);
@@ -1021,8 +1145,22 @@ if (CONFIG.camera==="ride") {
 
 
 /* =====================================================
-HUD PANELS
+HUD パネル（ヘッドアップディスプレイ）
+  - Canvas テクスチャを使った VR 内 UI パネル
+  - HUD : スコア・タイマーバー（ゲームモード）
+  - SB  : TOP5 スコアボード（ゲームモード）
+  - OV  : オーバーレイ（カウントダウン・結果表示）
+  - LHUD: タイム・発掘数（学びモード）
+  - LSB : TOP5 タイムボード（学びモード）
+  - EXP : 発掘演出パネル（学びモード）
+  - GOBT: GO ボタン（学びモード）
 ===================================================== */
+
+/*
+ * 関数名：makeHUDPanel
+ * 役割  ：Canvas テクスチャを持つ HUD 用 Plane メッシュを生成する
+ * 引数  ：cw/ch=Canvas解像度, pw/ph=3Dサイズ, lx/ly/lz=train内ローカル座標
+ */
 function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
     const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
     const ctx=cv.getContext("2d"), tex=new THREE.CanvasTexture(cv);
@@ -1039,6 +1177,11 @@ const OV =makeHUDPanel(1024,512,  1.6,0.8,   0.00,1.0,-0.9);
 OV.mesh.renderOrder=1000; OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
+/*
+ * 関数名：makeDarkPlane
+ * 役割  ：シーン全体を暗くするための巨大な黒い半透明平面を生成する
+ *         発掘演出・ゲーム終了時に使用
+ */
 function makeDarkPlane(rx){
     const m=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),
         new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
@@ -1046,8 +1189,17 @@ function makeDarkPlane(rx){
 }
 const dark1=makeDarkPlane(-Math.PI/2); dark1.position.y=500; scene.add(dark1);
 const dark2=makeDarkPlane( Math.PI/2); dark2.position.y=-100; scene.add(dark2);
+
+/*
+ * 関数名：setDark
+ * 役割  ：暗転プレーンの不透明度を設定する（0=透明 / 0.75=ほぼ黒）
+ */
 function setDark(a){ dark1.material.opacity=dark2.material.opacity=Math.max(0,Math.min(1,a)); }
 
+/*
+ * 関数名：rrect
+ * 役割  ：Canvas に角丸矩形パスを描画するユーティリティ
+ */
 function rrect(ctx,x,y,w,h,r){
     ctx.beginPath();
     ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);
@@ -1057,18 +1209,35 @@ function rrect(ctx,x,y,w,h,r){
 }
 
 /* =====================================================
-GAME STATE
+ゲーム状態管理（ゲームモード）
+  - gamePhase  : "idle" / "countdown" / "playing" / "result" / "forceend"
+  - gameScore  : 現在のスコア
+  - gameTimeLeft: 残り時間（秒）
+  - clickCounts: 球体ごとのクリック回数
 ===================================================== */
 let gamePhase="idle", gameScore=0, gameTimeLeft=GAME_DURATION;
 const clickCounts={};
 let mainInterval=null, phaseTimeout=null;
+
+/*
+ * 関数名：clearTimers
+ * 役割  ：setInterval / setTimeout をすべてクリアする（フェーズ切替時に呼ぶ）
+ */
 function clearTimers(){
     if(mainInterval){clearInterval(mainInterval);mainInterval=null;}
     if(phaseTimeout){clearTimeout(phaseTimeout);phaseTimeout=null;}
 }
 
 /* =====================================================
-LEARNING MODE STATE
+学びモード — 状態管理
+  - globalState (gamePhase 共用): idle / playing / result
+  - learningSubState: "exploring"（通常走行） / "excavating"（発掘演出中）
+  - learnSphereState[idx]: 球体ごとの状態
+      idle        : 未クリック
+      accumulating: クリック蓄積中（1〜19回）
+      ready       : 20回到達・発掘キュー待ち
+      done        : 発掘済み
+  - learnExcavQueue: 発掘待ち FIFO キュー
 ===================================================== */
 const LS_LEARNING_KEY = "vr_coaster_learning_v1";
 // globalState: idle / playing / result  (uses gamePhase)
@@ -1108,9 +1277,18 @@ const LSB = makeHUDPanel(1024,1024, 0.8,0.8, -0.56,0.10,-0.95);
 train.add(LSB.mesh);
 LSB.mesh.visible = false;
 
+/*
+ * 関数名：loadLearningScores
+ * 役割  ：学びモードのタイム TOP5 を localStorage から読み込む
+ */
 function loadLearningScores(){
     try{ return JSON.parse(localStorage.getItem(LS_LEARNING_KEY)||"[]"); }catch(e){return [];}
 }
+
+/*
+ * 関数名：saveLearningScore
+ * 役割  ：学びモードのタイムを昇順で保存し、上位5件を維持する
+ */
 function saveLearningScore(timeMs){
     const arr = loadLearningScores();
     arr.push({time: timeMs, date: new Date().toLocaleDateString("ja-JP")});
@@ -1118,6 +1296,11 @@ function saveLearningScore(timeMs){
     localStorage.setItem(LS_LEARNING_KEY, JSON.stringify(arr));
 }
 
+/*
+ * 関数名：learnElapsedMs
+ * 役割  ：学びモードの経過時間（ミリ秒）を返す
+ *         excavating 中や result 後はタイマーが止まった状態の値を返す
+ */
 function learnElapsedMs(){
     // learnTimerPaused = accumulated running time (ms)
     // learnTimerStart  = performance.now() when last resumed
@@ -1130,21 +1313,41 @@ function learnElapsedMs(){
     return learnTimerPaused + (performance.now() - learnTimerStart);
 }
 
+/*
+ * 関数名：learnTimerPause
+ * 役割  ：タイマーを一時停止する（発掘演出開始時・コンプリート時に呼ぶ）
+ *         learnTimerPaused に経過時間を積み、learnTimerStart をリセットする
+ */
 function learnTimerPause(){
     if(learnPauseStart === 0 && learnTimerStart > 0){
-        // accumulate running time so far
+        // 現時点までの経過を積算してからタイマーを止める
         learnTimerPaused += performance.now() - learnTimerStart;
         learnTimerStart = 0;
         learnPauseStart = performance.now();
     }
 }
+
+/*
+ * 関数名：learnTimerResume
+ * 役割  ：一時停止中のタイマーを再開する（発掘演出終了時に呼ぶ）
+ */
 function learnTimerResume(){
     if(learnPauseStart > 0){
+        // 一時停止を解除してタイマー基点を現在時刻にリセット
         learnPauseStart = 0;
         learnTimerStart = performance.now();
     }
 }
 
+/* =====================================================
+パネル更新（学びモード）
+===================================================== */
+
+/*
+ * 関数名：updateLearnHUD
+ * 役割  ：学びモードの HUD（タイム・発掘数・操作ガイド）を毎フレーム更新する
+ * 条件  ：CONFIG.gameMode === "learning" の時のみ実行
+ */
 function updateLearnHUD(){
     if(CONFIG.gameMode!=="learning") return;
     const {ctx,tex}=LHUD;
@@ -1165,21 +1368,29 @@ function updateLearnHUD(){
     ctx.fillText(`発掘: ${done} / ${ARTIFACTS.length}`, 40, 330);
 
     if(gamePhase==="idle"){
+        // 待機状態：スタートの案内を表示
         ctx.fillStyle="#88ffcc"; ctx.font="bold 34px sans-serif"; ctx.textAlign="center";
         ctx.fillText("Aボタン: スタート  Bボタン: 強制終了",512,440);
     } else if(gamePhase==="countdown"){
+        // カウントダウン中：移動停止・操作受け付けなし
         ctx.fillStyle="#ffcc44"; ctx.font="bold 34px sans-serif"; ctx.textAlign="center";
         ctx.fillText("⏳ カウントダウン中...",512,440);
     } else if(learningSubState==="excavating"){
+        // 発掘演出中：GOボタン待機中
         ctx.fillStyle="#ffcc44"; ctx.font="bold 36px sans-serif"; ctx.textAlign="center";
         ctx.fillText("⛏ 発掘中... GO を押してください",512,440);
     } else if(gamePhase==="playing"){
+        // プレイ中：強制終了ガイドを薄く表示
         ctx.fillStyle="#aaaaaa"; ctx.font="bold 28px sans-serif"; ctx.textAlign="center";
         ctx.fillText("Bボタン: 強制終了",512,460);
     }
     tex.needsUpdate=true;
 }
 
+/*
+ * 関数名：updateLearnScoreBoard
+ * 役割  ：学びモードの TOP5 タイムランキングボードを Canvas に描画する
+ */
 function updateLearnScoreBoard(){
     const {ctx,tex}=LSB;
     ctx.clearRect(0,0,1024,1024);
@@ -1206,7 +1417,11 @@ function updateLearnScoreBoard(){
     tex.needsUpdate=true;
 }
 
-// Initialize sphere states for learning mode
+/*
+ * 関数名：initLearnSpheres
+ * 役割  ：学びモード開始・リセット時に全球体の状態を idle に初期化する
+ *         色を青に戻し、スケールをリセット、発掘キューをクリアする
+ */
 function initLearnSpheres(){
     ARTIFACTS.forEach((_,i)=>{
         learnSphereState[i] = {state:"idle", count:0};
@@ -1221,23 +1436,28 @@ function initLearnSpheres(){
     learningSubState = "exploring";
 }
 
-// Visual update for a sphere based on its learn state
+/*
+ * 関数名：updateLearnSphereVisual
+ * 役割  ：球体の状態（state）に応じて色・透明度・スケールを毎フレーム更新する
+ * 引数  ：idx=球体インデックス, now=performance.now()
+ */
 function updateLearnSphereVisual(idx, now){
     const s = learnSphereState[idx];
     const sph = clickSpheres[idx];
     if(!s||!sph) return;
     if(s.state==="done"){
+        // 発掘済み：非表示（raycaster 対象外）
         sph.visible = false; return;
     }
     if(s.state==="ready"){
-        // 高速点滅 黄
+        // 発掘待ち（ready）：黄色・高速点滅
         const t = (now*0.008)%1;
         sph.material.color.set(0xffee00);
         sph.material.opacity = 0.5 + 0.5*(t>0.5?1:0);
         return;
     }
     if(s.state==="accumulating"){
-        // 青 → 緑寄りに変化、スケール
+        // 蓄積中：クリック数に応じて青→緑に変化、スケール拡大
         const ratio = s.count / 20;
         const r = Math.round(0x22 + (0x00-0x22)*ratio);
         const g2 = Math.round(0x66 + (0xcc-0x66)*ratio);
@@ -1247,52 +1467,63 @@ function updateLearnSphereVisual(idx, now){
         sph.material.opacity = 0.82;
         return;
     }
-    // idle: 青・弱グロー・ゆっくり点滅
+    // idle：青・弱グロー・ゆっくり点滅
     const p = 0.7 + 0.3*Math.sin(now*0.002 + idx*0.8);
     sph.material.color.set(0x2266ff);
     sph.material.opacity = p * 0.82;
 }
 
-// Called when sphere reaches 20 clicks
+/*
+ * 関数名：onLearnSphereReady
+ * 役割  ：球体が20回クリックされた時に ready 状態へ遷移し発掘キューに追加する
+ */
 function onLearnSphereReady(idx){
     learnSphereState[idx].state = "ready";
     learnExcavQueue.push(idx);
     sfxLearningReady();
     vibrate(250, 1.0);
-    // Try to process queue
+    // キューの処理を試みる（先行演出がなければ即開始）
     processLearnQueue();
 }
 
-// Process excavation queue (FIFO, one at a time)
+/*
+ * 関数名：processLearnQueue
+ * 役割  ：発掘キュー（FIFO）を処理する
+ *         演出中は何もしない、演出終了後に自動で次を開始する
+ */
 function processLearnQueue(){
+    // 演出中または空キューは何もしない
     if(learnIsExcavating) return;
     if(learnExcavQueue.length===0) return;
     const idx = learnExcavQueue.shift();
     startLearnExcavation(idx);
 }
 
-// =============================================
-// EXCAVATION ANIMATION
-// =============================================
-let learnExcavIdx = -1;
-let learnExcavModel = null;  // model moved to camera view
-let learnExcavOrigPos = null;
+/* =====================================================
+発掘演出アニメーション（学びモード）
+  - Step 1: モデルがワールド座標から列車前方へ飛んでくる（1.0秒）
+  - Step 2: 説明画像パネル表示・Y軸回転・GOボタン待機
+  - Step 3: モデルが元の位置へ戻る（0.8秒）
+===================================================== */
+let learnExcavIdx = -1;          // 現在演出中のモデルインデックス
+let learnExcavModel = null;      // 演出中に動かしているモデル参照
+let learnExcavOrigPos = null;    // モデルの元の世界座標
 let learnExcavDescPanel = null;
-let learnExcavStep = 0;
+let learnExcavStep = 0;          // 演出ステップ（0=未開始 / 1=fly-in / 2=表示中 / 3=fly-out）
 let learnExcavT = 0;
-const EXCAV_ANIM_DUR = 1.2; // seconds for model to fly to camera
+const EXCAV_ANIM_DUR = 1.2; // fly-in 秒数（現在は 1.0 秒に上書き）
 
 // Panel for excavation (attached to train like HUD)
 // ③B: サイズ 1.2*1.5=1.8, 0.9*1.5=1.35 / 位置Z *= 1.5 → -1.65, Y += 0.5*MODEL_SCALE
-const EXP_PW = 1.8, EXP_PH = 1.35;
+const EXP_PW = 1.8, EXP_PH = 1.8;
 const EXP_LZ = -1.65;
-const EXP_LY = 0.3 + 0.2 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
+const EXP_LY = 0.3 + 0.3 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
 const EXP = makeHUDPanel(1024,768, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
 EXP.mesh.renderOrder=1001; EXP.mesh.visible=false;
 train.add(EXP.mesh);
 
 // ④: GOボタン3Dメッシュのみ残す / 位置をEXPに合わせ上方向 +0.2*MODEL_SCALE
-const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1 + 0.1*MODEL_SCALE;
+const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1;
 const GOBT = makeHUDPanel(512,200, 0.5,0.18, 0, GOBT_LY, EXP_LZ);
 GOBT.mesh.renderOrder=1002; GOBT.mesh.visible=false;
 GOBT.mesh.material.depthTest=false;
@@ -1303,6 +1534,11 @@ learnGoButton = GOBT;
 // "loading"フェーズ用の簡易テキスト描画は維持し、画像ロード後に切り替え
 const learnExcavImageMesh = {}; // idx -> THREE.Mesh (train-attached image panel)
 
+/*
+ * 関数名：prepareExcavImagePanel
+ * 役割  ：発掘演出用の説明画像パネルを事前ロードし train の子として追加する
+ *         idx ごとに 1 回だけロードしキャッシュする
+ */
 function prepareExcavImagePanel(idx){
     if(learnExcavImageMesh[idx]) return; // 既にロード済み
     const imgFile = `4${String(idx+1).padStart(2,"0")}00_kokufuhakkutsu3.png`;
@@ -1324,6 +1560,12 @@ function prepareExcavImagePanel(idx){
 // 全モデル分を事前ロード
 ARTIFACTS.forEach((_,i)=>prepareExcavImagePanel(i));
 
+/*
+ * 関数名：drawExcavPanel
+ * 役割  ：発掘演出パネルの表示を切り替える
+ *         showContent=false: 「発掘中...」テキスト表示（fly-in 中）
+ *         showContent=true : 説明画像パネルに切り替え（Step 2 表示中）
+ */
 function drawExcavPanel(idx, showContent){
     // "loading"表示（テキスト）
     if(!showContent){
@@ -1351,6 +1593,11 @@ function drawExcavPanel(idx, showContent){
     }
 }
 
+/*
+ * 関数名：drawGoButton
+ * 役割  ：GO ボタンの点滅描画を更新する（毎フレーム呼ばれる）
+ *         blink=true で明るく / false で暗くして点滅を表現する
+ */
 function drawGoButton(blink){
     const {ctx,tex}=GOBT;
     ctx.clearRect(0,0,512,200);
@@ -1363,12 +1610,23 @@ function drawGoButton(blink){
     tex.needsUpdate=true;
 }
 
-// Position excavating model in front of train camera
-// ③C: 現在位置 + 0.3*MODEL_SCALE 上方向
+/*
+ * 関数名：getExcavModelTarget
+ * 役割  ：発掘演出中にモデルを表示する列車ローカル座標を返す
+ *         カメラ前方・上方向に 0.3*MODEL_SCALE 上げた位置
+ */
 function getExcavModelTarget(){
-    return new THREE.Vector3(0, 0.4 + 0.3*MODEL_SCALE, -0.9);
+    // 列車前方かつ上方向（0.3*MODEL_SCALE 分上げる）
+    return new THREE.Vector3(0, 0.4, -0.9);
 }
 
+/*
+ * 関数名：startLearnExcavation
+ * 役割  ：発掘演出を開始する
+ *         - learningSubState を "excavating" に変更
+ *         - タイマー停止・シーン暗転・レール音停止
+ *         - モデルを取得して Step 1（fly-in）を開始する
+ */
 function startLearnExcavation(idx){
     learnIsExcavating = true;
     learnExcavIdx = idx;
@@ -1416,21 +1674,22 @@ function startLearnExcavation(idx){
     learnExcavStep = 1; // animate model to front
 }
 
-// Called each frame during excavation
-let learnExcavPhase = 0; // 0=fly-in, 1=showing, 2=fly-out
-let learnExcavFlyT = 0;
-let learnExcavShowTimer = 0;
-let learnExcavGoPressed = false;
-let learnExcavModelLocalPos = new THREE.Vector3();
-let learnExcavModelWorldStart = new THREE.Vector3();
-
+/*
+ * 関数名：tickLearnExcavation
+ * 役割  ：毎フレーム呼ばれる発掘演出の更新処理
+ *         learnExcavStep に応じて以下を処理する
+ *           Step 1: モデルを列車前方へ easing で移動（fly-in）
+ *           Step 2: 説明画像表示・Y軸回転・GOボタン点滅待機
+ *           Step 3: モデルを元の世界座標へ戻す（fly-out）
+ * 引数  ：dt = デルタタイム（秒）
+ */
 function tickLearnExcavation(dt){
     if(!learnIsExcavating) return;
     const idx = learnExcavIdx;
     const model = learnExcavModel;
 
     if(learnExcavStep===1){
-        // Fly model from world pos to train-local front (in world space)
+        // ワールド座標から列車前方（ローカル→ワールド変換済み）へモデルを移動させる
         if(learnExcavFlyT === 0 && model){
             model.userData._flyStart = model.position.clone();
         }
@@ -1440,17 +1699,18 @@ function tickLearnExcavation(dt){
         const ease = t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
 
         if(model){
-            // Convert target (local to train) to world each frame (train moves)
+            // 列車のワールド行列を使ってターゲット座標を毎フレーム更新
             const targetLocal = getExcavModelTarget();
             const targetWorld = targetLocal.clone().applyMatrix4(train.matrixWorld);
             const startWorld = model.userData._flyStart || model.position;
             model.position.lerpVectors(startWorld, targetWorld, ease);
-            model.rotation.z += dt * (2*Math.PI*3); // ~3 turns/sec
+            model.rotation.z += dt * (2*Math.PI*3); // Z軸回転：約3回転/秒
             const sc = ARTIFACT_SCALE * (0.5 + 0.5*ease);
             model.scale.setScalar(sc);
         }
 
         if(t>=1){
+            // fly-in 完了 → Step 2（説明表示）へ
             learnExcavStep=2;
             learnExcavShowTimer=0;
         }
@@ -1458,26 +1718,26 @@ function tickLearnExcavation(dt){
     }
 
     if(learnExcavStep===2){
-        // Waiting 0.5s then show description image
+        // 説明画像表示待機：0.5秒後にパネルを切り替え、GOボタンを点滅させる
         learnExcavShowTimer += dt;
         if(learnExcavShowTimer >= 0.5 && !learnGoReady){
             drawExcavPanel(idx, true);
             learnGoReady = true;
             GOBT.mesh.visible = true;
         }
-        // Blink GO button
+        // GOボタンを点滅させてユーザーに押下を促す
         if(learnGoReady){
             const blink = Math.floor(performance.now()*0.004)%2===0;
             drawGoButton(blink);
         }
-        // ③C: Y軸回転のみ、3秒で1回転 = 2π/3 rad/sec
+        // Y軸回転のみ：3秒で1回転（2π/3 rad/sec）
         if(model) model.rotation.y += dt * (2*Math.PI/3);
-        // Wait for GO
+        // GOが押されるまで無限待機
         return;
     }
 
     if(learnExcavStep===3){
-        // Fly model back to sphere position (world)
+        // モデルを元の世界座標へ easing で戻す（fly-out）
         if(learnExcavFlyT === 0 && model){
             model.userData._flyStart = model.position.clone();
         }
@@ -1496,7 +1756,7 @@ function tickLearnExcavation(dt){
         }
 
         if(t>=1){
-            // Finalize
+            // fly-out 完了 → モデル位置を確定し発掘完了処理へ
             if(model){
                 model.position.copy(artifactWorldPos[idx]);
                 model.scale.setScalar(ARTIFACT_SCALE);
@@ -1508,6 +1768,11 @@ function tickLearnExcavation(dt){
     }
 }
 
+/*
+ * 関数名：onLearnGoPressed
+ * 役割  ：GOボタンが押されたときの処理
+ *         説明パネル・GOボタンを非表示にして Step 3（fly-out）へ移行する
+ */
 function onLearnGoPressed(){
     if(!learnGoReady || !learnIsExcavating) return;
     sfxLearningGo();
@@ -1516,11 +1781,21 @@ function onLearnGoPressed(){
     GOBT.mesh.visible = false;
     EXP.mesh.visible = false;
     const idx = learnExcavIdx;
+    // 説明画像パネルも非表示
     if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible = false;
     learnExcavFlyT = 0;
-    learnExcavStep = 3;
+    learnExcavStep = 3; // fly-out へ
 }
 
+/*
+ * 関数名：finishLearnExcavation
+ * 役割  ：発掘演出完了後の後処理
+ *         - 球体を done 状態にする
+ *         - シーン説明パネル・ラインを表示する
+ *         - モデルの renderOrder を通常に戻す
+ *         - タイマー再開・レール音再開
+ *         - 次の発掘キューを処理、全完了時はコンプリート処理へ
+ */
 function finishLearnExcavation(idx){
     learnSphereState[idx].state = "done";
     learnDoneCount++;
@@ -1571,10 +1846,19 @@ function finishLearnExcavation(idx){
     }
 }
 
-// Hand models attached to train
+/* =====================================================
+手元モデル表示（学びモード）
+  - 発掘完了ごとに train の子として小型モデルを追加する
+  - 最大8スロット、等間隔に並べる
+===================================================== */
 const handModelGroup = new THREE.Group();
 train.add(handModelGroup);
 
+/*
+ * 関数名：addHandModel
+ * 役割  ：発掘完了モデルのクローンを列車内の手元スロットに追加する
+ * 引数  ：idx=モデルインデックス, slot=配置スロット番号（0始まり）
+ */
 function addHandModel(idx, slot){
     const model = permanentModels[idx];
     if(!model) return;
@@ -1592,8 +1876,18 @@ function addHandModel(idx, slot){
     learnHandModels.push({mesh:clone, slot});
 }
 
+/*
+ * 関数名：onLearnComplete
+ * 役割  ：全8モデル発掘完了時の処理
+ *         - タイマーを完全停止してから確定タイムを取得（①の修正）
+ *         - スコア保存・結果パネル表示
+ */
 function onLearnComplete(){
-    const elapsed = learnElapsedMs();
+    // コンプリート確定時にタイマーを完全停止してから計測値を取得
+    learnTimerPause();                    // 残り計測分を learnTimerPaused に積む
+    learnTimerStart  = 0;                 // 再開不可にする
+    const elapsed = learnTimerPaused;     // 確定したタイムを使用
+
     gamePhase = "result";
     vibrate(800, 1.0);
     sfxLearningComplete();
@@ -1604,6 +1898,11 @@ function onLearnComplete(){
     showLearnResult(elapsed);
 }
 
+/*
+ * 関数名：showLearnResult
+ * 役割  ：コンプリート後のリザルトパネルを EXP キャンバスに描画する
+ *         今回タイム（大）と TOP5 ランキングを表示する
+ */
 function showLearnResult(elapsed){
     // Show result on EXP panel (reuse)
     const {ctx,tex}=EXP;
@@ -1643,6 +1942,12 @@ function showLearnResult(elapsed){
     },12000);
 }
 
+/*
+ * 関数名：resetLearningMode
+ * 役割  ：学びモードを完全に初期状態へ戻す
+ *         - 全パネル非表示・タイマーリセット・手元モデル削除
+ *         - 球体を idle に戻し・永続モデルを非表示
+ */
 function resetLearningMode(){
     clearTimers();
     EXP.mesh.visible=false;
@@ -1684,6 +1989,12 @@ function resetLearningMode(){
     updateLearnScoreBoard();
 }
 
+/*
+ * 関数名：startLearningMode
+ * 役割  ：学びモードを開始する
+ *         3→2→1→GO のカウントダウン後にタイマーを起動する
+ *         カウントダウン中は列車停止（gamePhase="countdown"）
+ */
 function startLearningMode(){
     if(gamePhase!=="idle") return;
     gamePhase="countdown";
@@ -1722,15 +2033,22 @@ function startLearningMode(){
     showOverlay(String(cd),"準備！"); cd=2;
     phaseTimeout=setTimeout(tick,1000);
 }
+/*
+ * 関数名：onLearnSphereClick
+ * 役割  ：学びモードでのレーザークリック時の処理
+ *         - excavating 中はブロック音 + 色フラッシュのみ
+ *         - 通常時は蓄積カウント増加、20回でready遷移
+ */
 function onLearnSphereClick(sphere){
     if(gamePhase!=="playing") return;
     if(learningSubState==="excavating"){
+        // 発掘演出中：操作ブロック（カツッ音 + 橙色フラッシュ）
         sfxLearningBlock();
         sphere.material.color.set(0xff8800);
         setTimeout(()=>{
             const idx=sphere.userData.artifactIndex;
             const st=learnSphereState[idx]?.state;
-            // restore color based on state
+            // 状態に応じた色に戻す
             if(st==="ready") sphere.material.color.set(0xffee00);
             else sphere.material.color.set(0x2266ff);
         },120);
@@ -1738,19 +2056,30 @@ function onLearnSphereClick(sphere){
     }
     const idx=sphere.userData.artifactIndex;
     const ls=learnSphereState[idx];
+    // done / ready 状態の球体はクリック無効
     if(!ls||ls.state==="done"||ls.state==="ready") return;
 
     ls.count++;
     ls.state="accumulating";
     sfxLearningClick(ls.count);
+    // クリック回数に応じてバイブ強度を上げる
     const intensity = 0.2 + 0.8*(ls.count/20);
     vibrate(60, intensity);
 
     if(ls.count>=20){
+        // 20回到達 → ready 状態へ遷移
         onLearnSphereReady(idx);
     }
 }
 
+/* =====================================================
+スコア表示・HUD 更新（ゲームモード）
+===================================================== */
+
+/*
+ * 関数名：updateHUD
+ * 役割  ：ゲームモードの HUD（スコア・残り時間バー・操作ガイド）を更新する
+ */
 function updateHUD(){
     const {ctx,tex}=HUD;
     ctx.clearRect(0,0,1024,512);
@@ -1766,11 +2095,16 @@ function updateHUD(){
     ctx.fillStyle="rgba(255,255,255,0.15)"; ctx.fillRect(40,370,944,38);
     ctx.fillStyle=bc; ctx.fillRect(40,370,Math.max(0,944*ratio),38);
     if(gamePhase==="idle"){
+        // 待機状態：操作ガイドを表示
         ctx.fillStyle="#88ffcc"; ctx.font="bold 34px sans-serif"; ctx.textAlign="center";
         ctx.fillText("Aボタン: スタート  Bボタン: 強制終了",512,468);
     }
     tex.needsUpdate=true;
 }
+/*
+ * 関数名：updateScoreBoard
+ * 役割  ：ゲームモードの TOP5 スコアランキングボードを Canvas に描画する
+ */
 function updateScoreBoard(){
     const {ctx,tex}=SB;
     ctx.clearRect(0,0,1024,1024);
@@ -1795,6 +2129,11 @@ function updateScoreBoard(){
     }
     tex.needsUpdate=true;
 }
+/*
+ * 関数名：showOverlay
+ * 役割  ：カウントダウン・結果などの大型オーバーレイを表示する
+ * 引数  ：big=大文字テキスト, small=小文字サブテキスト（省略可）
+ */
 function showOverlay(big,small=""){
     const {ctx,tex}=OV;
     ctx.clearRect(0,0,1024,512);
@@ -1809,12 +2148,22 @@ function showOverlay(big,small=""){
     }
     tex.needsUpdate=true; OV.mesh.visible=true;
 }
+/*
+ * 関数名：hideOverlay
+ * 役割  ：オーバーレイパネルを非表示にする
+ */
 function hideOverlay(){ OV.mesh.visible=false; }
 updateHUD(); updateScoreBoard();
 
 /* =====================================================
-VIBRATION
+バイブレーション制御
 ===================================================== */
+
+/*
+ * 関数名：vibrate
+ * 役割  ：右コントローラーのハプティクスを鳴らす
+ * 引数  ：dur=継続時間(ms), intensity=強度(0〜1)
+ */
 function vibrate(dur,intensity){
     const session=renderer.xr.getSession(); if(!session) return;
     for(const src of session.inputSources){
@@ -1826,10 +2175,17 @@ function vibrate(dur,intensity){
 }
 
 /* =====================================================
-GAME LOGIC
+ゲームロジック（ゲームモード）
+  - progress : レール上の現在位置（0〜1）
+  - velocity : 移動速度（フレームごとの progress 増分）
 ===================================================== */
 let progress=0, velocity=0.0001;
 
+/*
+ * 関数名：teleportToStart
+ * 役割  ：列車をレールの始点（t=0）にワープさせる
+ *         progress・velocity・train の位置と回転を初期化する
+ */
 function teleportToStart(){
     progress=0; velocity=0.0001;
     const p=curve.getPointAt(0).clone(); p.y+=0.2;
@@ -1840,7 +2196,12 @@ function teleportToStart(){
     train.lookAt(lk);
 }
 
-// ⑦ 学びモード強制終了
+/*
+ * 関数名：doLearnForceEnd
+ * 役割  ：学びモードの強制終了（Bボタン / Eキー）
+ *         - タイマー停止・スコア保存なし・状態初期化
+ *         - idle / result 時は無効
+ */
 function doLearnForceEnd(){
     if(CONFIG.gameMode!=="learning") return;
     if(gamePhase==="idle"||gamePhase==="result") return;
@@ -1862,6 +2223,11 @@ function doLearnForceEnd(){
     },3000);
 }
 
+/*
+ * 関数名：startCountdown
+ * 役割  ：ゲームモードの 3→2→1→GO カウントダウンを開始する
+ *         カウント中は gamePhase="countdown"（列車停止）
+ */
 function startCountdown(){
     if(gamePhase!=="idle") return;
     clearTimers();
@@ -1885,6 +2251,11 @@ function startCountdown(){
     phaseTimeout=setTimeout(tick,1000);
 }
 
+/*
+ * 関数名：doStart
+ * 役割  ：カウントダウン終了後にゲームを本開始する
+ *         1秒ごとに残り時間を減らし、0になったら doEnd を呼ぶ
+ */
 function doStart(){
     gamePhase="playing";
     sfxCountdown(0);
@@ -1898,6 +2269,11 @@ function doStart(){
     },1000);
 }
 
+/*
+ * 関数名：doEnd
+ * 役割  ：制限時間切れ時のゲーム終了処理
+ *         スコア保存・結果表示・10秒後に idle へ戻る
+ */
 function doEnd(){
     clearTimers();
     gamePhase="result";
@@ -1914,6 +2290,11 @@ function doEnd(){
     },10000);
 }
 
+/*
+ * 関数名：doForceEnd
+ * 役割  ：ゲームモードの強制終了（Bボタン）
+ *         スコア保存なし・3秒後に idle へ戻る
+ */
 function doForceEnd(){
     if(gamePhase!=="playing"&&gamePhase!=="countdown") return;
     clearTimers();
@@ -1929,34 +2310,85 @@ function doForceEnd(){
 }
 
 /* =====================================================
-COIN ANIMATIONS
+コインアニメーション（ゲームモード）
+  - GLTFを毎回ロードせず permanentModels のクローンを使用し負荷を軽減
+  - isFirst=true : 球体位置に「着地」するアニメーション
+  - isFirst=false: 放物線で飛び散る「噴水」アニメーション
 ===================================================== */
 const coinAnims=[];
-function cleanCoins(){ coinAnims.forEach(c=>{ if(c.mesh) scene.remove(c.mesh); }); coinAnims.length=0; }
 
-function spawnCoin(idx,isFirst){
-    const sp=artifactWorldPos[idx]; if(!sp) return;
-    loader.load(BASE_URL+ARTIFACTS[idx].file,gltf=>{
-        const coin=gltf.scene;
-        coin.scale.set(ARTIFACT_SCALE*0.7,ARTIFACT_SCALE*0.7,ARTIFACT_SCALE*0.7);
-        coin.position.copy(sp); scene.add(coin);
-        if(isFirst){
-            coinAnims.push({mesh:coin,idx,mode:"place",startPos:sp.clone(),targetPos:sp.clone(),t:0,dur:1.2,done:false});
-        } else {
-            const ang=Math.random()*Math.PI*2, spd=(0.5+Math.random()*1.2)*MODEL_SCALE;
-            coinAnims.push({mesh:coin,mode:"fountain",startPos:sp.clone(),
-                vx:Math.cos(ang)*spd,vz:Math.sin(ang)*spd,vy:(2.0+Math.random()*1.5)*MODEL_SCALE,t:0,dur:2.0});
+/*
+ * 関数名：cleanCoins
+ * 役割  ：コインアニメーション配列をクリア（ゲーム終了時）
+ */
+function cleanCoins(){
+    coinAnims.forEach(c=>{ if(c.mesh) scene.remove(c.mesh); });
+    coinAnims.length=0;
+}
+
+/*
+ * 関数名：spawnCoin
+ * 役割  ：球体クリック時の飛び出し演出メッシュを生成
+ * 引数  ：idx = アーティファクトインデックス, isFirst = 初回クリックか否か
+ * 最適化：GLTFLoaderを廃止し permanentModels[idx].clone() を使用
+ */
+function spawnCoin(idx, isFirst){
+    const sp = artifactWorldPos[idx]; if(!sp) return;
+
+    // ② permanentModels が既にロード済みならクローン、未ロードなら何もしない
+    const src = permanentModels[idx];
+    if(!src) return;
+
+    const coin = src.clone();
+    coin.scale.set(ARTIFACT_SCALE*0.7, ARTIFACT_SCALE*0.7, ARTIFACT_SCALE*0.7);
+    coin.position.copy(sp);
+    // クローンしたマテリアルを個別化して透過フェード処理ができるようにする
+    coin.traverse(c=>{
+        if(c.isMesh && c.material){
+            c.material = c.material.clone();
+            c.material.transparent = true;
         }
     });
+    scene.add(coin);
+
+    if(isFirst){
+        // 着地アニメーション
+        coinAnims.push({
+            mesh:coin, idx, mode:"place",
+            startPos:sp.clone(), targetPos:sp.clone(),
+            t:0, dur:1.2, done:false
+        });
+    } else {
+        // 噴水アニメーション
+        const ang = Math.random()*Math.PI*2;
+        const spd = (0.5+Math.random()*1.2)*MODEL_SCALE;
+        coinAnims.push({
+            mesh:coin, mode:"fountain",
+            startPos:sp.clone(),
+            vx:Math.cos(ang)*spd, vz:Math.sin(ang)*spd,
+            vy:(2.0+Math.random()*1.5)*MODEL_SCALE,
+            t:0, dur:2.0
+        });
+    }
 }
 
 /* =====================================================
-SPHERE CLICK
+球体クリック処理（ゲームモード）
 ===================================================== */
+
+/*
+ * 関数名：checkComplete
+ * 役割  ：全8球体を1回以上クリックしたかチェックする
+ */
 function checkComplete(){
     return ARTIFACTS.every((_,i)=>(clickCounts[i]||0)>0);
 }
 
+/*
+ * 関数名：onSphereClick
+ * 役割  ：ゲームモードで球体をクリックした際の得点・演出処理
+ *         初回クリック +5pt / 再クリック +1pt / 全コンプリート +50pt
+ */
 function onSphereClick(sphere){
     if(gamePhase!=="playing") return;
     const idx=sphere.userData.artifactIndex;
@@ -1969,6 +2401,7 @@ function onSphereClick(sphere){
     spawnCoin(idx,first);
 
     if(first && checkComplete()){
+        // 全球体初回クリック完了：コンプリートボーナス
         gameScore+=50; updateHUD();
         vibrate(500,1.0);
         showOverlay("🎊 COMPLETE!","+50pt ボーナス！");
@@ -1977,7 +2410,10 @@ function onSphereClick(sphere){
 }
 
 /* =====================================================
-MOTION
+移動・物理・入力処理
+  - progress: カーブ上の位置（0〜1）を毎フレーム更新
+  - velocity: 速度（スティック / キーで加減速）
+  - raycaster: レーザーの当たり判定
 ===================================================== */
 let prevTime=performance.now(), keyUp=false, keyDown=false;
 const pos=new THREE.Vector3(), tan=new THREE.Vector3(), lkAt=new THREE.Vector3();
@@ -1985,6 +2421,7 @@ let prevPos=new THREE.Vector3(), realSpeed=0;
 let lastSpeedUI=0, lastSound=0;
 const raycaster=new THREE.Raycaster(), tmpMtx=new THREE.Matrix4();
 
+// キーボード入力：デスクトップでの操作用
 window.addEventListener("keydown",e=>{
     if(e.code==="ArrowUp")   keyUp=true;
     if(e.code==="ArrowDown") keyDown=true;
@@ -2003,6 +2440,10 @@ window.addEventListener("keyup",e=>{
     if(e.code==="ArrowDown") keyDown=false;
 });
 
+/*
+ * 関数名：getStickY
+ * 役割  ：右コントローラーのサムスティック Y 軸値を返す（デッドゾーン 0.15）
+ */
 function getStickY(){
     const s=renderer.xr.getSession(); if(!s) return 0;
     for(const src of s.inputSources){
@@ -2012,6 +2453,10 @@ function getStickY(){
     }
     return 0;
 }
+/*
+ * 関数名：getRightGP
+ * 役割  ：右コントローラーの Gamepad オブジェクトを返す（未接続時 null）
+ */
 function getRightGP(){
     const s=renderer.xr.getSession(); if(!s) return null;
     for(const src of s.inputSources){ if(src.handedness==="right"&&src.gamepad) return src.gamepad; }
@@ -2021,7 +2466,9 @@ function getRightGP(){
 let prevA=false,prevB=false,prevTrig0=false,prevTrig1=false;
 
 /* =====================================================
-ANIMATION LOOP
+メインアニメーションループ
+  - renderer.setAnimationLoop で毎フレーム呼ばれる
+  - 移動・物理・HUD更新・レーザー判定・入力処理をすべてここで行う
 ===================================================== */
 renderer.setAnimationLoop(()=>{
     const now=performance.now(), dt=now-prevTime;
@@ -2030,7 +2477,7 @@ renderer.setAnimationLoop(()=>{
     const isTour = CONFIG.gameMode === "tour";
     const isLearning = CONFIG.gameMode === "learning";
 
-    // Progress update: stop during excavation
+    // 発掘演出中またはリザルト中は列車を停止させる（学びモード専用）
     const learnStop = isLearning && (learningSubState==="excavating" || gamePhase==="result");
     if(isTour || (gamePhase==="playing" && !learnStop)) progress=(progress+velocity)%1;
 
