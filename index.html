@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>a越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -757,8 +757,8 @@ VR セッションイベント
 ===================================================== */
 renderer.xr.addEventListener("sessionstart", () => {
     // VR開始：UIパネルを非表示にしてVR空間へ移行
-    document.getElementById("uiPanel").style.display = "none";
-    document.getElementById("miniUI").style.display  = "none";
+    // document.getElementById("uiPanel").style.display = "none";
+    // document.getElementById("miniUI").style.display  = "none";
 
     if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
     if (camera.parent !== train) {
@@ -786,14 +786,14 @@ renderer.xr.addEventListener("sessionstart", () => {
     }
 });
 
-renderer.xr.addEventListener("sessionend", () => {
-    railSound.pause();
-    if (CONFIG.camera === "outside") {
-        document.getElementById("miniUI").style.display = "block";
-    } else {
-        document.getElementById("uiPanel").style.display = "";
-    }
-});
+// renderer.xr.addEventListener("sessionend", () => {
+//     railSound.pause();
+//     if (CONFIG.camera === "outside") {
+//         document.getElementById("miniUI").style.display = "block";
+//     } else {
+//         document.getElementById("uiPanel").style.display = "";
+//     }
+// });
 
 /* =====================================================
 VR コントローラー設定
@@ -1898,11 +1898,11 @@ function addHandModel(idx, slot){
     const clone = model.clone();
 
     const total = ARTIFACTS.length;        // 通常8
-    const spacing = 0.8*2 / (total - 1);     // 横幅0.8内に配置
-    const xPos = -0.4*2 + slot * spacing;
+    const spacing = 1.6 / (total - 1);     // 横幅1.6内に配置
+    const xPos = -0.8 + slot * spacing;
 
     clone.position.set(xPos, 0.22, -0.78);
-    clone.scale.setScalar(ARTIFACT_SCALE * 0.065*2);
+    clone.scale.setScalar(ARTIFACT_SCALE * 0.13);
     clone.rotation.set(0, 0, 0);
     clone.visible = true;
 
