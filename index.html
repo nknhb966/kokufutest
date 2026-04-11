@@ -869,13 +869,13 @@ function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
         new THREE.PlaneGeometry(pw,ph),
         new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false})
     );
-    mesh.position.set(lx,ly,lz); mesh.renderOrder=999;
+    mesh.position.set(lx,ly,lz);
     return {cv,ctx,tex,mesh};
 }
 const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95);
 const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95);
 const OV =makeHUDPanel(1024,512,  1.6,0.8,   0.00,1.0,-0.9);
-OV.mesh.renderOrder=1000; OV.mesh.visible=false;
+OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
 function makeDarkPlane(rx){
