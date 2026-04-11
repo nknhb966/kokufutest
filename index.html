@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>a越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1621,7 +1621,7 @@ function drawGoButton(blink){
  */
 function getExcavModelTarget(){
     // 列車前方かつ上方向（0.3*MODEL_SCALE 分上げる）
-    return new THREE.Vector3(0, 0.4, -1.4);
+    return new THREE.Vector3(0, -0.4, -1.4);
 }
 
 /*
@@ -1669,29 +1669,15 @@ function startLearnExcavation(idx){
             if(c.isMesh){
 
                 // マテリアル安全コピー
-                c.material = c.material.clone();
+                // c.material = c.material.clone();
 
-                c.renderOrder = 2000;
                 c.material.transparent = false;
                 c.material.depthWrite = true;
-                c.material.depthTest  = false;
+                c.material.depthTest  = true;
 
                 // カリング防止
                 c.frustumCulled = false;
 
-
-                // ★元マテリアル保存（初回のみ）
-                // if(!c.userData._origMat){
-                //     c.userData._origMat = c.material;
-                // }
-
-                // c.material = c.material.clone();
-
-                // c.material.transparent = false;
-                // c.material.depthTest  = true;
-                // c.material.depthWrite = true;
-
-                // c.frustumCulled = false;
             }
         });
     }
