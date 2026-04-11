@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>a越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -752,14 +752,10 @@ document.getElementById("vrButtonWrap").appendChild(VRButton.createButton(render
 
 /* =====================================================
 VR セッションイベント
-  - sessionstart : VR開始時にUIを隠し、カメラをtrainに接続
+  - sessionstart : VR開始時にカメラをtrainに接続
   - sessionend   : VR終了時にUIを再表示
 ===================================================== */
 renderer.xr.addEventListener("sessionstart", () => {
-    // VR開始：UIパネルを非表示にしてVR空間へ移行
-    document.getElementById("uiPanel").style.display = "none";
-    document.getElementById("miniUI").style.display  = "none";
-
     if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
     if (camera.parent !== train) {
         if (camera.parent) camera.parent.remove(camera);
@@ -788,11 +784,11 @@ renderer.xr.addEventListener("sessionstart", () => {
 
 renderer.xr.addEventListener("sessionend", () => {
     railSound.pause();
-    if (CONFIG.camera === "outside") {
-        document.getElementById("miniUI").style.display = "block";
-    } else {
-        document.getElementById("uiPanel").style.display = "";
-    }
+    // renderer.xr.enabled = false;
+    // document.getElementById("miniUI").style.display  = "none";
+    // document.getElementById("uiPanel").style.display = "block";
+    // location.reload();
+    // setCameraMode("ride");
 });
 
 /* =====================================================
@@ -1515,15 +1511,16 @@ const EXCAV_ANIM_DUR = 1.2; // fly-in 秒数（現在は 1.0 秒に上書き）
 
 // Panel for excavation (attached to train like HUD)
 // ③B: サイズ 1.2*1.5=1.8, 0.9*1.5=1.35 / 位置Z *= 1.5 → -1.65, Y += 0.5*MODEL_SCALE
-const EXP_PW = 1.8, EXP_PH = 1.35;
+const EXP_PW = 1.8, EXP_PH = 1.8;
 const EXP_LZ = -1.65;
-const EXP_LY = 0.3 + 0.5 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
-const EXP = makeHUDPanel(1024,768, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
+const EXP_LY = 1.8;
+const EXP_LOADING_OFFSET_Y = -0.8;
+const EXP = makeHUDPanel(1024,1024, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
 EXP.mesh.renderOrder=1001; EXP.mesh.visible=false;
 train.add(EXP.mesh);
 
 // ④: GOボタン3Dメッシュのみ残す / 位置をEXPに合わせ上方向 +0.2*MODEL_SCALE
-const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1 + 0.2*MODEL_SCALE;
+const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1;
 const GOBT = makeHUDPanel(512,200, 0.5,0.18, 0, GOBT_LY, EXP_LZ);
 GOBT.mesh.renderOrder=1002; GOBT.mesh.visible=false;
 GOBT.mesh.material.depthTest=false;
@@ -1576,11 +1573,13 @@ function drawExcavPanel(idx, showContent){
         ctx.fillStyle="#44ddff"; ctx.font="bold 80px sans-serif"; ctx.textAlign="center";
         ctx.fillText("⛏ 発掘中...",512,350);
         tex.needsUpdate=true;
+        EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
         EXP.mesh.visible=true;
         // 画像パネルは非表示
         if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible=false;
         return;
     }
+    EXP.mesh.position.set(0, EXP_LY, EXP_LZ);
     // 画像パネルに切り替え
     EXP.mesh.visible = false;
     const imgMesh = learnExcavImageMesh[idx];
@@ -1617,7 +1616,7 @@ function drawGoButton(blink){
  */
 function getExcavModelTarget(){
     // 列車前方かつ上方向（0.3*MODEL_SCALE 分上げる）
-    return new THREE.Vector3(0, 0.4 + 0.3*MODEL_SCALE, -0.9);
+    return new THREE.Vector3(0, 0.4, -1.4);
 }
 
 /*
@@ -1628,6 +1627,7 @@ function getExcavModelTarget(){
  *         - モデルを取得して Step 1（fly-in）を開始する
  */
 function startLearnExcavation(idx){
+
     learnIsExcavating = true;
     learnExcavIdx = idx;
     learnExcavStep = 0;
@@ -1637,42 +1637,70 @@ function startLearnExcavation(idx){
     // ⑤ 演出中はレール音停止
     railSound.pause();
 
-    // Pause timer
+    // タイマー停止
     learnTimerPause();
 
-    // Darken scene
+    // 画面暗転
     setDark(0.68);
     sfxLearningExcavate();
     vibrate(200, 0.8);
 
-    // Grab the permanent model and move it
+    // =====================================================
+    // 発掘モデル取得（←ここが主役）
+    // =====================================================
     const model = permanentModels[idx];
     if(model){
+
         learnExcavModel = model;
         learnExcavOrigPos = model.position.clone();
         model.visible = true;
-        // ⑩ renderOrder: モデルをパネルより前面に
+
+        // =====================================================
+        // ★最前面表示設定（今回の核心）
+        // =====================================================
+        model.renderOrder = 2000;   // ← 最大レイヤー
+
         model.traverse(c=>{
             if(c.isMesh){
-                c.renderOrder=1003;
+
+                // メッシュ自体の描画順も統一
+                // c.renderOrder = 2000;
+
+                // マテリアル安全コピー
                 c.material = c.material.clone();
-                c.material.depthTest=false;
+
+                // 透明対応（UI安定）
+                c.material.transparent = true;
+
+                // 深度無効（絶対前に出す）
+                c.material.depthTest  = false;
+                c.material.depthWrite = false;
+
+                // カリング防止
+                c.frustumCulled = false;
             }
         });
     }
 
-    // Show excavation panel (loading state)
+    // =====================================================
+    // UI制御
+    // =====================================================
     drawExcavPanel(idx, false);
+
     GOBT.mesh.visible = false;
     learnGoReady = false;
     learnGoButton.mesh.visible = false;
 
-    // Hide the sphere
+    // 球体非表示
     clickSpheres[idx].visible = false;
 
+    // アニメ開始
     learnExcavFlyT = 0;
-    learnExcavStep = 1; // animate model to front
+    learnExcavStep = 1;
 }
+
+let learnExcavFlyT = 0;
+let learnExcavShowTimer = 0;
 
 /*
  * 関数名：tickLearnExcavation
@@ -1730,8 +1758,8 @@ function tickLearnExcavation(dt){
             const blink = Math.floor(performance.now()*0.004)%2===0;
             drawGoButton(blink);
         }
-        // Y軸回転のみ：3秒で1回転（2π/3 rad/sec）
-        if(model) model.rotation.y += dt * (2*Math.PI/3);
+        // Y軸回転のみ：30秒で1回転（2π/3 rad/sec）
+        if(model) model.rotation.y += dt * (2*Math.PI/30);
         // GOが押されるまで無限待機
         return;
     }
@@ -1855,25 +1883,51 @@ const handModelGroup = new THREE.Group();
 train.add(handModelGroup);
 
 /*
- * 関数名：addHandModel
- * 役割  ：発掘完了モデルのクローンを列車内の手元スロットに追加する
- * 引数  ：idx=モデルインデックス, slot=配置スロット番号（0始まり）
- */
+手元モデル追加（学びモード）
+役割：
+  - 発掘済みモデルを手元スロットに表示
+  - 常にUIより手前に表示する
+*/
 function addHandModel(idx, slot){
+
+    // 対応モデル取得
     const model = permanentModels[idx];
     if(!model) return;
-    // Clone for hand display
+
     const clone = model.clone();
-    const total = ARTIFACTS.length;
-    const spacing = 0.8 / (total-1);
-    const xPos = -0.4 + slot * spacing;
+
+    const total = ARTIFACTS.length;        // 通常8
+    const spacing = 1.6 / (total - 1);     // 横幅1.6内に配置
+    const xPos = -0.8 + slot * spacing;
+
     clone.position.set(xPos, 0.22, -0.78);
-    clone.scale.setScalar(ARTIFACT_SCALE * 0.065);
-    clone.rotation.set(0,0,0);
+    clone.scale.setScalar(ARTIFACT_SCALE * 0.13);
+    clone.rotation.set(0, 0, 0);
     clone.visible = true;
-    clone.traverse(c=>{if(c.isMesh)c.frustumCulled=false;});
+
+    clone.renderOrder = 1100;
+
+    clone.traverse(c=>{
+        if(c.isMesh){
+
+            c.frustumCulled = false;
+
+            if(c.material){
+                c.material.depthTest = false;   // 深度判定しない
+                c.material.depthWrite = false;  // Zバッファ書き込みなし
+
+                // 念のため（透明対応）
+                c.material.transparent = true;
+            }
+        }
+    });
+
     handModelGroup.add(clone);
-    learnHandModels.push({mesh:clone, slot});
+
+    learnHandModels.push({
+        mesh: clone,
+        slot: slot
+    });
 }
 
 /*
@@ -2677,4 +2731,3 @@ window.addEventListener("resize",()=>{
 </script>
 </body>
 </html>
-
