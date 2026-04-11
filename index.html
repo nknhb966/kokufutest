@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>a越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1566,30 +1566,104 @@ ARTIFACTS.forEach((_,i)=>prepareExcavImagePanel(i));
  *         showContent=false: 「発掘中...」テキスト表示（fly-in 中）
  *         showContent=true : 説明画像パネルに切り替え（Step 2 表示中）
  */
+/* =====================================================
+発掘パネル描画（学びモード）
+・画像はアスペクト比を維持して枠内に収める
+===================================================== */
 function drawExcavPanel(idx, showContent){
-    // "loading"表示（テキスト）
+
+    const {ctx, tex} = EXP;
+
+    // =====================================================
+    // ■ ローディング表示
+    // =====================================================
     if(!showContent){
-        const {ctx,tex}=EXP;
+
         ctx.clearRect(0,0,1024,768);
-        ctx.fillStyle="rgba(0,5,20,0.88)"; rrect(ctx,8,8,1008,752,32); ctx.fill();
-        ctx.strokeStyle="rgba(68,200,255,0.6)"; ctx.lineWidth=6; rrect(ctx,8,8,1008,752,32); ctx.stroke();
-        ctx.fillStyle="#44ddff"; ctx.font="bold 80px sans-serif"; ctx.textAlign="center";
+
+        // 背景
+        ctx.fillStyle="rgba(0,5,20,0.88)";
+        rrect(ctx,8,8,1008,752,32);
+        ctx.fill();
+
+        // 枠線
+        ctx.strokeStyle="rgba(68,200,255,0.6)";
+        ctx.lineWidth=6;
+        rrect(ctx,8,8,1008,752,32);
+        ctx.stroke();
+
+        // テキスト
+        ctx.fillStyle="#44ddff";
+        ctx.font="bold 80px sans-serif";
+        ctx.textAlign="center";
         ctx.fillText("⛏ 発掘中...",512,350);
-        tex.needsUpdate=true;
-        EXP.mesh.visible=true;
+
+        tex.needsUpdate = true;
+        EXP.mesh.visible = true;
+
         // 画像パネルは非表示
-        if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible=false;
+        if(learnExcavImageMesh[idx]) {
+            learnExcavImageMesh[idx].visible = false;
+        }
+
         return;
     }
-    // 画像パネルに切り替え
-    EXP.mesh.visible = false;
-    const imgMesh = learnExcavImageMesh[idx];
-    if(imgMesh){
-        imgMesh.visible = true;
-        imgMesh.position.set(0, EXP_LY, EXP_LZ);
-    } else {
-        // 画像未ロード時はフォールバック
-        EXP.mesh.visible=true;
+
+    // =====================================================
+    // ■ 画像表示（アスペクト比維持）
+    // =====================================================
+
+    const image = learnExcavImages[idx]; // ← Imageオブジェクト想定
+
+    if(image){
+
+        const panelW = 1024;
+        const panelH = 768;
+
+        const imgW = image.width;
+        const imgH = image.height;
+
+        const imgAspect   = imgW / imgH;
+        const panelAspect = panelW / panelH;
+
+        let drawW, drawH;
+
+        if(imgAspect > panelAspect){
+            // 横長 → 幅フィット
+            drawW = panelW;
+            drawH = panelW / imgAspect;
+        }else{
+            // 縦長 → 高さフィット
+            drawH = panelH;
+            drawW = panelH * imgAspect;
+        }
+
+        const offsetX = (panelW - drawW) * 0.5;
+        const offsetY = (panelH - drawH) * 0.5;
+
+        // =====================================================
+        // 描画
+        // =====================================================
+        ctx.clearRect(0,0,panelW,panelH);
+
+        // 背景（レターボックス用）
+        ctx.fillStyle = "rgba(0,5,20,0.88)";
+        ctx.fillRect(0,0,panelW,panelH);
+
+        // 画像
+        ctx.drawImage(image, offsetX, offsetY, drawW, drawH);
+
+        tex.needsUpdate = true;
+
+        EXP.mesh.visible = true;
+    }else{
+        // フォールバック
+        EXP.mesh.visible = true;
+    }
+
+    // 旧：3D画像メッシュは使わない
+    if(learnExcavImageMesh[idx]){
+        learnExcavImageMesh[idx].visible = false;
     }
 }
 
@@ -1617,7 +1691,7 @@ function drawGoButton(blink){
  */
 function getExcavModelTarget(){
     // 列車前方かつ上方向（0.3*MODEL_SCALE 分上げる）
-    return new THREE.Vector3(0, 0.4, -0.9);
+    return new THREE.Vector3(0, 0.4, -0.5);
 }
 
 /*
