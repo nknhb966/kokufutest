@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>1越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1286,13 +1286,13 @@ const EXCAV_ANIM_DUR = 1.2; // seconds for model to fly to camera
 // ③B: サイズ 1.2*1.5=1.8, 0.9*1.5=1.35 / 位置Z *= 1.5 → -1.65, Y += 0.5*MODEL_SCALE
 const EXP_PW = 1.8, EXP_PH = 1.35;
 const EXP_LZ = -1.65;
-const EXP_LY = 0.3 + 0.5 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
+const EXP_LY = 0.3 + 0.2 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
 const EXP = makeHUDPanel(1024,768, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
 EXP.mesh.renderOrder=1001; EXP.mesh.visible=false;
 train.add(EXP.mesh);
 
 // ④: GOボタン3Dメッシュのみ残す / 位置をEXPに合わせ上方向 +0.2*MODEL_SCALE
-const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1 + 0.2*MODEL_SCALE;
+const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1 + 0.1*MODEL_SCALE;
 const GOBT = makeHUDPanel(512,200, 0.5,0.18, 0, GOBT_LY, EXP_LZ);
 GOBT.mesh.renderOrder=1002; GOBT.mesh.visible=false;
 GOBT.mesh.material.depthTest=false;
