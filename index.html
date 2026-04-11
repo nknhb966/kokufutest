@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>f越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1668,20 +1668,31 @@ function startLearnExcavation(idx){
         model.traverse(c=>{
             if(c.isMesh){
 
-                // メッシュ自体の描画順も統一
-                // c.renderOrder = 2000;
+                // // マテリアル安全コピー
+                // c.material = c.material.clone();
 
-                // マテリアル安全コピー
+                // // 透明対応（UI安定）
+                // c.material.transparent = true;
+
+                // // 深度無効（絶対前に出す）
+                // c.material.depthTest  = true;
+                // c.material.depthWrite = false;
+
+                // // カリング防止
+                // c.frustumCulled = false;
+
+
+                // ★元マテリアル保存（初回のみ）
+                if(!c.userData._origMat){
+                    c.userData._origMat = c.material;
+                }
+
                 c.material = c.material.clone();
 
-                // 透明対応（UI安定）
                 c.material.transparent = true;
-
-                // 深度無効（絶対前に出す）
-                c.material.depthTest  = true;
                 c.material.depthWrite = false;
+                c.material.depthTest  = true;
 
-                // カリング防止
                 c.frustumCulled = false;
             }
         });
@@ -1853,12 +1864,17 @@ function finishLearnExcavation(idx){
     if(model){
         model.traverse(c=>{
             if(c.isMesh){
-                c.renderOrder=0;
-                c.material.depthTest  = true;
-                c.material.depthWrite = true;
+                // ★完全復元
+                if(c.userData._origMat){
+                    c.material = c.userData._origMat;
+                }
 
-                c.material.transparent = false;
-                c.material.opacity = 1.0;
+                c.renderOrder=0;
+                // c.material.depthTest  = true;
+                // c.material.depthWrite = true;
+
+                // c.material.transparent = false;
+                // c.material.opacity = 1.0;
             }
         });
         model.position.copy(artifactWorldPos[idx]);
