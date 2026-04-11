@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>a越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1567,32 +1567,27 @@ ARTIFACTS.forEach((_,i)=>prepareExcavImagePanel(i));
  *         showContent=true : 説明画像パネルに切り替え（Step 2 表示中）
  */
 /* =====================================================
-発掘パネル描画（学びモード）
-・画像はアスペクト比を維持して枠内に収める
+発掘パネル（画像メッシュ版）
+・アスペクト比を維持して表示
 ===================================================== */
 function drawExcavPanel(idx, showContent){
 
-    const {ctx, tex} = EXP;
-
     // =====================================================
-    // ■ ローディング表示
+    // ■ ローディング表示（そのまま）
     // =====================================================
     if(!showContent){
+        const {ctx,tex}=EXP;
 
         ctx.clearRect(0,0,1024,768);
-
-        // 背景
         ctx.fillStyle="rgba(0,5,20,0.88)";
         rrect(ctx,8,8,1008,752,32);
         ctx.fill();
 
-        // 枠線
         ctx.strokeStyle="rgba(68,200,255,0.6)";
         ctx.lineWidth=6;
         rrect(ctx,8,8,1008,752,32);
         ctx.stroke();
 
-        // テキスト
         ctx.fillStyle="#44ddff";
         ctx.font="bold 80px sans-serif";
         ctx.textAlign="center";
@@ -1601,8 +1596,8 @@ function drawExcavPanel(idx, showContent){
         tex.needsUpdate = true;
         EXP.mesh.visible = true;
 
-        // 画像パネルは非表示
-        if(learnExcavImageMesh[idx]) {
+        // 画像メッシュ非表示
+        if(learnExcavImageMesh[idx]){
             learnExcavImageMesh[idx].visible = false;
         }
 
@@ -1610,61 +1605,56 @@ function drawExcavPanel(idx, showContent){
     }
 
     // =====================================================
-    // ■ 画像表示（アスペクト比維持）
+    // ■ 画像メッシュ表示（ここが本題）
     // =====================================================
 
-    const image = learnExcavImages[idx]; // ← Imageオブジェクト想定
+    EXP.mesh.visible = false;
 
-    if(image){
+    const imgMesh = learnExcavImageMesh[idx];
+    if(!imgMesh) {
+        EXP.mesh.visible = true;
+        return;
+    }
 
-        const panelW = 1024;
-        const panelH = 768;
+    const tex = imgMesh.material.map;
 
-        const imgW = image.width;
-        const imgH = image.height;
+    // 画像サイズ取得（重要）
+    if(tex && tex.image){
 
-        const imgAspect   = imgW / imgH;
-        const panelAspect = panelW / panelH;
+        const imgW = tex.image.width;
+        const imgH = tex.image.height;
 
-        let drawW, drawH;
+        const imgAspect = imgW / imgH;
 
-        if(imgAspect > panelAspect){
-            // 横長 → 幅フィット
-            drawW = panelW;
-            drawH = panelW / imgAspect;
+        // -------------------------------------------------
+        // 基準サイズ（4:3パネル相当）
+        // -------------------------------------------------
+        const baseH = 1.2;              // ← 好きに調整OK
+        const baseW = baseH * (4/3);    // 元の枠（4:3）
+
+        let finalW, finalH;
+
+        if(imgAspect > (4/3)){
+            // 横長画像 → 幅優先
+            finalW = baseW;
+            finalH = baseW / imgAspect;
         }else{
-            // 縦長 → 高さフィット
-            drawH = panelH;
-            drawW = panelH * imgAspect;
+            // 縦長画像 → 高さ優先
+            finalH = baseH;
+            finalW = baseH * imgAspect;
         }
 
-        const offsetX = (panelW - drawW) * 0.5;
-        const offsetY = (panelH - drawH) * 0.5;
-
-        // =====================================================
-        // 描画
-        // =====================================================
-        ctx.clearRect(0,0,panelW,panelH);
-
-        // 背景（レターボックス用）
-        ctx.fillStyle = "rgba(0,5,20,0.88)";
-        ctx.fillRect(0,0,panelW,panelH);
-
-        // 画像
-        ctx.drawImage(image, offsetX, offsetY, drawW, drawH);
-
-        tex.needsUpdate = true;
-
-        EXP.mesh.visible = true;
-    }else{
-        // フォールバック
-        EXP.mesh.visible = true;
+        // スケール適用
+        imgMesh.scale.set(finalW, finalH, 1);
     }
 
-    // 旧：3D画像メッシュは使わない
-    if(learnExcavImageMesh[idx]){
-        learnExcavImageMesh[idx].visible = false;
-    }
+    // -------------------------------------------------
+    // 位置調整
+    // -------------------------------------------------
+    imgMesh.position.set(0, EXP_LY, EXP_LZ);
+
+    // 表示
+    imgMesh.visible = true;
 }
 
 /*
