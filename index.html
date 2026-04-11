@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>s越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1271,11 +1271,12 @@ let learnResultPanel = null;
 
 // HUD panel for learning
 const LHUD = makeHUDPanel(1024,512, 1.0,0.5, 0.56,0.10,-0.95);
+LHUD.mesh.renderOrder=2000;
 train.add(LHUD.mesh);
 LHUD.mesh.visible = false;
 
 const LSB = makeHUDPanel(1024,1024, 0.8,0.8, -0.56,0.10,-0.95);
-LSB.mesh.renderOrder=2001;
+LSB.mesh.renderOrder=2000;
 train.add(LSB.mesh);
 LSB.mesh.visible = false;
 
@@ -1622,7 +1623,7 @@ function drawGoButton(blink){
  */
 function getExcavModelTarget(){
     // 列車前方かつ上方向（0.3*MODEL_SCALE 分上げる）
-    return new THREE.Vector3(0, 0.4, -1.9);
+    return new THREE.Vector3(0, 0.4, -1.4);
 }
 
 /*
