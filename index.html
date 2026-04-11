@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>a越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -884,6 +884,8 @@ ctrl1.addEventListener("disconnected", onControllerDisconnected);
   - outside モード: OrbitControls で自由視点
 ===================================================== */
 const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.layers.enable(0);
+camera.layers.enable(1);
 let orbitControls = null;
 
 /* =====================================================
@@ -1933,12 +1935,37 @@ function addHandModel(idx, slot){
     //     }
     // });
 
-    handModelGroup.add(clone);
+    clone.traverse(c=>{
+        if(c.isMesh){
 
-    learnHandModels.push({
-        mesh: clone,
-        slot: slot
+            // ★レイヤー分離
+            c.layers.set(1);
+
+            // ★前面表示（UI的に）
+            c.renderOrder = 1100;
+
+            // ★深度無効（UI扱い）
+            if(c.material){
+                c.material = c.material.clone();
+                c.material.depthTest  = false;
+                c.material.depthWrite = false;
+                c.material.transparent = true;
+                c.material.opacity = 1.0;
+            }
+        }
     });
+
+    // 位置（trainローカル）
+    train.add(clone);
+
+    // handModelGroup.add(clone);
+
+    // learnHandModels.push({
+    //     mesh: clone,
+    //     slot: slot
+    // });
+
+    handModels[slot] = clone;
 }
 
 /*
