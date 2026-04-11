@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>aa越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1566,95 +1566,31 @@ ARTIFACTS.forEach((_,i)=>prepareExcavImagePanel(i));
  *         showContent=false: 「発掘中...」テキスト表示（fly-in 中）
  *         showContent=true : 説明画像パネルに切り替え（Step 2 表示中）
  */
-/* =====================================================
-発掘パネル（画像メッシュ版）
-・アスペクト比を維持して表示
-===================================================== */
 function drawExcavPanel(idx, showContent){
-
-    // =====================================================
-    // ■ ローディング表示（そのまま）
-    // =====================================================
+    // "loading"表示（テキスト）
     if(!showContent){
         const {ctx,tex}=EXP;
-
         ctx.clearRect(0,0,1024,768);
-        ctx.fillStyle="rgba(0,5,20,0.88)";
-        rrect(ctx,8,8,1008,752,32);
-        ctx.fill();
-
-        ctx.strokeStyle="rgba(68,200,255,0.6)";
-        ctx.lineWidth=6;
-        rrect(ctx,8,8,1008,752,32);
-        ctx.stroke();
-
-        ctx.fillStyle="#44ddff";
-        ctx.font="bold 80px sans-serif";
-        ctx.textAlign="center";
+        ctx.fillStyle="rgba(0,5,20,0.88)"; rrect(ctx,8,8,1008,752,32); ctx.fill();
+        ctx.strokeStyle="rgba(68,200,255,0.6)"; ctx.lineWidth=6; rrect(ctx,8,8,1008,752,32); ctx.stroke();
+        ctx.fillStyle="#44ddff"; ctx.font="bold 80px sans-serif"; ctx.textAlign="center";
         ctx.fillText("⛏ 発掘中...",512,350);
-
-        tex.needsUpdate = true;
-        EXP.mesh.visible = true;
-
-        // 画像メッシュ非表示
-        if(learnExcavImageMesh[idx]){
-            learnExcavImageMesh[idx].visible = false;
-        }
-
+        tex.needsUpdate=true;
+        EXP.mesh.visible=true;
+        // 画像パネルは非表示
+        if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible=false;
         return;
     }
-
-    // =====================================================
-    // ■ 画像メッシュ表示（ここが本題）
-    // =====================================================
-
+    // 画像パネルに切り替え
     EXP.mesh.visible = false;
-
     const imgMesh = learnExcavImageMesh[idx];
-    if(!imgMesh) {
-        EXP.mesh.visible = true;
-        return;
+    if(imgMesh){
+        imgMesh.visible = true;
+        imgMesh.position.set(0, EXP_LY, EXP_LZ);
+    } else {
+        // 画像未ロード時はフォールバック
+        EXP.mesh.visible=true;
     }
-
-    const tex = imgMesh.material.map;
-
-    // 画像サイズ取得（重要）
-    if(tex && tex.image){
-
-        const imgW = tex.image.width;
-        const imgH = tex.image.height;
-
-        const imgAspect = imgW / imgH;
-
-        // -------------------------------------------------
-        // 基準サイズ（4:3パネル相当）
-        // -------------------------------------------------
-        const baseH = 1.2;              // ← 好きに調整OK
-        const baseW = baseH * (4/3);    // 元の枠（4:3）
-
-        let finalW, finalH;
-
-        if(imgAspect > (4/3)){
-            // 横長画像 → 幅優先
-            finalW = baseW;
-            finalH = baseW / imgAspect;
-        }else{
-            // 縦長画像 → 高さ優先
-            finalH = baseH;
-            finalW = baseH * imgAspect;
-        }
-
-        // スケール適用
-        imgMesh.scale.set(finalW, finalH, 1);
-    }
-
-    // -------------------------------------------------
-    // 位置調整
-    // -------------------------------------------------
-    imgMesh.position.set(0, EXP_LY, EXP_LZ);
-
-    // 表示
-    imgMesh.visible = true;
 }
 
 /*
@@ -1681,7 +1617,7 @@ function drawGoButton(blink){
  */
 function getExcavModelTarget(){
     // 列車前方かつ上方向（0.3*MODEL_SCALE 分上げる）
-    return new THREE.Vector3(0, 0.4, -0.5);
+    return new THREE.Vector3(0, 0.4, -1.4);
 }
 
 /*
@@ -1738,10 +1674,12 @@ function startLearnExcavation(idx){
                 c.material.depthTest  = false;
                 c.material.depthWrite = false;
 
-                // 透明対応（UI安定）
-                c.material.transparent = true;
+                c.material.transparent = false;
+                c.material.opacity = 1.0;
 
-                // カリング防止
+                // 念のため
+                c.material.alphaTest = 0;
+
                 c.frustumCulled = false;
             }
         });
