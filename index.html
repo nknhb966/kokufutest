@@ -1169,13 +1169,13 @@ function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
         new THREE.PlaneGeometry(pw,ph),
         new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false})
     );
-    mesh.position.set(lx,ly,lz); mesh.renderOrder=999;
+    mesh.position.set(lx,ly,lz);
     return {cv,ctx,tex,mesh};
 }
 const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95);
 const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95);
 const OV =makeHUDPanel(1024,512,  1.6,0.8,   0.00,1.0,-0.9);
-OV.mesh.renderOrder=1000; OV.mesh.visible=false;
+OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
 /*
@@ -1271,12 +1271,10 @@ let learnResultPanel = null;
 
 // HUD panel for learning
 const LHUD = makeHUDPanel(1024,512, 1.0,0.5, 0.56,0.10,-0.95);
-LHUD.mesh.renderOrder=1010;
 train.add(LHUD.mesh);
 LHUD.mesh.visible = false;
 
 const LSB = makeHUDPanel(1024,1024, 0.8,0.8, -0.56,0.10,-0.95);
-LSB.mesh.renderOrder=1010;
 train.add(LSB.mesh);
 LSB.mesh.visible = false;
 
@@ -1523,13 +1521,13 @@ const EXP_LZ = -1.65;
 const EXP_LY = 1.8;
 const EXP_LOADING_OFFSET_Y = -0.8;
 const EXP = makeHUDPanel(1024,1024, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
-EXP.mesh.renderOrder=1001; EXP.mesh.visible=false;
+EXP.mesh.visible=false;
 train.add(EXP.mesh);
 
 // ④: GOボタン3Dメッシュのみ残す / 位置をEXPに合わせ上方向 +0.2*MODEL_SCALE
 const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1;
 const GOBT = makeHUDPanel(512,200, 0.5,0.18, 0, GOBT_LY, EXP_LZ);
-GOBT.mesh.renderOrder=1002; GOBT.mesh.visible=false;
+GOBT.mesh.visible=false;
 GOBT.mesh.material.depthTest=false;
 train.add(GOBT.mesh);
 learnGoButton = GOBT;
@@ -1554,7 +1552,6 @@ function prepareExcavImagePanel(idx){
         });
         const mesh = new THREE.Mesh(new THREE.PlaneGeometry(EXP_PW, EXP_PH), mat);
         mesh.position.set(0, EXP_LY, EXP_LZ);
-        mesh.renderOrder = 1001;
         mesh.visible = false;
         train.add(mesh);
         learnExcavImageMesh[idx] = mesh;
@@ -1665,23 +1662,7 @@ function startLearnExcavation(idx){
         // =====================================================
         // ★最前面表示設定（今回の核心）
         // =====================================================
-        model.renderOrder = 2000;   // ← 最大レイヤー
 
-        model.traverse(c=>{
-            if(c.isMesh){
-
-                // マテリアル安全コピー
-                // c.material = c.material.clone();
-
-                c.material.transparent = false;
-                c.material.depthWrite = true;
-                c.material.depthTest  = true;
-
-                // カリング防止
-                c.frustumCulled = false;
-
-            }
-        });
     }
 
     // =====================================================
@@ -1771,13 +1752,7 @@ function tickLearnExcavation(dt){
         if(learnExcavFlyT === 0 && model){
             model.userData._flyStart = model.position.clone();
             // fly-out開始時にrenderOrderを演出用から通常HUD相当に戻す
-            model.renderOrder = 0;
-            model.traverse(c=>{
-                if(c.isMesh){
-                    c.renderOrder = 0;
-                    c.material.depthTest = true;
-                }
-            });
+
         }
         learnExcavFlyT += dt;
         const dur = 0.8;
@@ -1848,20 +1823,7 @@ function finishLearnExcavation(idx){
     // ⑩ renderOrder復元
     const model = permanentModels[idx];
     if(model){
-        model.traverse(c=>{
-            if(c.isMesh){
-                // ★完全復元
-                // if(c.userData._origMat){
-                //     c.material = c.userData._origMat;
-                // }
 
-                c.renderOrder=0;
-                c.material.transparent = false;
-                c.material.depthTest  = true;
-                c.material.depthWrite = true;
-                // c.material.opacity = 1.0;
-            }
-        });
         model.position.copy(artifactWorldPos[idx]);
         model.scale.setScalar(ARTIFACT_SCALE);
         model.visible = true;
@@ -1923,25 +1885,7 @@ function addHandModel(idx, slot){
     clone.rotation.set(0, 0, 0);
     clone.visible = true;
 
-    clone.traverse(c=>{
-        if(c.isMesh){
 
-            c.frustumCulled = false;
-
-            if(c.material){
-                c.material = c.material.clone();
-                // c.material.depthTest = false;   // 深度判定しない
-                // c.material.depthWrite = false;  // Zバッファ書き込みなし
-
-                // c.material.transparent = true;
-                // c.material.opacity = 1.0;
-                c.material.transparent = true;
-                c.material.depthTest  = false;
-                c.material.depthWrite = false;
-            }
-            c.renderOrder = 1100;
-        }
-    });
 
     handModelGroup.add(clone);
 
@@ -2051,9 +1995,7 @@ function resetLearningMode(){
     ARTIFACTS.forEach((_,i)=>{
         if(permanentModels[i]){
             permanentModels[i].visible=false;
-            permanentModels[i].traverse(c=>{
-                if(c.isMesh){ c.renderOrder=0; c.material.depthTest=true; }
-            });
+
         }
     });
     // ① シーン説明パネル・ライン再非表示
