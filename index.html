@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>e越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1908,6 +1908,7 @@ function addHandModel(idx, slot){
     if(!model) return;
 
     const clone = model.clone();
+    clone.layers.set(1);
 
     const total = ARTIFACTS.length;        // 通常8
     const spacing = 1.6 / (total - 1);     // 横幅1.6内に配置
@@ -1917,23 +1918,6 @@ function addHandModel(idx, slot){
     clone.scale.setScalar(ARTIFACT_SCALE * 0.13);
     clone.rotation.set(0, 0, 0);
     clone.visible = true;
-
-    // clone.renderOrder = 1100;
-
-    // clone.traverse(c=>{
-    //     if(c.isMesh){
-
-    //         c.frustumCulled = false;
-
-    //         if(c.material){
-    //             c.material.depthTest = false;   // 深度判定しない
-    //             c.material.depthWrite = false;  // Zバッファ書き込みなし
-
-    //             // 念のため（透明対応）
-    //             c.material.transparent = true;
-    //         }
-    //     }
-    // });
 
     clone.traverse(c=>{
         if(c.isMesh){
