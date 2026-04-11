@@ -1160,19 +1160,36 @@ HUD パネル（ヘッドアップディスプレイ）
 /*
  * 関数名：makeHUDPanel
  * 役割  ：Canvas テクスチャを持つ HUD 用 Plane メッシュを生成する
- * 引数  ：cw/ch=Canvas解像度, pw/ph=3Dサイズ, lx/ly/lz=train内ローカル座標
+ * 引数  ：cw/ch=Canvas解像度, pw/ph=3Dサイズ, lx/ly/lz=train内ローカル座標, rx/ry/rz=train内の回転
  */
-function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
-    const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
-    const ctx=cv.getContext("2d"), tex=new THREE.CanvasTexture(cv);
-    const mesh=new THREE.Mesh(
-        new THREE.PlaneGeometry(pw,ph),
-        new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false})
+function makeHUDPanel(cw, ch, pw, ph, lx, ly, lz, rx=0, ry=0, rz=0){
+    const cv = document.createElement("canvas");
+    cv.width = cw;
+    cv.height = ch;
+
+    const ctx = cv.getContext("2d");
+    const tex = new THREE.CanvasTexture(cv);
+
+    const mesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(pw, ph),
+        new THREE.MeshBasicMaterial({
+            map: tex,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false
+        })
     );
-    mesh.position.set(lx,ly,lz);
-    return {cv,ctx,tex,mesh};
+
+    // 位置
+    mesh.position.set(lx, ly, lz);
+
+    // ★ 回転（ラジアン）
+    mesh.rotation.set(rx, ry, rz);
+
+    return { cv, ctx, tex, mesh };
 }
-const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95);
+
+const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95,  15,90,0);
 const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95);
 const OV =makeHUDPanel(1024,512,  1.6,0.8,   0.00,1.0,-0.9);
 OV.mesh.visible=false;
