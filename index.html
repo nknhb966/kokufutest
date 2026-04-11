@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>r越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1776,6 +1776,7 @@ function tickLearnExcavation(dt){
             model.traverse(c=>{
                 if(c.isMesh){
                     c.renderOrder = 0;
+                    c.material.depthTest = true;
                 }
             });
         }
@@ -2481,7 +2482,7 @@ function onSphereClick(sphere){
         // 全球体初回クリック完了：コンプリートボーナス
         gameScore+=50; updateHUD();
         vibrate(500,1.0);
-        showOverlay("🎊 全発掘!","+50pt ボーナス！");
+        showOverlay("🎊 +50pt!","コンプリート ボーナス！");
         setTimeout(hideOverlay,2500);
     }
 }
