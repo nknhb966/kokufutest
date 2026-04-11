@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>a越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -251,9 +251,9 @@
       <div class="setting-card full">
         <div class="setting-label">モード</div>
         <div class="toggle" id="gameModeToggle">
+          <button data-value="learning">📚 学び</button>
           <button data-value="game">🎮 ゲーム</button>
           <button data-value="tour">🚃 ツアー</button>
-          <button data-value="learning">📚 学び</button>
         </div>
       </div>
       <div class="setting-card full">
@@ -373,7 +373,9 @@ function saveScore(score) {
 document.getElementById("resetBtn").addEventListener("click", () => {
     if (confirm("記録をリセットしますか？")) {
         localStorage.removeItem(LS_KEY);
+        localStorage.removeItem(LS_LEARNING_KEY);
         updateScoreBoard();
+        updateLearnScoreBoard();
     }
 });
 
