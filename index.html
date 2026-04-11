@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>aa越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1674,12 +1674,10 @@ function startLearnExcavation(idx){
                 c.material.depthTest  = false;
                 c.material.depthWrite = false;
 
-                c.material.transparent = false;
-                c.material.opacity = 1.0;
+                // 透明対応（UI安定）
+                c.material.transparent = true;
 
-                // 念のため
-                c.material.alphaTest = 0;
-
+                // カリング防止
                 c.frustumCulled = false;
             }
         });
