@@ -1628,6 +1628,7 @@ function getExcavModelTarget(){
  *         - モデルを取得して Step 1（fly-in）を開始する
  */
 function startLearnExcavation(idx){
+
     learnIsExcavating = true;
     learnExcavIdx = idx;
     learnExcavStep = 0;
@@ -1637,41 +1638,66 @@ function startLearnExcavation(idx){
     // ⑤ 演出中はレール音停止
     railSound.pause();
 
-    // Pause timer
+    // タイマー停止
     learnTimerPause();
 
-    // Darken scene
+    // 画面暗転
     setDark(0.68);
     sfxLearningExcavate();
     vibrate(200, 0.8);
 
-    // Grab the permanent model and move it
+    // =====================================================
+    // 発掘モデル取得（←ここが主役）
+    // =====================================================
     const model = permanentModels[idx];
     if(model){
+
         learnExcavModel = model;
         learnExcavOrigPos = model.position.clone();
         model.visible = true;
-        // ⑩ renderOrder: モデルをパネルより前面に
+
+        // =====================================================
+        // ★最前面表示設定（今回の核心）
+        // =====================================================
+        model.renderOrder = 2000;   // ← 最大レイヤー
+
         model.traverse(c=>{
             if(c.isMesh){
-                c.renderOrder=1003;
+
+                // メッシュ自体の描画順も統一
+                c.renderOrder = 2000;
+
+                // マテリアル安全コピー
                 c.material = c.material.clone();
-                c.material.depthTest=false;
+
+                // 深度無効（絶対前に出す）
+                c.material.depthTest  = false;
+                c.material.depthWrite = false;
+
+                // 透明対応（UI安定）
+                c.material.transparent = true;
+
+                // カリング防止
+                c.frustumCulled = false;
             }
         });
     }
 
-    // Show excavation panel (loading state)
+    // =====================================================
+    // UI制御
+    // =====================================================
     drawExcavPanel(idx, false);
+
     GOBT.mesh.visible = false;
     learnGoReady = false;
     learnGoButton.mesh.visible = false;
 
-    // Hide the sphere
+    // 球体非表示
     clickSpheres[idx].visible = false;
 
+    // アニメ開始
     learnExcavFlyT = 0;
-    learnExcavStep = 1; // animate model to front
+    learnExcavStep = 1;
 }
 
 let learnExcavFlyT = 0;
