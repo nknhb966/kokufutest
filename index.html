@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1179,19 +1179,6 @@ OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
 /*
- * 関数名：makeDarkPlane
- * 役割  ：シーン全体を暗くするための巨大な黒い半透明平面を生成する
- *         発掘演出・ゲーム終了時に使用
- */
-function makeDarkPlane(rx){
-    const m=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),
-        new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
-    m.rotation.x=rx; return m;
-}
-const dark1=makeDarkPlane(-Math.PI/2); dark1.position.y=500; scene.add(dark1);
-const dark2=makeDarkPlane( Math.PI/2); dark2.position.y=-100; scene.add(dark2);
-
-/*
  * 関数名：setDark
  * 役割  ：暗転プレーンの不透明度を設定する（0=透明 / 0.75=ほぼ黒）
  */
@@ -1575,7 +1562,7 @@ function drawExcavPanel(idx, showContent){
         ctx.fillStyle="rgba(0,5,20,0.88)"; rrect(ctx,8,8,1008,752,32); ctx.fill();
         ctx.strokeStyle="rgba(68,200,255,0.6)"; ctx.lineWidth=6; rrect(ctx,8,8,1008,752,32); ctx.stroke();
         ctx.fillStyle="#44ddff"; ctx.font="bold 80px sans-serif"; ctx.textAlign="center";
-        ctx.fillText("⛏ 発掘中...",512,350);
+        ctx.fillText("⛏ 発掘中...",512,512);
         tex.needsUpdate=true;
         EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
         EXP.mesh.visible=true;
