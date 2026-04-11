@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>b越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1667,8 +1667,7 @@ function startLearnExcavation(idx){
                 c.material = c.material.clone();
 
                 // 透明対応（UI安定）
-                c.material.transparent = false;
-                c.material.opacity = 1.0;
+                c.material.transparent = true;
 
                 // 深度無効（絶対前に出す）
                 c.material.depthTest  = false;
@@ -1757,7 +1756,7 @@ function tickLearnExcavation(dt){
             drawGoButton(blink);
         }
         // Y軸回転のみ：3秒で1回転（2π/3 rad/sec）
-        if(model) model.rotation.y += dt * (2*Math.PI/3);
+        if(model) model.rotation.y += dt * (2*Math.PI/30);
         // GOが押されるまで無限待機
         return;
     }
