@@ -1515,7 +1515,7 @@ const EXCAV_ANIM_DUR = 1.2; // fly-in 秒数（現在は 1.0 秒に上書き）
 
 // Panel for excavation (attached to train like HUD)
 // ③B: サイズ 1.2*1.5=1.8, 0.9*1.5=1.35 / 位置Z *= 1.5 → -1.65, Y += 0.5*MODEL_SCALE
-const EXP_PW = 1.8, EXP_PH = 1.8;
+const EXP_PW = 1.8, EXP_PH = 1.35;
 const EXP_LZ = -1.65;
 const EXP_LY = 0.3 + 0.3 * MODEL_SCALE;  // 元0.3 + 0.5*MODEL_SCALE
 const EXP = makeHUDPanel(1024,768, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
@@ -1674,13 +1674,8 @@ function startLearnExcavation(idx){
     learnExcavStep = 1; // animate model to front
 }
 
-// Called each frame during excavation
-// let learnExcavPhase = 0; // 0=fly-in, 1=showing, 2=fly-out
 let learnExcavFlyT = 0;
 let learnExcavShowTimer = 0;
-// let learnExcavGoPressed = false;
-// let learnExcavModelLocalPos = new THREE.Vector3();
-// let learnExcavModelWorldStart = new THREE.Vector3();
 
 /*
  * 関数名：tickLearnExcavation
@@ -1863,25 +1858,51 @@ const handModelGroup = new THREE.Group();
 train.add(handModelGroup);
 
 /*
- * 関数名：addHandModel
- * 役割  ：発掘完了モデルのクローンを列車内の手元スロットに追加する
- * 引数  ：idx=モデルインデックス, slot=配置スロット番号（0始まり）
- */
+手元モデル追加（学びモード）
+役割：
+  - 発掘済みモデルを手元スロットに表示
+  - 常にUIより手前に表示する
+*/
 function addHandModel(idx, slot){
+
+    // 対応モデル取得
     const model = permanentModels[idx];
     if(!model) return;
-    // Clone for hand display
+
     const clone = model.clone();
-    const total = ARTIFACTS.length;
-    const spacing = 0.8 / (total-1);
+
+    const total = ARTIFACTS.length;        // 通常8
+    const spacing = 0.8 / (total - 1);     // 横幅0.8内に配置
     const xPos = -0.4 + slot * spacing;
+
     clone.position.set(xPos, 0.22, -0.78);
     clone.scale.setScalar(ARTIFACT_SCALE * 0.065);
-    clone.rotation.set(0,0,0);
+    clone.rotation.set(0, 0, 0);
     clone.visible = true;
-    clone.traverse(c=>{if(c.isMesh)c.frustumCulled=false;});
+
+    clone.renderOrder = 1100;
+
+    clone.traverse(c=>{
+        if(c.isMesh){
+
+            c.frustumCulled = false;
+
+            if(c.material){
+                c.material.depthTest = false;   // 深度判定しない
+                c.material.depthWrite = false;  // Zバッファ書き込みなし
+
+                // 念のため（透明対応）
+                c.material.transparent = true;
+            }
+        }
+    });
+
     handModelGroup.add(clone);
-    learnHandModels.push({mesh:clone, slot});
+
+    learnHandModels.push({
+        mesh: clone,
+        slot: slot
+    });
 }
 
 /*
