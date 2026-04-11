@@ -1194,8 +1194,8 @@ function makeHUDPanel(cw, ch, pw, ph, lx, ly, lz, rx=0, ry=0, rz=0){
     return { cv, ctx, tex, mesh };
 }
 
-const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,0.5,    0,-80,-10);
-const SB =makeHUDPanel(512,1024,  0.4,0.8,  -0.56,0.10,-0.5,   0,80,10);
+const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95,   10,-80,0);
+const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95,   10,80,0);
 const OV =makeHUDPanel(1024,512,  1.6,0.8,   0.00,1.0,-0.9);
 OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
