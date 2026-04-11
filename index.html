@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>1越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1163,52 +1163,14 @@ HUD パネル（ヘッドアップディスプレイ）
  * 引数  ：cw/ch=Canvas解像度, pw/ph=3Dサイズ, lx/ly/lz=train内ローカル座標
  */
 function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
-    const group = new THREE.Group();
-
-    // === Canvas（テキスト用） ===
-    const cv=document.createElement("canvas");
-    cv.width=cw; cv.height=ch;
-    const ctx=cv.getContext("2d");
-    const tex=new THREE.CanvasTexture(cv);
-
-    const textMesh=new THREE.Mesh(
+    const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
+    const ctx=cv.getContext("2d"), tex=new THREE.CanvasTexture(cv);
+    const mesh=new THREE.Mesh(
         new THREE.PlaneGeometry(pw,ph),
-        new THREE.MeshBasicMaterial({
-            map:tex,
-            transparent:true,
-            depthTest:false
-        })
+        new THREE.MeshBasicMaterial({map:tex,transparent:false,depthTest:true,depthWrite:true})
     );
-
-    // === 背景（少し奥） ===
-    const bgMesh=new THREE.Mesh(
-        new THREE.PlaneGeometry(pw*1.05,ph*1.05),
-        new THREE.MeshBasicMaterial({
-            color:0x000000,
-            transparent:true,
-            opacity:0.6
-        })
-    );
-    bgMesh.position.z = -0.01;
-
-    // === 枠（さらに手前） ===
-    const frameMesh=new THREE.Mesh(
-        new THREE.PlaneGeometry(pw*1.08,ph*1.08),
-        new THREE.MeshBasicMaterial({
-            color:0xffcc33,
-            transparent:true,
-            opacity:0.25
-        })
-    );
-    frameMesh.position.z = 0.01;
-
-    group.add(bgMesh);
-    group.add(textMesh);
-    group.add(frameMesh);
-
-    group.position.set(lx,ly,lz);
-
-    return {cv,ctx,tex,mesh:group};
+    mesh.position.set(lx,ly,lz);
+    return {cv,ctx,tex,mesh};
 }
 const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95);
 const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95);
