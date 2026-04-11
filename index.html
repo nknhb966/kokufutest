@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>s越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1668,32 +1668,29 @@ function startLearnExcavation(idx){
         model.traverse(c=>{
             if(c.isMesh){
 
-                // // マテリアル安全コピー
-                // c.material = c.material.clone();
-
-                // // 透明対応（UI安定）
-                // c.material.transparent = true;
-
-                // // 深度無効（絶対前に出す）
-                // c.material.depthTest  = true;
-                // c.material.depthWrite = false;
-
-                // // カリング防止
-                // c.frustumCulled = false;
-
-
-                // ★元マテリアル保存（初回のみ）
-                if(!c.userData._origMat){
-                    c.userData._origMat = c.material;
-                }
-
+                // マテリアル安全コピー
                 c.material = c.material.clone();
 
                 c.material.transparent = false;
-                c.material.depthTest  = true;
                 c.material.depthWrite = true;
+                c.material.depthTest  = true;
 
+                // カリング防止
                 c.frustumCulled = false;
+
+
+                // ★元マテリアル保存（初回のみ）
+                // if(!c.userData._origMat){
+                //     c.userData._origMat = c.material;
+                // }
+
+                // c.material = c.material.clone();
+
+                // c.material.transparent = false;
+                // c.material.depthTest  = true;
+                // c.material.depthWrite = true;
+
+                // c.frustumCulled = false;
             }
         });
     }
@@ -1865,15 +1862,15 @@ function finishLearnExcavation(idx){
         model.traverse(c=>{
             if(c.isMesh){
                 // ★完全復元
-                if(c.userData._origMat){
-                    c.material = c.userData._origMat;
-                }
+                // if(c.userData._origMat){
+                //     c.material = c.userData._origMat;
+                // }
 
                 c.renderOrder=0;
+                c.material.transparent = false;
                 c.material.depthTest  = true;
                 c.material.depthWrite = true;
-                c.material.transparent = false;
-                c.material.opacity = 1.0;
+                // c.material.opacity = 1.0;
             }
         });
         model.position.copy(artifactWorldPos[idx]);
@@ -1944,11 +1941,14 @@ function addHandModel(idx, slot){
 
             if(c.material){
                 c.material = c.material.clone();
-                c.material.depthTest = false;   // 深度判定しない
-                c.material.depthWrite = false;  // Zバッファ書き込みなし
+                // c.material.depthTest = false;   // 深度判定しない
+                // c.material.depthWrite = false;  // Zバッファ書き込みなし
 
+                // c.material.transparent = true;
+                // c.material.opacity = 1.0;
                 c.material.transparent = true;
-                c.material.opacity = 1.0;
+                c.material.depthTest  = false;
+                c.material.depthWrite = false;
             }
             c.renderOrder = 1100;
         }
