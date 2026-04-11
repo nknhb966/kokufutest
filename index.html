@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>r越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -795,10 +795,12 @@ renderer.xr.addEventListener("sessionstart", () => {
 //     }
 // });
 renderer.xr.addEventListener("sessionend", () => {
-    railSound.pause();
-    document.getElementById("miniUI").style.display  = "none";
-    document.getElementById("uiPanel").style.display = "block";
-    setCameraMode("ride");
+    // railSound.pause();
+    // renderer.xr.enabled = false;
+    // document.getElementById("miniUI").style.display  = "none";
+    // document.getElementById("uiPanel").style.display = "block";
+    location.reload();
+    // setCameraMode("ride");
 });
 /* =====================================================
 VR コントローラー設定
