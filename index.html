@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>1越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1106,7 +1106,7 @@ train.add(xrRig);
 
 const mCv=document.createElement("canvas"); mCv.width=256; mCv.height=128;
 const mCtx=mCv.getContext("2d"), mTex=new THREE.CanvasTexture(mCv);
-const mMesh=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.18),new THREE.MeshBasicMaterial({map:mTex,transparent:true}));
+const mMesh=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.18),new THREE.MeshBasicMaterial({map:mTex,transparent:false}));
 mMesh.position.set(0,0.4,-0.45); mMesh.rotation.x=THREE.MathUtils.degToRad(-90);
 train.add(mMesh);
 let accelState=0,glowStr=0,lastMeter=0;
@@ -1628,7 +1628,7 @@ function drawExcavPanel(idx, showContent){
 function drawGoButton(blink){
     const {ctx,tex}=GOBT;
     ctx.clearRect(0,0,512,200);
-    const alpha = blink ? 1.0 : 0.4;
+    const alpha = 0.7 + 0.3 * Math.sin(performance.now()*0.005);
     ctx.globalAlpha = alpha;
     ctx.fillStyle="#ffee00"; rrect(ctx,8,8,496,184,30); ctx.fill();
     ctx.fillStyle="#000"; ctx.font="bold 96px sans-serif"; ctx.textAlign="center";
