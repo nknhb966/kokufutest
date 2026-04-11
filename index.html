@@ -1573,44 +1573,61 @@ ARTIFACTS.forEach((_,i)=>prepareExcavImagePanel(i));
  */
 const SIZE = 1024;
 
+// アニメーション用（グローバル）
+let excavAnimTime = 0;
+
 function drawExcavPanel(idx, showContent){
     const {ctx,tex}=EXP;
 
-    // "loading"表示（テキスト）
+    // ===== ローディング中 =====
     if(!showContent){
+        excavAnimTime += 0.05; // スピード調整OK
+
         ctx.clearRect(0,0,SIZE,SIZE);
 
-        // 背景
+        // ▼ パネルサイズ（高さ1/3・中央配置）
+        const panelH = SIZE / 3;
+        const panelY = (SIZE - panelH) / 2;
+
+        // ▼ 背景
         ctx.fillStyle="rgba(0,5,20,0.88)";
-        rrect(ctx,8,8,SIZE-16,SIZE/3-16,32);
+        rrect(ctx, 8, panelY, SIZE-16, panelH, 24);
         ctx.fill();
 
-        // 枠
+        // ▼ 枠
         ctx.strokeStyle="rgba(68,200,255,0.6)";
         ctx.lineWidth=6;
-        rrect(ctx,8,8,SIZE-16,SIZE/3-16,32);
+        rrect(ctx, 8, panelY, SIZE-16, panelH, 24);
         ctx.stroke();
 
-        // テキスト（完全中央）
-        ctx.fillStyle="#44ddff";
+        // ▼ ドットアニメーション
+        const dots = ".".repeat(Math.floor(excavAnimTime % 4));
+
+        // ▼ ほんのり点滅
+        const alpha = 0.6 + 0.4 * Math.sin(excavAnimTime * 3);
+
+        ctx.fillStyle = `rgba(68,221,255,${alpha})`;
         ctx.font="bold 80px sans-serif";
         ctx.textAlign="center";
         ctx.textBaseline="middle";
-        ctx.fillText("⛏ 発掘中...", SIZE/2, SIZE/2);
 
-        tex.needsUpdate=true;
+        // ▼ テキスト
+        ctx.fillText(`⛏ 発掘中${dots}`, SIZE/2, SIZE/2);
 
+        tex.needsUpdate = true;
+
+        // ▼ 表示位置
         EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
-        EXP.mesh.visible=true;
+        EXP.mesh.visible = true;
 
-        // 画像パネルは非表示
+        // ▼ 画像は非表示
         if(learnExcavImageMesh[idx]) {
-            learnExcavImageMesh[idx].visible=false;
+            learnExcavImageMesh[idx].visible = false;
         }
         return;
     }
 
-    // 完了時
+    // ===== 完了時 =====
     EXP.mesh.position.set(0, EXP_LY, EXP_LZ);
     EXP.mesh.visible = false;
 
@@ -1620,7 +1637,7 @@ function drawExcavPanel(idx, showContent){
         imgMesh.position.set(0, EXP_LY, EXP_LZ);
     } else {
         // フォールバック
-        EXP.mesh.visible=true;
+        EXP.mesh.visible = true;
     }
 }
 
