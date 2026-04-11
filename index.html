@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター</title>
+<title>越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -227,7 +227,7 @@
 <div id="uiPanel">
   <div class="panel-inner">
     <p class="main-title">越前国府VRコースター</p>
-    <p class="sub-title">〜体験と挑戦、ふたつの旅〜</p>
+    <p class="sub-title">〜遺跡を駆ける、発見の旅〜</p>
 
     <div id="vrButtonWrap"></div>
 
@@ -287,14 +287,14 @@
   <div class="modal-box">
     <button class="modal-close" id="modalClose">×</button>
     <div class="modal-tabs">
+      <button class="modal-tab" data-mode="learning">📚 学びモード</button>
       <button class="modal-tab active" data-mode="game">🎮 ゲームモード</button>
       <button class="modal-tab" data-mode="tour">🚃 ツアーモード</button>
-      <button class="modal-tab" data-mode="learning">📚 学びモード</button>
     </div>
     <div class="modal-content" id="modalContent"></div>
     <div class="modal-nav">
       <button id="modalPrev">◀</button>
-      <span class="mode-label" id="modalModeLabel">ゲームモード</span>
+      <span class="mode-label" id="modalModeLabel">学びモード</span>
       <button id="modalNext">▶</button>
     </div>
   </div>
@@ -1160,43 +1160,21 @@ HUD パネル（ヘッドアップディスプレイ）
 /*
  * 関数名：makeHUDPanel
  * 役割  ：Canvas テクスチャを持つ HUD 用 Plane メッシュを生成する
- * 引数  ：cw/ch=Canvas解像度, pw/ph=3Dサイズ, lx/ly/lz=train内ローカル座標, rx/ry/rz=train内の回転
+ * 引数  ：cw/ch=Canvas解像度, pw/ph=3Dサイズ, lx/ly/lz=train内ローカル座標
  */
-function makeHUDPanel(cw, ch, pw, ph, lx, ly, lz, rx=0, ry=0, rz=0){
-    const cv = document.createElement("canvas");
-    cv.width = cw;
-    cv.height = ch;
-
-    const ctx = cv.getContext("2d");
-    const tex = new THREE.CanvasTexture(cv);
-
-    const mesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(pw, ph),
-        new THREE.MeshBasicMaterial({
-            map: tex,
-            transparent: true,
-            depthTest: false,
-            depthWrite: false
-        })
+function makeHUDPanel(cw,ch,pw,ph,lx,ly,lz){
+    const cv=document.createElement("canvas"); cv.width=cw; cv.height=ch;
+    const ctx=cv.getContext("2d"), tex=new THREE.CanvasTexture(cv);
+    const mesh=new THREE.Mesh(
+        new THREE.PlaneGeometry(pw,ph),
+        new THREE.MeshBasicMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false})
     );
-
-    // 位置
-    mesh.position.set(lx, ly, lz);
-
-    // ★ 度 → ラジアン変換して回転
-    const degToRad = d => d * Math.PI / 180;
-    mesh.rotation.set(
-        degToRad(rx),
-        degToRad(ry),
-        degToRad(rz)
-    );
-
-    return { cv, ctx, tex, mesh };
+    mesh.position.set(lx,ly,lz);
+    return {cv,ctx,tex,mesh};
 }
-
-const HUD=makeHUDPanel(1024,512,  1.0,0.5,  0.56,0.70,-0.2,   0,-60,0);
-const SB =makeHUDPanel(1024,1024, 0.8,0.8,  0.56,0.00,-0.2,   0,-60,0);
-const OV =makeHUDPanel(1024,512,  1.6,0.8,  0.00,1.0,-0.9);
+const HUD=makeHUDPanel(1024,512,  1.0,0.5,   0.56,0.10,-0.95);
+const SB =makeHUDPanel(1024,1024, 0.8,0.8,  -0.56,0.10,-0.95);
+const OV =makeHUDPanel(1024,512,  1.6,0.8,   0.00,1.0,-0.9);
 OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
