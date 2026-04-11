@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>a越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1771,10 +1771,10 @@ function tickLearnExcavation(dt){
         if(learnExcavFlyT === 0 && model){
             model.userData._flyStart = model.position.clone();
             // fly-out開始時にrenderOrderを演出用から通常HUD相当に戻す
-            model.renderOrder = 1003;
+            model.renderOrder = 1000;
             model.traverse(c=>{
                 if(c.isMesh){
-                    c.renderOrder = 1003;
+                    c.renderOrder = 1000;
                 }
             });
         }
@@ -2465,7 +2465,7 @@ function onSphereClick(sphere){
         // 全球体初回クリック完了：コンプリートボーナス
         gameScore+=50; updateHUD();
         vibrate(500,1.0);
-        showOverlay("🎊 COMPLETE!","+50pt ボーナス！");
+        showOverlay("🎊 コンプリート!","+50pt ボーナス！");
         setTimeout(hideOverlay,2500);
     }
 }
