@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>a越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -764,8 +764,19 @@ renderer.xr.addEventListener("sessionstart", () => {
     camera.position.set(0, 0.2, 0);
     camera.rotation.set(0, 0, 0);
 
+    // ★① 元カメラ
+    camera.layers.enable(1);
+
+    // ★② XRカメラ
     const xrCam = renderer.xr.getCamera(camera);
     xrCam.layers.enable(1);
+
+    // ★③ 左右の実カメラ（これが重要）
+    if (xrCam.cameras) {
+        xrCam.cameras.forEach(cam=>{
+            cam.layers.enable(1);
+        });
+    }
 
     if (audioCtx.state === "suspended") audioCtx.resume();
 
@@ -1924,7 +1935,7 @@ function addHandModel(idx, slot){
     clone.visible = true;
 
     clone.traverse(c=>{
-        if(c.isMesh){
+        // if(c.isMesh){
 
             // ★レイヤー分離
             c.layers.set(1);
@@ -1940,7 +1951,7 @@ function addHandModel(idx, slot){
                 c.material.transparent = true;
                 c.material.opacity = 1.0;
             }
-        }
+        // }
     });
 
     // 位置（trainローカル）
