@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター</title>
+<title>1越前国府VRコースター</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1573,16 +1573,11 @@ ARTIFACTS.forEach((_,i)=>prepareExcavImagePanel(i));
  */
 const SIZE = 1024;
 
-// アニメーション用（グローバル）
-let excavAnimTime = 0;
-
 function drawExcavPanel(idx, showContent){
     const {ctx,tex}=EXP;
 
-    // ===== ローディング中 =====
+    // "loading"表示（テキスト）
     if(!showContent){
-        excavAnimTime += 0.5; // スピード調整OK
-
         ctx.clearRect(0,0,SIZE,SIZE);
 
         // ▼ パネルサイズ（高さ1/3・中央配置）
@@ -1600,21 +1595,14 @@ function drawExcavPanel(idx, showContent){
         rrect(ctx, 8, panelY, SIZE-16, panelH, 24);
         ctx.stroke();
 
-        // ▼ ドットアニメーション
-        const dots = ".".repeat(Math.floor(excavAnimTime % 4));
-
-        // ▼ ほんのり点滅
-        const alpha = 0.6 + 0.4 * Math.sin(excavAnimTime * 3);
-
-        ctx.fillStyle = `rgba(68,221,255,${alpha})`;
+        // ▼ テキスト
+        ctx.fillStyle="#44ddff";
         ctx.font="bold 80px sans-serif";
         ctx.textAlign="center";
         ctx.textBaseline="middle";
+        ctx.fillText("⛏ 発掘中...", SIZE/2, SIZE/2);
 
-        // ▼ テキスト
-        ctx.fillText(`⛏ 発掘中${dots}`, SIZE/2, SIZE/2);
-
-        tex.needsUpdate = true;
+        tex.needsUpdate=true;
 
         // ▼ 表示位置
         EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
