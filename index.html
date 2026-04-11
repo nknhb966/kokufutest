@@ -1545,7 +1545,7 @@ function prepareExcavImagePanel(idx){
             side:THREE.DoubleSide, depthTest:false
         });
         const mesh = new THREE.Mesh(new THREE.PlaneGeometry(EXP_PW, EXP_PH), mat);
-        mesh.position.set(0, EXP_LY, EXP_LZ);
+        mesh.position.set(0, EXP_LY - 0.8, EXP_LZ);
         mesh.renderOrder = 1001;
         mesh.visible = false;
         train.add(mesh);
@@ -1582,7 +1582,7 @@ function drawExcavPanel(idx, showContent){
     const imgMesh = learnExcavImageMesh[idx];
     if(imgMesh){
         imgMesh.visible = true;
-        imgMesh.position.set(0, EXP_LY -1.0, EXP_LZ);
+        imgMesh.position.set(0, EXP_LY, EXP_LZ);
     } else {
         // 画像未ロード時はフォールバック
         EXP.mesh.visible=true;
