@@ -2359,157 +2359,52 @@ function onLearnComplete(){
  * 役割  ：コンプリート後のリザルトパネルを EXP キャンバスに描画する
  *         今回タイム（大）と TOP5 ランキングを表示する
  */
-
-let resultStartTime = 0;
-
 function showLearnResult(elapsed){
-
-    // アニメ開始時間リセット
-    resultStartTime = performance.now();
-
+    // リザルトを EXP パネルに描画（流用）
     const {ctx,tex}=EXP;
     ctx.clearRect(0,0,1024,768);
+    ctx.fillStyle="rgba(0,5,20,0.95)"; rrect(ctx,8,8,1008,752,32); ctx.fill();
+    ctx.strokeStyle="rgba(255,220,60,0.8)"; ctx.lineWidth=8; rrect(ctx,8,8,1008,752,32); ctx.stroke();
 
-    // =========================
-    // 背景
-    // =========================
-    ctx.fillStyle="rgba(0,5,20,0.95)";
-    rrect(ctx,8,8,1008,752,32);
-    ctx.fill();
+    ctx.fillStyle="#ffee44"; ctx.font="bold 70px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("🎊 全発掘コンプリート！",512,100);
 
-    ctx.strokeStyle="rgba(255,220,60,0.8)";
-    ctx.lineWidth=8;
-    rrect(ctx,8,8,1008,752,32);
-    ctx.stroke();
+    ctx.fillStyle="#ffffff"; ctx.font="bold 50px sans-serif";
+    ctx.fillText("⏱ TIME",512,185);
+    ctx.fillStyle="#44ffcc"; ctx.font="bold 130px sans-serif";
+    ctx.fillText(`${(elapsed/1000).toFixed(1)}s`,512,330);
 
-    const H = 768;
-    const topArea = H * 0.4;
+    ctx.strokeStyle="rgba(68,200,255,0.4)"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(60,395); ctx.lineTo(964,395); ctx.stroke();
 
-    // =========================
-    // 上40%：今回の結果
-    // =========================
-    ctx.fillStyle="#ffee44";
-    ctx.font="bold 60px sans-serif";
-    ctx.textAlign="center";
-    ctx.fillText("🎊 全発掘コンプリート！",512, topArea * 0.25);
-
-    ctx.fillStyle="#ffffff";
-    ctx.font="bold 40px sans-serif";
-    ctx.fillText("⏱ TIME",512, topArea * 0.45);
-
-    ctx.fillStyle="#44ffcc";
-    ctx.font="bold 110px sans-serif";
-    ctx.fillText(`${(elapsed/1000).toFixed(1)}s`,512, topArea * 0.85);
-
-    // 区切り線
-    ctx.strokeStyle="rgba(68,200,255,0.4)";
-    ctx.lineWidth=2;
-    ctx.beginPath();
-    ctx.moveTo(60, topArea);
-    ctx.lineTo(964, topArea);
-    ctx.stroke();
-
-    // =========================
-    // 下60%：TOP5
-    // =========================
-    const top5TitleY = topArea + H * 0.1;
-    const rowStartY  = topArea + H * 0.2;
-    const rowStep    = H * 0.1;
-
-    ctx.fillStyle="#ffcc44";
-    ctx.font="bold 52px sans-serif";
-    ctx.textAlign="center";
-    ctx.fillText("🏆 TOP５",512, top5TitleY);
+    ctx.fillStyle="#ffcc44"; ctx.font="bold 52px sans-serif";
+    ctx.fillText("🏆 TOP 5",512,430);
 
     const scores = loadLearningScores();
     const medals=["🥇","🥈","🥉","4.","5."];
-
-    const now = performance.now();
-    const t = (now - resultStartTime) / 1000;
-
     if(!scores.length){
-        ctx.fillStyle="#aaa";
-        ctx.font="38px sans-serif";
-        ctx.fillText("記録なし",512, rowStartY);
+        ctx.fillStyle="#aaa"; ctx.font="38px sans-serif"; ctx.textAlign="center";
+        ctx.fillText("記録なし",512,530);
     } else {
-
         scores.slice(0,5).forEach((s,i)=>{
-
-            // 出現ディレイ（順番に出る）
-            if(t < i * 0.2) return;
-
-            let y = rowStartY + i * rowStep;
+            const y=472+i*60;
             const isNew = Math.abs(s.time-elapsed)<10;
-
-            // =========================
-            // 🥇 1位演出
-            // =========================
-            let scale = 1;
-            if(i===0){
-                scale = 1.25 + Math.sin(t*3)*0.05;
-                y -= 10;
-            }
-
-            // =========================
-            // NEWアニメ
-            // =========================
-            let newScale = 1;
+            // NEWバッジ（左端固定）
             if(isNew){
-                newScale = 1 + Math.sin(t*6)*0.2;
+                ctx.fillStyle="#44ffcc"; ctx.font="bold 26px sans-serif"; ctx.textAlign="left";
+                ctx.fillText("★NEW",56,y);
             }
-
-            // ★NEW
-            if(isNew){
-                ctx.save();
-                ctx.translate(56,y);
-                ctx.scale(newScale,newScale);
-
-                ctx.fillStyle = `hsl(${180 + Math.sin(t*5)*40},100%,70%)`;
-                ctx.font="bold 26px sans-serif";
-                ctx.textAlign="left";
-                ctx.fillText("★NEW",0,0);
-
-                ctx.restore();
-            }
-
-            // =========================
-            // スコア描画
-            // =========================
-            ctx.save();
-            ctx.translate(512,y);
-            ctx.scale(scale,scale);
-
-            ctx.fillStyle=isNew?"#44ffcc":
-                i===0?"#ffd700":
-                i===1?"#c0c0c0":
-                i===2?"#cd7f32":"#88ccff";
-
-            // 1位だけグロー
-            if(i===0){
-                ctx.shadowColor="#ffd700";
-                ctx.shadowBlur=20;
-            }
-
-            ctx.font=`bold ${i===0?50:40}px sans-serif`;
-            ctx.textAlign="center";
-
-            ctx.fillText(`${medals[i]} ${(s.time/1000).toFixed(1)}s`,0,0);
-
-            ctx.restore();
-
-            // =========================
-            // 日付
-            // =========================
+            // スコア（中央）
+            ctx.fillStyle=isNew?"#44ffcc":i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
+            ctx.font=`bold ${i===0?46:40}px sans-serif`; ctx.textAlign="center";
+            ctx.fillText(`${medals[i]} ${(s.time/1000).toFixed(1)}s`,512,y);
+            // 日付＋時刻（右端）
             const clockStr = s.clock ? `${s.date} ${s.clock}` : s.date;
-            ctx.fillStyle="#777";
-            ctx.font="26px sans-serif";
-            ctx.textAlign="right";
+            ctx.fillStyle="#777"; ctx.font="26px sans-serif"; ctx.textAlign="right";
             ctx.fillText(clockStr,968,y);
         });
     }
-
     tex.needsUpdate=true;
-
     EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
     EXP.mesh.visible=true;
 
