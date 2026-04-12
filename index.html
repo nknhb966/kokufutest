@@ -541,6 +541,8 @@ const MODAL_TEXT = {
         レール上をのんびり走り回れます。</p>
         <h3 style="margin-top:14px">🕹 VR コントローラー操作</h3>
         <ul>
+          <li><span class="tag">A</span> ボタン（右）：走行スタート</li>
+          <li><span class="tag">B</span> ボタン（右）：走行ストップ</li>
           <li>右スティック ↑：加速</li>
           <li>右スティック ↓：減速</li>
         </ul>
@@ -805,6 +807,7 @@ renderer.xr.addEventListener("sessionstart", () => {
     if (audioCtx.state === "suspended") audioCtx.resume();
 
     if (CONFIG.gameMode === "learning") {
+        // 学びモード：HUDを初期化してからCanvas描画
         LHUD.mesh.visible = true;
         LSB.mesh.visible  = true;
         HUD.mesh.visible  = false;
@@ -812,13 +815,27 @@ renderer.xr.addEventListener("sessionstart", () => {
         initLearnSpheres();
         updateLearnHUD();
         updateLearnScoreBoard();
+    } else if (CONFIG.gameMode === "tour") {
+        // ツアーモード：ゲームHUDは非表示
+        HUD.mesh.visible = false;
+        SB.mesh.visible  = false;
+        LHUD.mesh.visible = false;
+        LSB.mesh.visible  = false;
     } else {
+        // ゲームモード：HUDとスコアボードを初期描画
         HUD.mesh.visible = true;
         SB.mesh.visible  = true;
+        LHUD.mesh.visible = false;
+        LSB.mesh.visible  = false;
+        updateHUD();
+        updateScoreBoard();
     }
-    if (CONFIG.gameMode === "tour") {
-        railSound.play().catch(()=>{});
-    }
+
+    // レーザーラインを確実に初期化（接続前でも表示状態を正しく設定）
+    laserRight.line.visible = false;
+    laserLeft.line.visible  = false;
+    laserRight.dot.visible  = false;
+    laserLeft.dot.visible   = false;
 });
 
 renderer.xr.addEventListener("sessionend", () => {
@@ -1071,11 +1088,11 @@ const panelGeo  = new THREE.PlaneGeometry(1.5*MODEL_SCALE,1.5*MODEL_SCALE);
 const anchorGeo = new THREE.SphereGeometry(0.05,16,16);
 const anchorMat = new THREE.MeshBasicMaterial({color:0x66ccff});
 
-// Learning mode: sphere state (declared early to be available in EXPLAIN_PTS.forEach)
+// 学びモード：球体の状態管理（EXPLAIN_PTS.forEachより前に宣言）
 const learnSphereState = {}; // idx -> {state, count}
 
-// Learning mode: per-idx references to scene explanation panels/lines
-const learnScenePanels = {}; // idx -> THREE.Mesh (scene panel)
+// 学びモード：シーン説明パネル・ラインの参照（発掘完了時に表示）
+const learnScenePanels = {}; // idx -> THREE.Mesh（シーン内説明パネル）
 const learnSceneLines  = {}; // idx -> THREE.Line
 
 EXPLAIN_PTS.forEach((data,idx)=>{
@@ -1096,7 +1113,7 @@ EXPLAIN_PTS.forEach((data,idx)=>{
     sph.position.set(x*MODEL_SCALE,1.25*MODEL_SCALE,z*MODEL_SCALE);
     sph.userData.artifactIndex=idx; scene.add(sph); clickSpheres.push(sph);
 
-    // In learning mode, init sphere state immediately
+    // 学びモードでは球体の状態を即座に初期化する
     if(isLearningMode){
         learnSphereState[idx] = {state:"idle", count:0};
     }
@@ -1114,7 +1131,7 @@ EXPLAIN_PTS.forEach((data,idx)=>{
                                 new THREE.LineBasicMaterial({color:0x88ccff}));
         scene.add(ln); scenelines.push(ln);
 
-        // ① 学びモードでは初期非表示（発掘完了時に表示）
+        // 学びモードでは初期非表示（発掘完了時に表示）
         if(isLearningMode){
             mesh.visible = false;
             ln.visible   = false;
@@ -1212,23 +1229,10 @@ OV.mesh.visible=false;
 train.add(HUD.mesh); train.add(SB.mesh); train.add(OV.mesh);
 
 /*
- * 関数名：makeDarkPlane
- * 役割  ：シーン全体を暗くするための巨大な黒い半透明平面を生成する
- *         発掘演出・ゲーム終了時に使用
- */
-function makeDarkPlane(rx){
-    const m=new THREE.Mesh(new THREE.PlaneGeometry(2000,2000),
-        new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide}));
-    m.rotation.x=rx; return m;
-}
-const dark1=makeDarkPlane(-Math.PI/2); dark1.position.y=500; scene.add(dark1);
-const dark2=makeDarkPlane( Math.PI/2); dark2.position.y=-100; scene.add(dark2);
-
-/*
  * 関数名：setDark
- * 役割  ：暗転プレーンの不透明度を設定する（0=透明 / 0.75=ほぼ黒）
+ * 役割  ：暗転プレーン削除につき何もしない（互換性のために残す）
  */
-function setDark(a){ dark1.material.opacity=dark2.material.opacity=Math.max(0,Math.min(1,a)); }
+function setDark(a){ /* 暗転プレーン削除済み */ }
 
 /*
  * 関数名：rrect
@@ -1273,35 +1277,35 @@ function clearTimers(){
       done        : 発掘済み
   - learnExcavQueue: 発掘待ち FIFO キュー
 ===================================================== */
-// globalState: idle / playing / result  (uses gamePhase)
+// globalState: idle / playing / result  （gamePhase と共用）
 // learningSubState: exploring / excavating
 let learningSubState = "exploring";
 
-// sphere state per idx: idle / accumulating / ready / done
-// (learnSphereState declared early, above EXPLAIN_PTS.forEach)
-const learnExcavQueue = []; // FIFO queue of idx
+// 球体の状態 per idx: idle / accumulating / ready / done
+// （learnSphereState は EXPLAIN_PTS.forEach より前に宣言済み）
+const learnExcavQueue = []; // 発掘待ち FIFO キュー
 let learnIsExcavating = false;
 
-// Timer
+// タイマー
 let learnTimerStart = 0;
-let learnTimerPaused = 0;   // accumulated pause time (ms)
-let learnPauseStart = 0;    // when current pause started
+let learnTimerPaused = 0;   // 累計停止時間（ms）
+let learnPauseStart = 0;    // 一時停止開始時刻
 let learnDoneCount = 0;
 
-// Hand models (excavated models attached to train)
+// 手元モデル（発掘済みモデルを列車に追従表示）
 const learnHandModels = []; // {mesh, slot}
 
-// Excavation panel refs
-let learnExcavPanel = null;   // THREE.Group attached to train (HUD-like)
-let learnGoButton = null;     // canvas mesh for GO button
-let learnGoReady = false;     // can the Go button be clicked
+// 発掘演出パネル関連
+let learnExcavPanel = null;   // 列車に追従する発掘演出グループ（HUD と同様）
+let learnGoButton = null;     // GOボタンのCanvasメッシュ
+let learnGoReady = false;     // GOボタンが押せる状態か
 
-// Result panel
+// リザルトパネル
 let learnResultPanel = null;
 
-// Dim overlay for excavation (reuse setDark)
+// 発掘演出の暗転（setDark を流用 → 削除済みにつき何もしない）
 
-// HUD panel for learning
+// 学びモード用 HUDパネル
 const LHUD = makeHUDPanel(1024,512, 1.0,0.5, 0.56,0.10,-0.95);
 train.add(LHUD.mesh);
 LHUD.mesh.visible = false;
@@ -1317,11 +1321,11 @@ LSB.mesh.visible = false;
  *         excavating 中や result 後はタイマーが止まった状態の値を返す
  */
 function learnElapsedMs(){
-    // learnTimerPaused = accumulated running time (ms)
-    // learnTimerStart  = performance.now() when last resumed
-    // learnPauseStart  = non-zero while paused
+    // learnTimerPaused = 累計走行時間（ms）
+    // learnTimerStart  = 最後に再開した時点の performance.now()
+    // learnPauseStart  = 一時停止中は 0 以外
     if(learnPauseStart > 0){
-        // currently paused: return accumulated only
+        // 一時停止中：累計のみ返す
         return learnTimerPaused;
     }
     if(learnTimerStart === 0) return 0;
@@ -1526,10 +1530,10 @@ let learnExcavOrigPos = null;    // モデルの元の世界座標
 let learnExcavDescPanel = null;
 let learnExcavStep = 0;          // 演出ステップ（0=未開始 / 1=fly-in / 2=表示中 / 3=fly-out）
 let learnExcavT = 0;
-const EXCAV_ANIM_DUR = 1.2; // fly-in 秒数（現在は 1.0 秒に上書き）
 
-// Panel for excavation (attached to train like HUD)
-// ③B: サイズ 1.2*1.5=1.8, 0.9*1.5=1.35 / 位置Z *= 1.5 → -1.65, Y += 0.5*MODEL_SCALE
+
+// 発掘演出パネル（列車に追従 / HUDと同様）
+// 発掘演出パネルのサイズと位置定数
 const EXP_PW = 1.8, EXP_PH = 1.8;
 const EXP_LZ = -1.65;
 const EXP_LY = 1.8;
@@ -1538,7 +1542,7 @@ const EXP = makeHUDPanel(1024,1024, EXP_PW, EXP_PH, 0, EXP_LY, EXP_LZ);
 EXP.mesh.visible=false;
 train.add(EXP.mesh);
 
-// ④: GOボタン3Dメッシュのみ残す / 位置をEXPに合わせ上方向 +0.2*MODEL_SCALE
+// GOボタン3Dメッシュ：位置をEXPパネルに合わせ下方に配置
 const GOBT_LY = EXP_LY - EXP_PH*0.5 - 0.1;
 const GOBT = makeHUDPanel(512,200, 0.5,0.18, 0, GOBT_LY, EXP_LZ);
 GOBT.mesh.visible=false;
@@ -1546,8 +1550,8 @@ GOBT.mesh.material.depthTest=true;
 train.add(GOBT.mesh);
 learnGoButton = GOBT;
 
-// ③A: drawExcavPanel → 画像表示（3Dテクスチャとして別途ロード）
-// "loading"フェーズ用の簡易テキスト描画は維持し、画像ロード後に切り替え
+// drawExcavPanel → 画像表示（3Dテクスチャとして別途ロード）
+// 「発掘中...」フェーズ用の簡易テキスト描画を維持し、画像ロード後に切り替え
 const learnExcavImageMesh = {}; // idx -> THREE.Mesh (train-attached image panel)
 
 /*
@@ -1590,7 +1594,7 @@ const SIZE = 1024;
 function drawExcavPanel(idx, showContent){
     const {ctx,tex}=EXP;
 
-    // "loading"表示（テキスト）
+    // 「発掘中...」テキスト表示（fly-in中）
     if(!showContent){
         ctx.clearRect(0,0,SIZE,SIZE);
 
@@ -1685,7 +1689,7 @@ function startLearnExcavation(idx){
     learnExcavT = 0;
     learningSubState = "excavating";
 
-    // ⑤ 演出中はレール音停止
+    // 演出中はレール音停止
     railSound.pause();
 
     // タイマー停止
@@ -1697,7 +1701,7 @@ function startLearnExcavation(idx){
     vibrate(200, 0.8);
 
     // =====================================================
-    // 発掘モデル取得（←ここが主役）
+    // 発掘モデル取得
     // =====================================================
     const model = permanentModels[idx];
     if(model){
@@ -1705,15 +1709,10 @@ function startLearnExcavation(idx){
         learnExcavModel = model;
         learnExcavOrigPos = model.position.clone();
         model.visible = true;
-
-        // =====================================================
-        // ★最前面表示設定（今回の核心）
-        // =====================================================
-
     }
 
     // =====================================================
-    // UI制御
+    // UI 初期化
     // =====================================================
     drawExcavPanel(idx, false);
 
@@ -1731,6 +1730,7 @@ function startLearnExcavation(idx){
 
 let learnExcavFlyT = 0;
 let learnExcavShowTimer = 0;
+let learnExcavMirrorModel = null; // Step2で左手コントローラー上方0.2mに追従するミラーモデル
 
 /*
  * 関数名：tickLearnExcavation
@@ -1782,6 +1782,15 @@ function tickLearnExcavation(dt){
             drawExcavPanel(idx, true);
             learnGoReady = true;
             GOBT.mesh.visible = true;
+
+            // 2個目のモデル：左手コントローラーの上方0.2mに追従するオリジナルサイズのクローンを生成
+            if(!learnExcavMirrorModel && model){
+                learnExcavMirrorModel = model.clone();
+                // オリジナルサイズ（MODEL_SCALE適用前 = 1.0 スケール）
+                learnExcavMirrorModel.scale.setScalar(1.0);
+                learnExcavMirrorModel.visible = true;
+                scene.add(learnExcavMirrorModel);
+            }
         }
         // GOボタンを点滅させてユーザーに押下を促す
         if(learnGoReady){
@@ -1790,6 +1799,17 @@ function tickLearnExcavation(dt){
         }
         // Y軸回転のみ：30秒で1回転（2π/3 rad/sec）
         if(model) model.rotation.y += dt * (2*Math.PI/30);
+
+        // ミラーモデル：左手コントローラーの上0.2mへ追従（同じ回転速度）
+        if(learnExcavMirrorModel){
+            learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/30);
+            if(leftController){
+                // 左手コントローラーのワールド座標を取得し上方0.2mに配置
+                const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
+                ctrlWorldPos.y += 0.2;
+                learnExcavMirrorModel.position.copy(ctrlWorldPos);
+            }
+        }
         // GOが押されるまで無限待機
         return;
     }
@@ -1798,8 +1818,12 @@ function tickLearnExcavation(dt){
         // モデルを元の世界座標へ easing で戻す（fly-out）
         if(learnExcavFlyT === 0 && model){
             model.userData._flyStart = model.position.clone();
-            // fly-out開始時にrenderOrderを演出用から通常HUD相当に戻す
 
+            // Step3開始時：2個目のミラーモデルを削除する
+            if(learnExcavMirrorModel){
+                scene.remove(learnExcavMirrorModel);
+                learnExcavMirrorModel = null;
+            }
         }
         learnExcavFlyT += dt;
         const dur = 0.8;
@@ -1860,14 +1884,14 @@ function finishLearnExcavation(idx){
     learnSphereState[idx].state = "done";
     learnDoneCount++;
 
-    // ② 発掘完了 → シーン説明パネル・ライン表示
+    // 発掘完了 → シーン説明パネル・ライン表示
     if(learnScenePanels[idx]) learnScenePanels[idx].visible = true;
     if(learnSceneLines[idx])  learnSceneLines[idx].visible  = true;
 
     // 発掘演出用画像パネルを非表示
     if(learnExcavImageMesh[idx]) learnExcavImageMesh[idx].visible = false;
 
-    // ⑩ renderOrder復元
+    // モデルの位置・スケールを確定して表示
     const model = permanentModels[idx];
     if(model){
 
@@ -1876,26 +1900,29 @@ function finishLearnExcavation(idx){
         model.visible = true;
     }
 
-    // Add to hand models (attached to train)
+    // 手元モデルに発掘済みモデルを追加
     addHandModel(idx, learnDoneCount-1);
 
-    // Mark sphere as done
+    // 球体を done 状態にして非表示
     clickSpheres[idx].visible = false;
 
-    // Resume train
+    // 列車の走行再開
     setDark(0);
     learnTimerResume();
     learningSubState = "exploring";
     learnIsExcavating = false;
     learnExcavModel = null;
 
-    // ⑤ 演出終了 → レール音再開
+    // ミラーモデルが残っていれば削除
+    if(learnExcavMirrorModel){ scene.remove(learnExcavMirrorModel); learnExcavMirrorModel = null; }
+
+    // 演出終了 → レール音再開
     if(gamePhase==="playing") railSound.play().catch(()=>{});
 
-    // Process next in queue
+    // 300ms後に次の発掘キューを処理
     setTimeout(()=>processLearnQueue(), 300);
 
-    // Check completion
+    // 全発掘完了チェック
     if(learnDoneCount >= ARTIFACTS.length){
         setTimeout(()=>onLearnComplete(), 400);
     }
@@ -1910,11 +1937,10 @@ const handModelGroup = new THREE.Group();
 train.add(handModelGroup);
 
 /*
-手元モデル追加（学びモード）
-役割：
-  - 発掘済みモデルを手元スロットに表示
-  - 常にUIより手前に表示する
-*/
+ * 関数名：addHandModel
+ * 役割  ：発掘済みモデルを手元スロットに表示する
+ *         常に UI より手前に表示する
+ */
 function addHandModel(idx, slot){
 
     // 対応モデル取得
@@ -1970,7 +1996,7 @@ function onLearnComplete(){
  *         今回タイム（大）と TOP5 ランキングを表示する
  */
 function showLearnResult(elapsed){
-    // Show result on EXP panel (reuse)
+    // リザルトを EXP パネルに描画（流用）
     const {ctx,tex}=EXP;
     ctx.clearRect(0,0,1024,768);
     ctx.fillStyle="rgba(0,5,20,0.95)"; rrect(ctx,8,8,1008,752,32); ctx.fill();
@@ -2003,7 +2029,7 @@ function showLearnResult(elapsed){
     EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
     EXP.mesh.visible=true;
 
-    // Auto reset after 12s
+    // 12秒後に自動リセット
     phaseTimeout = setTimeout(()=>{
         resetLearningMode();
     },12000);
@@ -2031,21 +2057,22 @@ function resetLearningMode(){
     learnGoReady=false;
     learnExcavFlyT=0;
     learnExcavIdx=-1;
-    // Remove hand models
+    if(learnExcavMirrorModel){ scene.remove(learnExcavMirrorModel); learnExcavMirrorModel = null; }
+    // 手元モデルを削除
     learnHandModels.forEach(h=>handModelGroup.remove(h.mesh));
     learnHandModels.length=0;
-    // Re-init spheres
+    // 球体を再初期化
     initLearnSpheres();
-    // Restore sphere visibility
+    // 球体の表示を復元
     clickSpheres.forEach(s=>{ s.visible=true; });
-    // Hide permanent models & restore renderOrder
+    // 永続モデルを非表示にする
     ARTIFACTS.forEach((_,i)=>{
         if(permanentModels[i]){
             permanentModels[i].visible=false;
 
         }
     });
-    // ① シーン説明パネル・ライン再非表示
+    // シーン説明パネル・ラインを再非表示
     ARTIFACTS.forEach((_,i)=>{
         if(learnScenePanels[i]) learnScenePanels[i].visible=false;
         if(learnSceneLines[i])  learnSceneLines[i].visible=false;
@@ -2072,7 +2099,7 @@ function startLearningMode(){
     vibrate(120,0.5);
     updateLearnHUD();
 
-    // ⑨ 3→2→1→GO カウントダウン
+    // 3→2→1→GO カウントダウン
     let cd=3;
     function tick(){
         if(cd>0){
@@ -2246,6 +2273,7 @@ function vibrate(dur,intensity){
   - velocity : 移動速度（フレームごとの progress 増分）
 ===================================================== */
 let progress=0, velocity=0.0001;
+let tourRunning = false; // ツアーモード走行フラグ（Aボタンでtrue、Bボタンでfalse）
 
 /*
  * 関数名：teleportToStart
@@ -2256,7 +2284,7 @@ function teleportToStart(){
     progress=0; velocity=0.0001;
     const p=curve.getPointAt(0).clone(); p.y+=0.2;
     train.position.copy(p);
-    // ⑧ train rotation初期化
+    // train の向きを初期化
     const tan0=curve.getTangentAt(0);
     const lk=p.clone().sub(tan0);
     train.lookAt(lk);
@@ -2416,7 +2444,7 @@ function cleanCoins(){
 function spawnCoin(idx, isFirst){
     const sp = artifactWorldPos[idx]; if(!sp) return;
 
-    // ② permanentModels が既にロード済みならクローン、未ロードなら何もしない
+    // permanentModels が既にロード済みならクローン、未ロードなら何もしない
     const src = permanentModels[idx];
     if(!src) return;
 
@@ -2556,10 +2584,10 @@ renderer.setAnimationLoop(()=>{
 
     // 発掘演出中またはリザルト中は列車を停止させる（学びモード専用）
     const learnStop = isLearning && (learningSubState==="excavating" || gamePhase==="result");
-    if(isTour || (gamePhase==="playing" && !learnStop)) progress=(progress+velocity)%1;
+    if((isTour && tourRunning) || (gamePhase==="playing" && !learnStop)) progress=(progress+velocity)%1;
 
     pos.copy(curve.getPointAt(progress)); pos.y+=0.2;
-    const moving = isTour || (gamePhase==="playing" && !learnStop);
+    const moving = (isTour && tourRunning) || (gamePhase==="playing" && !learnStop);
     realSpeed = moving ? pos.distanceTo(prevPos)/(dt/1000)*3.6 : 0;
     if(now-lastSpeedUI>100){ if(realSpeedUI) realSpeedUI.textContent=realSpeed.toFixed(0)+" km/h"; lastSpeedUI=now; }
     prevPos.copy(pos);
@@ -2569,7 +2597,7 @@ renderer.setAnimationLoop(()=>{
 
     const ACCEL=0.0000001,DECEL=ACCEL*0.5;
     accelState=0;
-    if(isTour || (gamePhase==="playing" && !learnStop)){
+    if((isTour && tourRunning) || (gamePhase==="playing" && !learnStop)){
         if(!isTour && keyUp)  {velocity+=ACCEL*dt;accelState=1;}
         if(!isTour && keyDown){velocity-=DECEL*dt;accelState=-1;}
         const sy=getStickY();
@@ -2698,8 +2726,12 @@ renderer.setAnimationLoop(()=>{
         }
     }
 
-    // ボタン処理（ツアーモードは入力不要なので除外）
-    if(!isTour){
+    // ボタン処理
+    if(isTour){
+        // ツアーモード：Aボタンでレール走行スタート、Bボタンでストップ
+        if(bA&&!prevA) tourRunning = true;
+        if(bB&&!prevB) tourRunning = false;
+    } else {
         if(isLearning){
             // 学びモード入力処理
             if(bA&&!prevA&&gamePhase==="idle") startLearningMode();         // スタート
@@ -2729,9 +2761,13 @@ renderer.setAnimationLoop(()=>{
     renderer.render(scene,camera);
     prevTime=now;
 
-    // ツアーモードのレール走行音制御
-    if(isTour && isVR && railSound.paused) {
-        railSound.play().catch(()=>{});
+    // ツアーモードのレール走行音制御（tourRunning=trueの間のみ再生）
+    if(isTour && isVR){
+        if(tourRunning && railSound.paused) {
+            railSound.play().catch(()=>{});
+        } else if(!tourRunning && !railSound.paused) {
+            railSound.pause();
+        }
     }
     // 走行音のボリューム・速度を速度に合わせて更新（500msごと）
     if(!railSound.paused && now-lastSound>500){
