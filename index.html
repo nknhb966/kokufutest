@@ -424,7 +424,7 @@ function setupToggle(id, key) {
         btn.onclick = () => {
             btns.forEach(b=>b.classList.remove("active")); btn.classList.add("active");
             localStorage.setItem(key, btn.dataset.value);
-            // location.reload();
+            location.reload();
         };
     });
 }
@@ -459,7 +459,7 @@ function setupCameraToggle(id) {
             localStorage.setItem("curve", newCurve);
             const defaultSpeed = CURVE_DEFAULT_SPEED[newCurve] ?? 1.0;
             localStorage.setItem("speed", defaultSpeed);
-            // location.reload();
+            location.reload();
         };
     });
 }
