@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター2025</title>
+<title>1越前国府VRコースター2025</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -78,6 +78,38 @@
     }
     #vrButtonWrap button:hover, #vrButtonWrap a:hover {
         box-shadow:0 0 48px rgba(120,80,255,0.95) !important; transform:translateY(-1px) !important;
+    }
+    /* ARスタートボタン無効状態 */
+    #vrButtonWrap button:disabled, #vrButtonWrap a.vr-disabled {
+        background:linear-gradient(135deg,#3a3a5a,#2a2a42) !important;
+        color:rgba(255,255,255,0.45) !important;
+        cursor:not-allowed !important;
+        box-shadow:none !important;
+        pointer-events:none !important;
+        transform:none !important;
+    }
+    /* カウントダウン表示バー */
+    #vrCooldownBar {
+        display:none;
+        width:100%; height:6px;
+        background:rgba(255,255,255,0.12);
+        border-radius:3px;
+        margin-top:8px;
+        overflow:hidden;
+    }
+    #vrCooldownBar .bar-inner {
+        height:100%;
+        background:linear-gradient(90deg,#7c3aed,#38bdf8);
+        border-radius:3px;
+        transition:width 0.1s linear;
+    }
+    #vrCooldownMsg {
+        display:none;
+        text-align:center;
+        font-size:13px;
+        color:rgba(180,160,255,0.7);
+        margin-top:6px;
+        letter-spacing:1px;
     }
 
     /* 区切り線 */
@@ -241,6 +273,8 @@
     <p class="sub-title">〜 遺跡を駆ける、発見の旅 -2025- 〜</p>
 
     <div id="vrButtonWrap"></div>
+    <div id="vrCooldownBar"><div class="bar-inner" id="vrCooldownBarInner"></div></div>
+    <div id="vrCooldownMsg" id="vrCooldownMsg"></div>
 
     <div class="divider"></div>
 
@@ -792,6 +826,94 @@ document.body.appendChild(renderer.domElement);
 document.getElementById("vrButtonWrap").appendChild(VRButton.createButton(renderer));
 
 /* =====================================================
+ARスタートボタン 起動待機ロック
+  - リロード直後の不安定期間（VR_LOCK_SEC 秒）はボタンを無効化する
+  - カウントダウンバーと残り秒数でユーザーに進捗を伝える
+  - VR_LOCK_SEC は定数として変更可能
+===================================================== */
+const VR_LOCK_SEC = 3; // ← 無効化秒数（変更可）
+
+/*
+ * 関数名：applyVRButtonLock
+ * 役割  ：VRButton が生成した要素を取得してカウントダウン無効化を適用する
+ *         VRButton は非同期で要素を差し替えることがあるため
+ *         MutationObserver で確実に捕捉する
+ */
+(function applyVRButtonLock(){
+    const wrap = document.getElementById("vrButtonWrap");
+    const bar  = document.getElementById("vrCooldownBar");
+    const barInner = document.getElementById("vrCooldownBarInner");
+    const msg  = document.getElementById("vrCooldownMsg");
+
+    // ボタン要素（button または a タグ）を無効化する
+    function lockButton(el){
+        el.disabled = true;
+        el.classList.add("vr-disabled");
+        el.setAttribute("aria-disabled","true");
+        // ポインターイベントもCSSで塞ぐが、クリックイベントも念のため止める
+        el._vrLockHandler = e => { e.preventDefault(); e.stopImmediatePropagation(); };
+        el.addEventListener("click", el._vrLockHandler, true);
+    }
+
+    function unlockButton(el){
+        el.disabled = false;
+        el.classList.remove("vr-disabled");
+        el.removeAttribute("aria-disabled");
+        if(el._vrLockHandler){
+            el.removeEventListener("click", el._vrLockHandler, true);
+            el._vrLockHandler = null;
+        }
+    }
+
+    // カウントダウン開始
+    function startCountdown(el){
+        bar.style.display  = "block";
+        msg.style.display  = "block";
+        barInner.style.width = "100%";
+
+        const start = performance.now();
+        const dur   = VR_LOCK_SEC * 1000;
+
+        function tick(){
+            const elapsed = performance.now() - start;
+            const remain  = Math.max(0, dur - elapsed);
+            const ratio   = remain / dur;
+            barInner.style.width = (ratio * 100).toFixed(1) + "%";
+            msg.textContent = `起動中... あと ${Math.ceil(remain/1000)} 秒`;
+
+            if(remain > 0){
+                requestAnimationFrame(tick);
+            } else {
+                // ロック解除
+                unlockButton(el);
+                bar.style.display = "none";
+                msg.style.display = "none";
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+
+    // VRButton が挿入した要素を監視して取得
+    function tryLock(){
+        const el = wrap.querySelector("button, a");
+        if(el){
+            lockButton(el);
+            startCountdown(el);
+            return true;
+        }
+        return false;
+    }
+
+    // 既に存在する場合は即適用、なければ MutationObserver で待機
+    if(!tryLock()){
+        const obs = new MutationObserver(()=>{
+            if(tryLock()) obs.disconnect();
+        });
+        obs.observe(wrap, { childList:true, subtree:true });
+    }
+})();
+
+/* =====================================================
 VR セッションイベント
   - sessionstart : VR開始時にカメラをtrainに接続
   - sessionend   : VR終了時にUIを再表示
@@ -842,6 +964,22 @@ renderer.xr.addEventListener("sessionend", () => {
     railSound.pause();
     resetArtifacts();
     location.reload();
+});
+
+/* =====================================================
+メニューボタン押下によるセッション自動終了
+  - Meta Quest などでメニューボタンを押すとページが非表示（hidden）になる
+  - そのタイミングで XR セッションを明示的に終了させることで
+    「没入タイプのウェブ体験がまだ動作しています」の通知を防ぐ
+===================================================== */
+document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState === "hidden"){
+        const session = renderer.xr.getSession();
+        if(session){
+            // セッションを明示的に終了（sessionend イベントが発火し reload される）
+            session.end().catch(()=>{});
+        }
+    }
 });
 
 /* =====================================================
@@ -1800,13 +1938,13 @@ function tickLearnExcavation(dt){
         // Y軸回転のみ：30秒で1回転（2π/3 rad/sec）
         if(model) model.rotation.y += dt * (2*Math.PI/30);
 
-        // ミラーモデル：左手コントローラーの上0.05mへ追従（同じ回転速度）
+        // ミラーモデル：左手コントローラーの上0.2mへ追従（同じ回転速度）
         if(learnExcavMirrorModel){
-            learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/6);
+            learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/30);
             if(leftController){
-                // 左手コントローラーのワールド座標を取得し上方0.05mに配置
+                // 左手コントローラーのワールド座標を取得し上方0.2mに配置
                 const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
-                ctrlWorldPos.y += 0.05;
+                ctrlWorldPos.y += 0.2;
                 learnExcavMirrorModel.position.copy(ctrlWorldPos);
             }
         }
