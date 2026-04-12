@@ -1073,9 +1073,12 @@ function sfxNewRecord(rank){
         });
     }
 }
+
+/* =====================================================
+シーン・レンダラー初期化
   - WebGLRenderer を生成し DOM に追加
   - XR（WebXR）を有効化する
-===================================================== */
+=====================================================  */
 const scene    = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setPixelRatio(window.devicePixelRatio);
