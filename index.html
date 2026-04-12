@@ -423,7 +423,8 @@ function setupToggle(id, key) {
         if (btn.dataset.value === CONFIG[key]) btn.classList.add("active");
         btn.onclick = () => {
             btns.forEach(b=>b.classList.remove("active")); btn.classList.add("active");
-            localStorage.setItem(key, btn.dataset.value); location.reload();
+            localStorage.setItem(key, btn.dataset.value);
+            // location.reload();
         };
     });
 }
@@ -458,7 +459,7 @@ function setupCameraToggle(id) {
             localStorage.setItem("curve", newCurve);
             const defaultSpeed = CURVE_DEFAULT_SPEED[newCurve] ?? 1.0;
             localStorage.setItem("speed", defaultSpeed);
-            location.reload();
+            // location.reload();
         };
     });
 }
