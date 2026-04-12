@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター2025</title>
+<title>越前国府VRコースター2025</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1921,7 +1921,7 @@ function tickLearnExcavation(dt){
             learnGoReady = true;
             GOBT.mesh.visible = true;
 
-            // 2個目のモデル：左手コントローラーの上方0.2mに追従するオリジナルサイズのクローンを生成
+            // 2個目のモデル：左手コントローラーの上方0.05mに追従するオリジナルサイズのクローンを生成
             if(!learnExcavMirrorModel && model){
                 learnExcavMirrorModel = model.clone();
                 // オリジナルサイズ（MODEL_SCALE適用前 = 1.0 スケール）
@@ -1938,13 +1938,13 @@ function tickLearnExcavation(dt){
         // Y軸回転のみ：30秒で1回転（2π/3 rad/sec）
         if(model) model.rotation.y += dt * (2*Math.PI/30);
 
-        // ミラーモデル：左手コントローラーの上0.2mへ追従（同じ回転速度）
+        // ミラーモデル：左手コントローラーの上0.05mへ追従（同じ回転速度）
         if(learnExcavMirrorModel){
-            learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/30);
+            learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/6);
             if(leftController){
-                // 左手コントローラーのワールド座標を取得し上方0.2mに配置
+                // 左手コントローラーのワールド座標を取得し上方0.05mに配置
                 const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
-                ctrlWorldPos.y += 0.2;
+                ctrlWorldPos.y += 0.05;
                 learnExcavMirrorModel.position.copy(ctrlWorldPos);
             }
         }
