@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター</title>
+<title>越前国府VRコースター2025</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -99,7 +99,7 @@
         border-radius:10px; padding:12px 14px;
     }
     .setting-label {
-        font-size:11px; font-weight:700; letter-spacing:2px;
+        font-size:13px; font-weight:700; letter-spacing:2px;
         color:rgba(180,160,255,0.65); text-transform:uppercase; margin-bottom:8px;
     }
     .toggle { display:flex; width:100%; }
@@ -226,7 +226,7 @@
 <!-- ═══ フルスクリーン タイトルパネル（ride モード） ═══ -->
 <div id="uiPanel">
   <div class="panel-inner">
-    <p class="main-title">越前国府VRコースター</p>
+    <p class="main-title">越前国府VRコースター2025</p>
     <p class="sub-title">〜遺跡を駆ける、発見の旅〜</p>
 
     <div id="vrButtonWrap"></div>
@@ -336,7 +336,7 @@ const LASER_MAX_DIST = 25;
 /* =====================================================
 設定（CONFIG）
   - localStorage から前回の設定を復元する
-  - gameMode: "game" / "tour" / "learning"
+  - gameMode: "learning" / "game" / "tour"
 ===================================================== */
 const CONFIG = {
     curve    : localStorage.getItem("curve")    || "trolley",
