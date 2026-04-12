@@ -351,6 +351,7 @@ let SPEED = CONFIG.speed;
   - localStorage に TOP5 を降順で保存・読み込む
 ===================================================== */
 const LS_KEY = "vr_coaster_scores_v2";
+const LS_LEARNING_KEY = "vr_coaster_learning_v1";
 
 /*
  * 関数名：loadScores
@@ -370,6 +371,26 @@ function saveScore(score) {
     arr.sort((a,b)=>b.score-a.score); arr.splice(5);
     localStorage.setItem(LS_KEY, JSON.stringify(arr));
 }
+
+/*
+ * 関数名：loadLearningScores
+ * 役割  ：学びモードのタイム TOP5 を localStorage から読み込む
+ */
+function loadLearningScores(){
+    try{ return JSON.parse(localStorage.getItem(LS_LEARNING_KEY)||"[]"); }catch(e){return [];}
+}
+
+/*
+ * 関数名：saveLearningScore
+ * 役割  ：学びモードのタイムを昇順で保存し、上位5件を維持する
+ */
+function saveLearningScore(timeMs){
+    const arr = loadLearningScores();
+    arr.push({time: timeMs, date: new Date().toLocaleDateString("ja-JP")});
+    arr.sort((a,b)=>a.time-b.time); arr.splice(5);
+    localStorage.setItem(LS_LEARNING_KEY, JSON.stringify(arr));
+}
+
 document.getElementById("resetBtn").addEventListener("click", () => {
     if (confirm("記録をリセットしますか？")) {
         localStorage.removeItem(LS_KEY);
@@ -1240,7 +1261,6 @@ function clearTimers(){
       done        : 発掘済み
   - learnExcavQueue: 発掘待ち FIFO キュー
 ===================================================== */
-const LS_LEARNING_KEY = "vr_coaster_learning_v1";
 // globalState: idle / playing / result  (uses gamePhase)
 // learningSubState: exploring / excavating
 let learningSubState = "exploring";
@@ -1278,24 +1298,6 @@ const LSB = makeHUDPanel(1024,1024, 0.8,0.8, -0.56,0.10,-0.95);
 train.add(LSB.mesh);
 LSB.mesh.visible = false;
 
-/*
- * 関数名：loadLearningScores
- * 役割  ：学びモードのタイム TOP5 を localStorage から読み込む
- */
-function loadLearningScores(){
-    try{ return JSON.parse(localStorage.getItem(LS_LEARNING_KEY)||"[]"); }catch(e){return [];}
-}
-
-/*
- * 関数名：saveLearningScore
- * 役割  ：学びモードのタイムを昇順で保存し、上位5件を維持する
- */
-function saveLearningScore(timeMs){
-    const arr = loadLearningScores();
-    arr.push({time: timeMs, date: new Date().toLocaleDateString("ja-JP")});
-    arr.sort((a,b)=>a.time-b.time); arr.splice(5);
-    localStorage.setItem(LS_LEARNING_KEY, JSON.stringify(arr));
-}
 
 /*
  * 関数名：learnElapsedMs
