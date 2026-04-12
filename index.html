@@ -164,6 +164,100 @@
     .action-btn:hover { opacity:.85; transform:translateY(-1px); }
     .btn-help   { background:linear-gradient(135deg,#0f766e,#0891b2); color:#fff; }
     .btn-reset  { background: linear-gradient(135deg, #38bdf8, #0ea5e9); color: #fff; }
+    .btn-records{ background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff; }
+
+    /* ═══════════════════════════════════════════════
+       記録閲覧モーダル
+    ═══════════════════════════════════════════════ */
+    #recordsModal {
+        display:none; position:fixed; inset:0; z-index:100;
+        background:rgba(0,0,5,0.90);
+        align-items:center; justify-content:center;
+    }
+    #recordsModal.open { display:flex; }
+    .rmodal-box {
+        width:min(960px,96vw); max-height:92vh;
+        background:linear-gradient(150deg,#0d0820,#080d25);
+        border:1px solid rgba(180,140,255,0.35);
+        border-radius:16px; padding:18px 20px 16px;
+        position:relative; color:#e8e0ff;
+        display:flex; flex-direction:column; gap:10px;
+        overflow:hidden;
+    }
+    .rmodal-close {
+        position:absolute; top:12px; right:16px;
+        background:none; border:none; color:rgba(200,180,255,0.6);
+        font-size:26px; cursor:pointer; line-height:1;
+    }
+    .rmodal-close:hover { color:#fff; }
+    .rmodal-title {
+        font-size:clamp(16px,2.2vw,22px); font-weight:900; text-align:center;
+        color:#c4b5fd; letter-spacing:2px; padding-right:30px;
+    }
+    .rmodal-grid {
+        display:grid; grid-template-columns:repeat(4,1fr); gap:10px;
+        flex:1; min-height:0;
+    }
+    .rmodal-col {
+        background:rgba(255,255,255,0.04);
+        border:1px solid rgba(180,140,255,0.18);
+        border-radius:10px; padding:10px 10px 8px;
+        display:flex; flex-direction:column; gap:6px;
+        min-height:0;
+    }
+    .rmodal-col-title {
+        font-size:clamp(12px,1.4vw,15px); font-weight:800; text-align:center;
+        line-height:1.3; padding-bottom:4px;
+        border-bottom:1px solid rgba(180,140,255,0.2);
+    }
+    .learn-title { color:#44ddff; }
+    .game-title  { color:#ffcc44; }
+    .curve-label {
+        font-size:clamp(10px,1.1vw,13px); font-weight:700;
+        color:rgba(200,185,255,0.65); letter-spacing:1px;
+    }
+    .rmodal-entries {
+        flex:1; min-height:0; overflow:hidden;
+        display:flex; flex-direction:column; gap:3px;
+    }
+    .rmodal-entry {
+        display:flex; flex-direction:column;
+        padding:4px 6px; border-radius:6px;
+        background:rgba(255,255,255,0.04);
+        font-size:clamp(11px,1.1vw,13px); line-height:1.35;
+    }
+    .rmodal-entry .rank-score {
+        font-weight:800; font-size:clamp(13px,1.4vw,16px);
+    }
+    .rmodal-entry .rank-date {
+        color:rgba(180,170,220,0.65); font-size:clamp(10px,0.95vw,12px);
+    }
+    .rmodal-entry.gold   { border-left:3px solid #ffd700; }
+    .rmodal-entry.silver { border-left:3px solid #c0c0c0; }
+    .rmodal-entry.bronze { border-left:3px solid #cd7f32; }
+    .rmodal-entry.other  { border-left:3px solid rgba(136,204,255,0.4); }
+    .rmodal-no-data {
+        color:rgba(180,170,220,0.45); font-size:13px; text-align:center;
+        padding:12px 0;
+    }
+    .rmodal-reset-btn {
+        border:1px solid rgba(255,80,80,0.35);
+        background:rgba(200,50,50,0.18); color:rgba(255,160,160,0.9);
+        border-radius:6px; padding:5px 0; font-size:12px; font-weight:700;
+        cursor:pointer; transition:background .15s;
+    }
+    .rmodal-reset-btn:hover { background:rgba(200,50,50,0.38); }
+    .rmodal-footer {
+        display:flex; justify-content:center; padding-top:4px;
+        border-top:1px solid rgba(180,140,255,0.15);
+    }
+    .rmodal-reset-all-btn {
+        border:1px solid rgba(255,80,80,0.5);
+        background:rgba(180,30,30,0.25); color:rgba(255,140,140,0.95);
+        border-radius:8px; padding:8px 28px; font-size:13px; font-weight:800;
+        cursor:pointer; transition:background .15s;
+    }
+    .rmodal-reset-all-btn:hover { background:rgba(200,40,40,0.45); }
 
     /* ═══════════════════════════════════════════════
        モーダル（操作説明）
@@ -313,7 +407,7 @@
     <!-- ボタン行 -->
     <div class="btn-row">
       <button class="action-btn btn-help" id="helpBtn">📖 操作方法</button>
-      <button class="action-btn btn-reset" id="resetBtn">🗑 記録リセット</button>
+      <button class="action-btn btn-records" id="recordsBtn">🏆 記録を見る</button>
     </div>
   </div>
 </div>
@@ -329,6 +423,44 @@
 
 <!-- ═══ 操作説明モーダル ═══ -->
 <div id="modal">
+
+<!-- ═══ 記録閲覧モーダル ═══ -->
+<div id="recordsModal">
+  <div class="rmodal-box">
+    <button class="rmodal-close" id="recordsModalClose">×</button>
+    <div class="rmodal-title">🏆 記録一覧</div>
+    <div class="rmodal-grid">
+      <!-- 学び TROLLEY -->
+      <div class="rmodal-col">
+        <div class="rmodal-col-title learn-title">📚 学び<br><span class="curve-label">TROLLEY</span></div>
+        <div class="rmodal-entries" id="rec-learning-trolley"></div>
+        <button class="rmodal-reset-btn" data-key="learning_trolley">リセット</button>
+      </div>
+      <!-- 学び COASTER -->
+      <div class="rmodal-col">
+        <div class="rmodal-col-title learn-title">📚 学び<br><span class="curve-label">COASTER</span></div>
+        <div class="rmodal-entries" id="rec-learning-coaster"></div>
+        <button class="rmodal-reset-btn" data-key="learning_coaster">リセット</button>
+      </div>
+      <!-- ゲーム TROLLEY -->
+      <div class="rmodal-col">
+        <div class="rmodal-col-title game-title">🎮 ゲーム<br><span class="curve-label">TROLLEY</span></div>
+        <div class="rmodal-entries" id="rec-game-trolley"></div>
+        <button class="rmodal-reset-btn" data-key="game_trolley">リセット</button>
+      </div>
+      <!-- ゲーム COASTER -->
+      <div class="rmodal-col">
+        <div class="rmodal-col-title game-title">🎮 ゲーム<br><span class="curve-label">COASTER</span></div>
+        <div class="rmodal-entries" id="rec-game-coaster"></div>
+        <button class="rmodal-reset-btn" data-key="game_coaster">リセット</button>
+      </div>
+    </div>
+    <!-- 全リセット -->
+    <div class="rmodal-footer">
+      <button class="rmodal-reset-all-btn" id="recordsResetAll">🗑 全ての記録をリセット</button>
+    </div>
+  </div>
+</div>
   <div class="modal-box">
     <button class="modal-close" id="modalClose">×</button>
     <div class="modal-tabs">
@@ -394,56 +526,146 @@ let SPEED = CONFIG.speed;
 /* =====================================================
 スコア管理
   - localStorage に TOP5 を降順で保存・読み込む
+  - カーブ（trolley / coaster）×モード（learning / game）= 4種類
 ===================================================== */
-const LS_LEARNING_KEY = "vr_coaster_learning_v1";
-const LS_KEY = "vr_coaster_scores_v2";
+const LS_KEYS = {
+    learning_trolley : "vr_coaster_learning_trolley_v1",
+    learning_coaster : "vr_coaster_learning_coaster_v1",
+    game_trolley     : "vr_coaster_game_trolley_v1",
+    game_coaster     : "vr_coaster_game_coaster_v1",
+};
+// 後方互換：旧キーは移行しない（そのまま残すだけ）
+const LS_LEARNING_KEY = LS_KEYS[`learning_${CONFIG.curve}`]; // 現在モードのキー
+const LS_KEY          = LS_KEYS[`game_${CONFIG.curve}`];     // 現在モードのキー
 
 /*
- * 関数名：loadLearningScores
- * 役割  ：学びモードのタイム TOP5 を localStorage から読み込む
+ * 関数名：fmtTime
+ * 役割  ：Date オブジェクトから "HH:MM" 形式の文字列を返す
  */
-function loadLearningScores(){
-    try{ return JSON.parse(localStorage.getItem(LS_LEARNING_KEY)||"[]"); }catch(e){return [];}
+function fmtTime(d){
+    return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
 /*
+ * 関数名：loadScoresBy
+ * 役割  ：指定キーのスコア一覧を localStorage から読み込む
+ */
+function loadScoresBy(key){
+    try{ return JSON.parse(localStorage.getItem(key)||"[]"); }catch(e){return [];}
+}
+
+/*
+ * 関数名：saveScoresBy
+ * 役割  ：指定キーにスコア配列を保存する
+ */
+function saveScoresBy(key, arr){
+    localStorage.setItem(key, JSON.stringify(arr));
+}
+
+/*
+ * 関数名：loadLearningScores
+ * 役割  ：現在カーブの学びモード TOP5 を読み込む
+ */
+function loadLearningScores(){ return loadScoresBy(LS_LEARNING_KEY); }
+
+/*
  * 関数名：saveLearningScore
- * 役割  ：学びモードのタイムを昇順で保存し、上位5件を維持する
+ * 役割  ：現在カーブの学びモードタイムを昇順で保存し、上位5件を維持する
  */
 function saveLearningScore(timeMs){
     const arr = loadLearningScores();
-    arr.push({time: timeMs, date: new Date().toLocaleDateString("ja-JP")});
+    const now = new Date();
+    arr.push({time: timeMs, date: now.toLocaleDateString("ja-JP"), clock: fmtTime(now)});
     arr.sort((a,b)=>a.time-b.time); arr.splice(5);
-    localStorage.setItem(LS_LEARNING_KEY, JSON.stringify(arr));
+    saveScoresBy(LS_LEARNING_KEY, arr);
 }
 
 /*
  * 関数名：loadScores
- * 役割  ：ゲームモードのスコア一覧を localStorage から読み込む
+ * 役割  ：現在カーブのゲームモードスコア一覧を読み込む
  */
-function loadScores() {
-    try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch(e) { return []; }
-}
+function loadScores(){ return loadScoresBy(LS_KEY); }
 
 /*
  * 関数名：saveScore
- * 役割  ：ゲームモードのスコアを保存し、上位5件を維持する
+ * 役割  ：現在カーブのゲームモードスコアを保存し、上位5件を維持する
  */
-function saveScore(score) {
+function saveScore(score){
     const arr = loadScores();
-    arr.push({ score, date: new Date().toLocaleDateString("ja-JP") });
+    const now = new Date();
+    arr.push({ score, date: now.toLocaleDateString("ja-JP"), clock: fmtTime(now) });
     arr.sort((a,b)=>b.score-a.score); arr.splice(5);
-    localStorage.setItem(LS_KEY, JSON.stringify(arr));
+    saveScoresBy(LS_KEY, arr);
 }
 
 /* =====================================================
-リセット
-  - localStorage を削除する
+記録閲覧モーダル
+  - 4種（学び/ゲーム × TROLLEY/COASTER）のTOP5を一覧表示
+  - 各列に個別リセット、下部に全リセットボタン
 ===================================================== */
-document.getElementById("resetBtn").addEventListener("click", () => {
-    if (confirm("記録をリセットしますか？")) {
-        localStorage.removeItem(LS_LEARNING_KEY);
-        localStorage.removeItem(LS_KEY);
+const MEDALS = ["🥇","🥈","🥉","4.","5."];
+
+/*
+ * 関数名：renderRecordsModal
+ * 役割  ：記録閲覧モーダルの各列を現在の localStorage データで描画する
+ */
+function renderRecordsModal(){
+    const cols = [
+        { id:"rec-learning-trolley", key:"learning_trolley", isTime:true  },
+        { id:"rec-learning-coaster", key:"learning_coaster", isTime:true  },
+        { id:"rec-game-trolley",     key:"game_trolley",     isTime:false },
+        { id:"rec-game-coaster",     key:"game_coaster",     isTime:false },
+    ];
+    cols.forEach(({id, key, isTime})=>{
+        const el = document.getElementById(id);
+        const arr = loadScoresBy(LS_KEYS[key]);
+        if(!arr.length){
+            el.innerHTML = `<div class="rmodal-no-data">記録なし</div>`;
+            return;
+        }
+        el.innerHTML = arr.slice(0,5).map((s,i)=>{
+            const rankClass = i===0?"gold":i===1?"silver":i===2?"bronze":"other";
+            const scoreStr  = isTime ? `${(s.time/1000).toFixed(1)}s` : `${s.score}pt`;
+            const dateStr   = s.clock ? `${s.date} ${s.clock}` : s.date;
+            return `<div class="rmodal-entry ${rankClass}">
+                <span class="rank-score">${MEDALS[i]} ${scoreStr}</span>
+                <span class="rank-date">${dateStr}</span>
+            </div>`;
+        }).join("");
+    });
+}
+
+document.getElementById("recordsBtn").addEventListener("click", ()=>{
+    renderRecordsModal();
+    document.getElementById("recordsModal").classList.add("open");
+});
+document.getElementById("recordsModalClose").addEventListener("click", ()=>{
+    document.getElementById("recordsModal").classList.remove("open");
+});
+document.getElementById("recordsModal").addEventListener("click", e=>{
+    if(e.target===document.getElementById("recordsModal"))
+        document.getElementById("recordsModal").classList.remove("open");
+});
+
+// 個別リセットボタン
+document.querySelectorAll(".rmodal-reset-btn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+        const key = btn.dataset.key;
+        if(confirm("この記録をリセットしますか？")){
+            localStorage.removeItem(LS_KEYS[key]);
+            renderRecordsModal();
+            // VR内スコアボードも更新
+            updateLearnScoreBoard();
+            updateScoreBoard();
+        }
+    });
+});
+
+// 全リセットボタン
+document.getElementById("recordsResetAll").addEventListener("click", ()=>{
+    if(confirm("全ての記録をリセットしますか？")){
+        Object.values(LS_KEYS).forEach(k=>localStorage.removeItem(k));
+        renderRecordsModal();
         updateLearnScoreBoard();
         updateScoreBoard();
     }
@@ -1547,6 +1769,7 @@ function updateLearnHUD(){
 /*
  * 関数名：updateLearnScoreBoard
  * 役割  ：学びモードの TOP5 タイムランキングボードを Canvas に描画する
+ *         各行にタイム・日付・時刻（HH:MM）を表示する
  */
 function updateLearnScoreBoard(){
     const {ctx,tex}=LSB;
@@ -1559,16 +1782,19 @@ function updateLearnScoreBoard(){
 
     const scores = loadLearningScores();
     if(!scores.length){
-        ctx.fillStyle="#aaa"; ctx.font="50px sans-serif"; ctx.fillText("記録なし",512,280);
+        ctx.fillStyle="#aaa"; ctx.font="50px sans-serif"; ctx.fillText("記録なし",512,380);
     } else {
         const medals=["🥇","🥈","🥉","4.","5."];
         scores.forEach((s,i)=>{
-            const y=185+i*162;
+            const y=175+i*166;
+            // タイム（大）
             ctx.fillStyle=i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
-            ctx.font=`bold ${i===0?68:56}px sans-serif`; ctx.textAlign="left";
+            ctx.font=`bold ${i===0?64:54}px sans-serif`; ctx.textAlign="left";
             ctx.fillText(`${medals[i]} ${(s.time/1000).toFixed(1)}s`,60,y);
-            ctx.fillStyle="#777"; ctx.font="36px sans-serif"; ctx.textAlign="right";
-            ctx.fillText(s.date,964,y);
+            // 日付＋時刻（右寄せ・小さめ）
+            const clockStr = s.clock ? `${s.date}  ${s.clock}` : s.date;
+            ctx.fillStyle="#888"; ctx.font="32px sans-serif"; ctx.textAlign="right";
+            ctx.fillText(clockStr,964,y);
         });
     }
     tex.needsUpdate=true;
@@ -1921,7 +2147,7 @@ function tickLearnExcavation(dt){
             learnGoReady = true;
             GOBT.mesh.visible = true;
 
-            // 2個目のモデル：左手コントローラーの上方0.05mに追従するオリジナルサイズのクローンを生成
+            // 2個目のモデル：左手コントローラーの上方0.2mに追従するオリジナルサイズのクローンを生成
             if(!learnExcavMirrorModel && model){
                 learnExcavMirrorModel = model.clone();
                 // オリジナルサイズ（MODEL_SCALE適用前 = 1.0 スケール）
@@ -1938,13 +2164,13 @@ function tickLearnExcavation(dt){
         // Y軸回転のみ：30秒で1回転（2π/3 rad/sec）
         if(model) model.rotation.y += dt * (2*Math.PI/30);
 
-        // ミラーモデル：左手コントローラーの上0.05mへ追従（同じ回転速度）
+        // ミラーモデル：左手コントローラーの上0.2mへ追従（同じ回転速度）
         if(learnExcavMirrorModel){
-            learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/6);
+            learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/30);
             if(leftController){
-                // 左手コントローラーのワールド座標を取得し上方0.05mに配置
+                // 左手コントローラーのワールド座標を取得し上方0.2mに配置
                 const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
-                ctrlWorldPos.y += 0.05;
+                ctrlWorldPos.y += 0.2;
                 learnExcavMirrorModel.position.copy(ctrlWorldPos);
             }
         }
@@ -2156,13 +2382,28 @@ function showLearnResult(elapsed){
 
     const scores = loadLearningScores();
     const medals=["🥇","🥈","🥉","4.","5."];
-    scores.slice(0,5).forEach((s,i)=>{
-        const y=490+i*52;
-        const isNew = Math.abs(s.time-elapsed)<10;
-        ctx.fillStyle=isNew?"#44ffcc":i===0?"#ffd700":i===1?"#c0c0c0":"#88ccff";
-        ctx.font=`bold 40px sans-serif`; ctx.textAlign="left";
-        ctx.fillText(`${medals[i]} ${(s.time/1000).toFixed(1)}s${isNew?" ← NEW":""}`,80,y);
-    });
+    if(!scores.length){
+        ctx.fillStyle="#aaa"; ctx.font="38px sans-serif"; ctx.textAlign="center";
+        ctx.fillText("記録なし",512,530);
+    } else {
+        scores.slice(0,5).forEach((s,i)=>{
+            const y=472+i*60;
+            const isNew = Math.abs(s.time-elapsed)<10;
+            // NEWバッジ（左端固定）
+            if(isNew){
+                ctx.fillStyle="#44ffcc"; ctx.font="bold 26px sans-serif"; ctx.textAlign="left";
+                ctx.fillText("★NEW",56,y);
+            }
+            // スコア（中央）
+            ctx.fillStyle=isNew?"#44ffcc":i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
+            ctx.font=`bold ${i===0?46:40}px sans-serif`; ctx.textAlign="center";
+            ctx.fillText(`${medals[i]} ${(s.time/1000).toFixed(1)}s`,512,y);
+            // 日付＋時刻（右端）
+            const clockStr = s.clock ? `${s.date} ${s.clock}` : s.date;
+            ctx.fillStyle="#777"; ctx.font="26px sans-serif"; ctx.textAlign="right";
+            ctx.fillText(clockStr,968,y);
+        });
+    }
     tex.needsUpdate=true;
     EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
     EXP.mesh.visible=true;
@@ -2254,6 +2495,7 @@ function startLearningMode(){
                 gamePhase="playing";
                 learnTimerStart=performance.now();
                 learnTimerPaused=0; learnPauseStart=0;
+                velocityTarget=0.00008*SPEED; // GO時にスムージング加速開始
                 vibrate(300,0.7);
                 railSound.play().catch(()=>{});
                 updateLearnHUD();
@@ -2335,6 +2577,7 @@ function updateHUD(){
 /*
  * 関数名：updateScoreBoard
  * 役割  ：ゲームモードの TOP5 スコアランキングボードを Canvas に描画する
+ *         各行にスコア・日付・時刻（HH:MM）を表示する
  */
 function updateScoreBoard(){
     const {ctx,tex}=SB;
@@ -2346,16 +2589,19 @@ function updateScoreBoard(){
     ctx.beginPath(); ctx.moveTo(60,115); ctx.lineTo(964,115); ctx.stroke();
     const scores=loadScores();
     if(!scores.length){
-        ctx.fillStyle="#aaa"; ctx.font="50px sans-serif"; ctx.fillText("記録なし",512,280);
+        ctx.fillStyle="#aaa"; ctx.font="50px sans-serif"; ctx.fillText("記録なし",512,380);
     } else {
         const medals=["🥇","🥈","🥉","4.","5."];
         scores.forEach((s,i)=>{
-            const y=185+i*162;
+            const y=175+i*166;
+            // スコア（大）
             ctx.fillStyle=i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
-            ctx.font=`bold ${i===0?72:60}px sans-serif`; ctx.textAlign="left";
+            ctx.font=`bold ${i===0?68:56}px sans-serif`; ctx.textAlign="left";
             ctx.fillText(`${medals[i]} ${s.score}pt`,60,y);
-            ctx.fillStyle="#777"; ctx.font="36px sans-serif"; ctx.textAlign="right";
-            ctx.fillText(s.date,964,y);
+            // 日付＋時刻（右寄せ・小さめ）
+            const clockStr = s.clock ? `${s.date}  ${s.clock}` : s.date;
+            ctx.fillStyle="#888"; ctx.font="32px sans-serif"; ctx.textAlign="right";
+            ctx.fillText(clockStr,964,y);
         });
     }
     tex.needsUpdate=true;
@@ -2411,6 +2657,7 @@ function vibrate(dur,intensity){
   - velocity : 移動速度（フレームごとの progress 増分）
 ===================================================== */
 let progress=0, velocity=0.0001;
+let velocityTarget=0.0001; // スムージング用ターゲット速度
 let tourRunning = false; // ツアーモード走行フラグ（Aボタンでtrue、Bボタンでfalse）
 
 /*
@@ -2419,7 +2666,7 @@ let tourRunning = false; // ツアーモード走行フラグ（Aボタンでtru
  *         progress・velocity・train の位置と回転を初期化する
  */
 function teleportToStart(){
-    progress=0; velocity=0.0001;
+    progress=0; velocity=0.0001; velocityTarget=0.0001;
     const p=curve.getPointAt(0).clone(); p.y+=0.2;
     train.position.copy(p);
     // train の向きを初期化
@@ -2492,6 +2739,7 @@ function doStart(){
     gamePhase="playing";
     sfxCountdown(0);
     updateHUD();
+    velocityTarget=0.00008*SPEED; // GO時にスムージング加速開始
     vibrate(300,0.7);
     railSound.play().catch(()=>{});
     mainInterval=setInterval(()=>{
@@ -2527,12 +2775,73 @@ function doEnd(){
     if(gameScore>0) saveScore(gameScore);
     updateScoreBoard(); setDark(0.75);
     showOverlay(`${gameScore}pt`,"🎉 ゲーム終了！");
+    showGameResult(gameScore);
     cleanCoins();
     resetArtifacts();
     phaseTimeout=setTimeout(()=>{
         gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
-        setDark(0); hideOverlay(); teleportToStart(); updateHUD();
+        setDark(0); hideOverlay();
+        EXP.mesh.visible=false;
+        teleportToStart(); updateHUD();
     },10000);
+}
+
+/*
+ * 関数名：showGameResult
+ * 役割  ：ゲームモード終了時のリザルトパネルを EXP キャンバスに描画する
+ *         今回スコア（大）と TOP5 ランキング（スコア・日付・時刻）を表示する
+ */
+function showGameResult(score){
+    const {ctx,tex}=EXP;
+    ctx.clearRect(0,0,1024,1024);
+    ctx.fillStyle="rgba(0,5,20,0.95)"; rrect(ctx,8,8,1008,1008,32); ctx.fill();
+    ctx.strokeStyle="rgba(255,220,60,0.8)"; ctx.lineWidth=8; rrect(ctx,8,8,1008,1008,32); ctx.stroke();
+
+    // タイトル
+    ctx.fillStyle="#ffee44"; ctx.font="bold 62px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("🎉 ゲーム終了！",512,90);
+
+    // 今回スコア
+    ctx.fillStyle="#ffffff"; ctx.font="bold 46px sans-serif";
+    ctx.fillText("SCORE",512,170);
+    ctx.fillStyle="#ffee44"; ctx.font="bold 120px sans-serif";
+    ctx.fillText(`${score}pt`,512,300);
+
+    // 区切り線
+    ctx.strokeStyle="rgba(255,204,68,0.4)"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(60,345); ctx.lineTo(964,345); ctx.stroke();
+
+    // TOP5 タイトル
+    ctx.fillStyle="#ffcc44"; ctx.font="bold 50px sans-serif";
+    ctx.fillText("🏆 TOP 5",512,405);
+
+    const scores = loadScores();
+    const medals=["🥇","🥈","🥉","4.","5."];
+    if(!scores.length){
+        ctx.fillStyle="#aaa"; ctx.font="40px sans-serif"; ctx.textAlign="center";
+        ctx.fillText("記録なし",512,530);
+    } else {
+        scores.slice(0,5).forEach((s,i)=>{
+            const y=458+i*112;
+            const isNew = s.score===score && i===0;
+            // NEWバッジ（左端固定）
+            if(isNew){
+                ctx.fillStyle="#44ffcc"; ctx.font="bold 26px sans-serif"; ctx.textAlign="left";
+                ctx.fillText("★NEW",56,y);
+            }
+            // スコア（中央）
+            ctx.fillStyle=isNew?"#44ffcc":i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
+            ctx.font=`bold ${i===0?52:44}px sans-serif`; ctx.textAlign="center";
+            ctx.fillText(`${medals[i]} ${s.score}pt`,512,y);
+            // 日付＋時刻（右端）
+            const clockStr = s.clock ? `${s.date} ${s.clock}` : s.date;
+            ctx.fillStyle="#777"; ctx.font="26px sans-serif"; ctx.textAlign="right";
+            ctx.fillText(clockStr,968,y);
+        });
+    }
+    tex.needsUpdate=true;
+    EXP.mesh.position.set(0, EXP_LY + EXP_LOADING_OFFSET_Y, EXP_LZ);
+    EXP.mesh.visible=true;
 }
 
 /*
@@ -2552,7 +2861,9 @@ function doForceEnd(){
     showOverlay("強制終了","スコアは記録されません");
     phaseTimeout=setTimeout(()=>{
         gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
-        setDark(0); hideOverlay(); teleportToStart(); updateHUD();
+        setDark(0); hideOverlay();
+        EXP.mesh.visible=false;
+        teleportToStart(); updateHUD();
     },3000);
 }
 
@@ -2720,12 +3031,12 @@ renderer.setAnimationLoop(()=>{
     const isTour = CONFIG.gameMode === "tour";
     const isLearning = CONFIG.gameMode === "learning";
 
-    // 発掘演出中またはリザルト中は列車を停止させる（学びモード専用）
-    const learnStop = isLearning && (learningSubState==="excavating" || gamePhase==="result");
-    if((isTour && tourRunning) || (gamePhase==="playing" && !learnStop)) progress=(progress+velocity)%1;
+    // 発掘演出中のみ列車を停止させる（result/forceend では止めない）
+    const learnStop = isLearning && learningSubState==="excavating";
+    if((isTour && tourRunning) || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend") progress=(progress+velocity)%1;
 
     pos.copy(curve.getPointAt(progress)); pos.y+=0.2;
-    const moving = (isTour && tourRunning) || (gamePhase==="playing" && !learnStop);
+    const moving = (isTour && tourRunning) || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend";
     realSpeed = moving ? pos.distanceTo(prevPos)/(dt/1000)*3.6 : 0;
     if(now-lastSpeedUI>100){ if(realSpeedUI) realSpeedUI.textContent=realSpeed.toFixed(0)+" km/h"; lastSpeedUI=now; }
     prevPos.copy(pos);
@@ -2734,19 +3045,26 @@ renderer.setAnimationLoop(()=>{
     tan.copy(curve.getTangentAt(progress));
 
     const ACCEL=0.0000001,DECEL=ACCEL*0.5;
+    // スムージング係数（小さいほど緩やかに加減速）
+    const SMOOTH = 0.04;
     accelState=0;
-    if((isTour && tourRunning) || (gamePhase==="playing" && !learnStop)){
-        if(!isTour && keyUp)  {velocity+=ACCEL*dt;accelState=1;}
-        if(!isTour && keyDown){velocity-=DECEL*dt;accelState=-1;}
+    if((isTour && tourRunning) || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend"){
+        if(!isTour && keyUp)  {velocityTarget+=ACCEL*dt;accelState=1;}
+        if(!isTour && keyDown){velocityTarget-=DECEL*dt;accelState=-1;}
         const sy=getStickY();
-        if(sy<-0.2){velocity+=ACCEL*dt*(-sy);accelState=1;}
-        if(sy>0.2){velocity-=DECEL*dt*sy;accelState=-1;}
+        if(sy<-0.2){velocityTarget+=ACCEL*dt*(-sy);accelState=1;}
+        if(sy>0.2){velocityTarget-=DECEL*dt*sy;accelState=-1;}
         const tg=accelState?1:0; glowStr+=(tg-glowStr)*0.15;
-        velocity-=tan.y*1e-7*dt*SPEED;
+        velocityTarget-=tan.y*1e-7*dt*SPEED;
         const TV=0.00012*SPEED;
-        if(velocity>TV){const d=velocity-TV;velocity-=(d*d*0.0001+d*0.001)*dt;}
-        velocity=Math.max(0.00005*SPEED,Math.min(0.0003*SPEED,velocity));
+        if(velocityTarget>TV){const d=velocityTarget-TV;velocityTarget-=(d*d*0.0001+d*0.001)*dt;}
+        velocityTarget=Math.max(0.00005*SPEED,Math.min(0.0003*SPEED,velocityTarget));
+    } else {
+        // 停止中（ツアー待機 / countdown / excavating）はターゲットを 0 へ
+        velocityTarget=0;
     }
+    // velocity をターゲットへスムージング（線形補間）
+    velocity += (velocityTarget - velocity) * Math.min(1, SMOOTH * dt / 16);
     train.lookAt(lkAt.copy(pos).sub(tan));
     if(orbitControls) orbitControls.update();
 
@@ -2867,8 +3185,14 @@ renderer.setAnimationLoop(()=>{
     // ボタン処理
     if(isTour){
         // ツアーモード：Aボタンでレール走行スタート、Bボタンでストップ
-        if(bA&&!prevA) tourRunning = true;
-        if(bB&&!prevB) tourRunning = false;
+        if(bA&&!prevA){
+            tourRunning = true;
+            velocityTarget = 0.00008*SPEED; // スタート時ターゲット速度（スムージングで加速）
+        }
+        if(bB&&!prevB){
+            tourRunning = false;
+            velocityTarget = 0; // ストップ時はターゲットを0へ（スムージングで減速）
+        }
     } else {
         if(isLearning){
             // 学びモード入力処理
