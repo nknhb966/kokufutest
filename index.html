@@ -226,8 +226,8 @@
 <!-- ═══ フルスクリーン タイトルパネル（ride モード） ═══ -->
 <div id="uiPanel">
   <div class="panel-inner">
-    <p class="main-title">越前国府VRコースター2025</p>
-    <p class="sub-title">〜遺跡を駆ける、発見の旅〜</p>
+    <p class="main-title">越前国府VRコースター</p>
+    <p class="sub-title">〜 遺跡を駆ける、発見の旅 -2025- 〜</p>
 
     <div id="vrButtonWrap"></div>
 
@@ -347,7 +347,7 @@ const CONFIG = {
 let SPEED = CONFIG.speed;
 
 /* =====================================================
-スコア管理（ゲームモード）
+スコア管理
   - localStorage に TOP5 を降順で保存・読み込む
 ===================================================== */
 const LS_KEY = "vr_coaster_scores_v2";
@@ -391,6 +391,10 @@ function saveLearningScore(timeMs){
     localStorage.setItem(LS_LEARNING_KEY, JSON.stringify(arr));
 }
 
+/* =====================================================
+リセット
+  - localStorage を削除する
+===================================================== */
 document.getElementById("resetBtn").addEventListener("click", () => {
     if (confirm("記録をリセットしますか？")) {
         localStorage.removeItem(LS_KEY);
