@@ -421,9 +421,6 @@
   </div>
 </div>
 
-<!-- ═══ 操作説明モーダル ═══ -->
-<div id="modal">
-
 <!-- ═══ 記録閲覧モーダル ═══ -->
 <div id="recordsModal">
   <div class="rmodal-box">
@@ -461,6 +458,9 @@
     </div>
   </div>
 </div>
+
+<!-- ═══ 操作説明モーダル ═══ -->
+<div id="modal">
   <div class="modal-box">
     <button class="modal-close" id="modalClose">×</button>
     <div class="modal-tabs">
@@ -2773,14 +2773,12 @@ function doEnd(){
     vibrate(600,1.0);
     railSound.pause();
     if(gameScore>0) saveScore(gameScore);
-    updateScoreBoard(); setDark(0.75);
-    showOverlay(`${gameScore}pt`,"🎉 ゲーム終了！");
-    showGameResult(gameScore);
+    updateScoreBoard();
+    showGameResult(gameScore); // TOP5付きリザルトパネルのみ表示
     cleanCoins();
     resetArtifacts();
     phaseTimeout=setTimeout(()=>{
         gamePhase="idle"; gameScore=0; gameTimeLeft=GAME_DURATION;
-        setDark(0); hideOverlay();
         EXP.mesh.visible=false;
         teleportToStart(); updateHUD();
     },10000);
@@ -3033,10 +3031,12 @@ renderer.setAnimationLoop(()=>{
 
     // 発掘演出中のみ列車を停止させる（result/forceend では止めない）
     const learnStop = isLearning && learningSubState==="excavating";
-    if((isTour && tourRunning) || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend") progress=(progress+velocity)%1;
+    // ツアーモード：tourRunningがfalseでもvelocityが残っている間は走り続ける（スムージング減速）
+    const tourMoving = isTour && (tourRunning || velocity > 0.000005);
+    if(tourMoving || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend") progress=(progress+velocity)%1;
 
     pos.copy(curve.getPointAt(progress)); pos.y+=0.2;
-    const moving = (isTour && tourRunning) || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend";
+    const moving = tourMoving || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend";
     realSpeed = moving ? pos.distanceTo(prevPos)/(dt/1000)*3.6 : 0;
     if(now-lastSpeedUI>100){ if(realSpeedUI) realSpeedUI.textContent=realSpeed.toFixed(0)+" km/h"; lastSpeedUI=now; }
     prevPos.copy(pos);
@@ -3060,11 +3060,14 @@ renderer.setAnimationLoop(()=>{
         if(velocityTarget>TV){const d=velocityTarget-TV;velocityTarget-=(d*d*0.0001+d*0.001)*dt;}
         velocityTarget=Math.max(0.00005*SPEED,Math.min(0.0003*SPEED,velocityTarget));
     } else {
-        // 停止中（ツアー待機 / countdown / excavating）はターゲットを 0 へ
+        // 停止中（ツアーBボタン後 / countdown / excavating）：ターゲットを0に保つ
+        // velocity はスムージングで自然に0へ収束する
         velocityTarget=0;
     }
     // velocity をターゲットへスムージング（線形補間）
     velocity += (velocityTarget - velocity) * Math.min(1, SMOOTH * dt / 16);
+    // velocity が極小になったら完全に0にクランプ（ドリフト防止）
+    if(Math.abs(velocity) < 0.000001) velocity=0;
     train.lookAt(lkAt.copy(pos).sub(tan));
     if(orbitControls) orbitControls.update();
 
