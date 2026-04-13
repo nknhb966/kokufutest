@@ -2222,17 +2222,19 @@ function tickLearnExcavation(dt){
             if(leftController){
                 const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
 
-                // カメラの向きを取得
-                const camQuat = camera.quaternion;
+                // コントローラーの向き
+                const ctrlQuat = leftController.quaternion;
 
-                // カメラ基準の方向ベクトル
-                const side  = new THREE.Vector3(0, 0, 1).applyQuaternion(camQuat);
+                // コントローラー基準の方向
+                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(ctrlQuat);
+                const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(ctrlQuat);
+                const back  = new THREE.Vector3(0, 0, 1).applyQuaternion(ctrlQuat);
 
-                // オフセット（カメラ基準）
                 const offset = new THREE.Vector3();
-                offset.addScaledVector(side,  0.3);
+                offset.addScaledVector(right, 0.1);
+                offset.addScaledVector(up,    0.1);
+                offset.addScaledVector(back,  0.3);
 
-                // 最終位置
                 learnExcavMirrorModel.position.copy(ctrlWorldPos).add(offset);
             }
         }
