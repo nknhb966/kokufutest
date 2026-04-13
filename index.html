@@ -2219,27 +2219,26 @@ function tickLearnExcavation(dt){
         // ミラーモデル：左手コントローラーの付近で追従（同じ回転速度）
         if(learnExcavMirrorModel){
             learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/10);
-            if(leftController){
-                const camPos = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
-                const camQuat = camera.quaternion;
+                if(leftController){
+                    const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
 
-                // カメラ基準方向
-                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQuat);
-                const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);
-                const back  = new THREE.Vector3(0, 0, 1).applyQuaternion(camQuat);
+                    // カメラの向きを取得
+                    const camQuat = camera.quaternion;
 
-                // オフセット
-                const offset = new THREE.Vector3();
-                offset.addScaledVector(right, 0.15);
-                offset.addScaledVector(up,    0.05);
-                offset.addScaledVector(back,  0.3);
+                    // カメラ基準の方向ベクトル
+                    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQuat);   // 右
+                    const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);   // 上
+                    const back  = new THREE.Vector3(0, 0, 1).applyQuaternion(camQuat);   // 奥（←重要）
 
-                // 位置
-                learnExcavMirrorModel.position.copy(camPos).add(offset);
+                    // オフセット（カメラ基準）
+                    const offset = new THREE.Vector3();
+                    offset.addScaledVector(right, 0.1);  // 右
+                    offset.addScaledVector(up,    0.1);  // 上
+                    offset.addScaledVector(back,  0.1);  // 奥
 
-                // 向き（超重要）
-                learnExcavMirrorModel.quaternion.copy(camQuat);
-            }
+                    // 最終位置
+                    learnExcavMirrorModel.position.copy(ctrlWorldPos).add(offset);
+                }
         }
         // GOが押されるまで無限待機
         return;
