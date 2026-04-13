@@ -2144,7 +2144,7 @@ function startLearnExcavation(idx){
 
 let learnExcavFlyT = 0;
 let learnExcavShowTimer = 0;
-let learnExcavMirrorModel = null; // Step2で左手コントローラー上方0.2mに追従するミラーモデル
+let learnExcavMirrorModel = null; // Step2で左手コントローラー上方0.1mに追従するミラーモデル
 
 /*
  * 関数名：tickLearnExcavation
@@ -2197,7 +2197,7 @@ function tickLearnExcavation(dt){
             learnGoReady = true;
             GOBT.mesh.visible = true;
 
-            // 2個目のモデル：左手コントローラーの上方0.2mに追従するオリジナルサイズのクローンを生成
+            // 2個目のモデル：左手コントローラーの上方0.1mに追従するオリジナルサイズのクローンを生成
             if(!learnExcavMirrorModel && model){
                 learnExcavMirrorModel = model.clone();
                 // オリジナルサイズ（MODEL_SCALE適用前 = 1.0 スケール）
@@ -2214,13 +2214,13 @@ function tickLearnExcavation(dt){
         // Y軸回転のみ：30秒で1回転（2π/3 rad/sec）
         if(model) model.rotation.y += dt * (2*Math.PI/30);
 
-        // ミラーモデル：左手コントローラーの上0.2mへ追従（同じ回転速度）
+        // ミラーモデル：左手コントローラーの上0.1mへ追従（同じ回転速度）
         if(learnExcavMirrorModel){
             learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/30);
             if(leftController){
-                // 左手コントローラーのワールド座標を取得し上方0.2mに配置
+                // 左手コントローラーのワールド座標を取得し上方0.1mに配置
                 const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
-                ctrlWorldPos.y += 0.2;
+                ctrlWorldPos.y += 0.1;
                 learnExcavMirrorModel.position.copy(ctrlWorldPos);
             }
         }
@@ -2450,7 +2450,8 @@ function showLearnResult(elapsed, newRank, savedId){
         const badge = newRank===0 ? "🥇 NEW\nRECORD!" : `TOP${newRank+1}\nNEW!`;
         const lines = badge.split("\n");
         lines.forEach((ln,li)=>{
-            ctx.fillText(ln, W/2 - 90, 265 + li*40);
+            ctx.fillText(ln, W/4, 265 + li*40);
+            // ctx.fillText(ln, W/2 - 90, 265 + li*40);
         });
         ctx.restore();
     } else {
@@ -2943,7 +2944,8 @@ function showGameResult(score, newRank, savedId){
         ctx.fillStyle="#44ffcc"; ctx.font="bold 34px sans-serif"; ctx.textAlign="right";
         const badge = newRank===0 ? "🥇 NEW\nRECORD!" : `TOP${newRank+1}\nNEW!`;
         badge.split("\n").forEach((ln,li)=>{
-            ctx.fillText(ln, W/2 - 90, 265 + li*40);
+            ctx.fillText(ln, W/3, 265 + li*40);
+            // ctx.fillText(ln, W/2 - 90, 265 + li*40);
         });
         ctx.restore();
     } else {
