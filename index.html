@@ -2220,22 +2220,25 @@ function tickLearnExcavation(dt){
         if(learnExcavMirrorModel){
             learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/10);
             if(leftController){
-                const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
+                const camPos = new THREE.Vector3().setFromMatrixPosition(camera.matrixWorld);
+                const camQuat = camera.quaternion;
 
-                // コントローラーの向き
-                const ctrlQuat = leftController.quaternion;
+                // カメラ基準方向
+                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQuat);
+                const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);
+                const back  = new THREE.Vector3(0, 0, 1).applyQuaternion(camQuat);
 
-                // コントローラー基準の方向
-                const xctrl = new THREE.Vector3(1, 0, 0).applyQuaternion(ctrlQuat);
-                const yctrl = new THREE.Vector3(0, 1, 0).applyQuaternion(ctrlQuat);
-                const zctrl = new THREE.Vector3(0, 0, 1).applyQuaternion(ctrlQuat);
-
+                // オフセット
                 const offset = new THREE.Vector3();
-                offset.addScaledVector(xctrl, 0.2);
-                offset.addScaledVector(yctrl, 0.1);
-                offset.addScaledVector(zctrl, 0.1);
+                offset.addScaledVector(right, 0.15);
+                offset.addScaledVector(up,    0.05);
+                offset.addScaledVector(back,  0.3);
 
-                learnExcavMirrorModel.position.copy(ctrlWorldPos).add(offset);
+                // 位置
+                learnExcavMirrorModel.position.copy(camPos).add(offset);
+
+                // 向き（超重要）
+                learnExcavMirrorModel.quaternion.copy(camQuat);
             }
         }
         // GOが押されるまで無限待機
@@ -2472,7 +2475,7 @@ function showLearnResult(elapsed, newRank, savedId){
         ctx.fillText(timeStr, W/2, 295);
         // 圏外：タイム左隣
         ctx.fillStyle="rgba(180,180,200,0.55)"; ctx.font="bold 30px sans-serif"; ctx.textAlign="right";
-        ctx.fillText("圏外", W/2 - 90, 285);
+        ctx.fillText("圏外", W/4, 285);
     }
 
     // 区切り線
@@ -2965,7 +2968,7 @@ function showGameResult(score, newRank, savedId){
         ctx.fillText(scoreStr, W/2, 295);
         // 圏外：スコア左隣
         ctx.fillStyle="rgba(180,180,200,0.55)"; ctx.font="bold 30px sans-serif"; ctx.textAlign="right";
-        ctx.fillText("圏外", W/2 - 90, 285);
+        ctx.fillText("圏外", W/4, 285);
     }
 
     // 区切り線
