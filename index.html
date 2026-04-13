@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター2025</title>
+<title>1越前国府VRコースター2025</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1319,6 +1319,28 @@ function onControllerConnected(event) {
 }
 
 /*
+ * 関数名：attachLeftLaser
+ * 役割  ：左コントローラーにレーザーを接続する
+ */
+function attachLeftLaser() {
+    if (!leftController) return;
+    if (laserLeft.line.parent) {
+        laserLeft.line.parent.remove(laserLeft.line);
+    }
+    leftController.add(laserLeft.line);
+}
+
+/*
+ * 関数名：detachLeftLaser
+ * 役割  ：左コントローラーからレーザーを解除する
+ */
+function detachLeftLaser() {
+    if (laserLeft.line.parent) {
+        laserLeft.line.parent.remove(laserLeft.line);
+    }
+}
+
+/*
  * 関数名：onControllerDisconnected
  * 役割  ：コントローラー切断時に参照をクリアする
  */
@@ -2193,6 +2215,7 @@ function tickLearnExcavation(dt){
     }
 
     if(learnExcavStep===2){
+        detachLeftLaser();
         // 説明画像表示待機：0.5秒後にパネルを切り替え、GOボタンを点滅させる
         learnExcavShowTimer += dt;
         if(learnExcavShowTimer >= 0.5 && !learnGoReady){
@@ -2205,15 +2228,6 @@ function tickLearnExcavation(dt){
                 // オリジナルサイズ（MODEL_SCALE適用前 = 1.0 スケール）
                 learnExcavMirrorModel.scale.setScalar(1.0);
                 learnExcavMirrorModel.visible = true;
-
-                learnExcavMirrorModel.traverse(obj => {
-                    if(obj.isMesh){
-                        obj.renderOrder = 9999;
-                        // 必要なら深度無効化（UI的に前面固定したい場合）
-                        // obj.material.depthTest = false;
-                        // obj.material.depthWrite = false;
-                    }
-                });
                 scene.add(learnExcavMirrorModel);
             }
         }
@@ -2240,6 +2254,7 @@ function tickLearnExcavation(dt){
     }
 
     if(learnExcavStep===3){
+        attachLeftLaser();
         // モデルを元の世界座標へ easing で戻す（fly-out）
         if(learnExcavFlyT === 0 && model){
             model.userData._flyStart = model.position.clone();
