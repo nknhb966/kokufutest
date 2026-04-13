@@ -571,16 +571,17 @@ function loadLearningScores(){ return loadScoresBy(LS_LEARNING_KEY); }
 /*
  * 関数名：saveLearningScore
  * 役割  ：現在カーブの学びモードタイムを昇順で保存し、上位5件を維持する
- *         戻り値：TOP5入りした場合は 0-based 順位（0=1位）、入らなければ -1
+ *         戻り値：{rank: TOP5順位(0-based,-1=圏外), id: 今回レコードのid}
  */
 function saveLearningScore(timeMs){
     const arr = loadLearningScores();
     const now = new Date();
-    arr.push({time: timeMs, date: now.toLocaleDateString("ja-JP"), clock: fmtTime(now)});
+    const id = now.getTime(); // ユニークID（タイムスタンプms）
+    arr.push({time: timeMs, date: now.toLocaleDateString("ja-JP"), clock: fmtTime(now), id});
     arr.sort((a,b)=>a.time-b.time); arr.splice(5);
     saveScoresBy(LS_LEARNING_KEY, arr);
-    // 保存後の配列中の順位を返す（-1=圏外）
-    return arr.findIndex(s=>Math.abs(s.time-timeMs)<10);
+    const rank = arr.findIndex(s=>s.id===id); // idで確実に今回の記録を特定
+    return {rank, id};
 }
 
 /*
@@ -592,15 +593,17 @@ function loadScores(){ return loadScoresBy(LS_KEY); }
 /*
  * 関数名：saveScore
  * 役割  ：現在カーブのゲームモードスコアを保存し、上位5件を維持する
- *         戻り値：TOP5入りした場合は 0-based 順位（0=1位）、入らなければ -1
+ *         戻り値：{rank: TOP5順位(0-based,-1=圏外), id: 今回レコードのid}
  */
 function saveScore(score){
     const arr = loadScores();
     const now = new Date();
-    arr.push({ score, date: now.toLocaleDateString("ja-JP"), clock: fmtTime(now) });
+    const id = now.getTime(); // ユニークID（タイムスタンプms）
+    arr.push({ score, date: now.toLocaleDateString("ja-JP"), clock: fmtTime(now), id });
     arr.sort((a,b)=>b.score-a.score); arr.splice(5);
     saveScoresBy(LS_KEY, arr);
-    return arr.findIndex(s=>s.score===score);
+    const rank = arr.findIndex(s=>s.id===id); // idで確実に今回の記録を特定
+    return {rank, id};
 }
 
 /* =====================================================
@@ -1078,7 +1081,7 @@ function sfxNewRecord(rank){
 シーン・レンダラー初期化
   - WebGLRenderer を生成し DOM に追加
   - XR（WebXR）を有効化する
-=====================================================  */
+===================================================== */
 const scene    = new THREE.Scene();
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setPixelRatio(window.devicePixelRatio);
@@ -1809,7 +1812,7 @@ function updateLearnHUD(){
 /*
  * 関数名：updateLearnScoreBoard
  * 役割  ：学びモードの TOP5 タイムランキングボードを Canvas に描画する
- *         "TOP5" タイトル 1/6、各位 1/6 の均等レイアウト。1位のみ文字大きめ。
+ *         "TOP5" タイトル 1/6、各位 1/6 の均等レイアウト。上下8pxパディング。1位のみ文字大きめ。
  */
 function updateLearnScoreBoard(){
     const {ctx,tex}=LSB;
@@ -1817,30 +1820,31 @@ function updateLearnScoreBoard(){
     ctx.clearRect(0,0,W,H);
     ctx.fillStyle="rgba(0,0,0,0.78)"; rrect(ctx,8,8,W-16,H-16,28); ctx.fill();
 
-    const SLOT = Math.floor(H/6); // 170px/slot
+    const PAD = 8;
+    const SLOT = Math.floor((H - PAD*2) / 6); // 上下8pxパディング後の均等分割
     const medals=["🥇","🥈","🥉","4.","5."];
 
     // タイトル行（1/6）
-    ctx.fillStyle="#44ddff"; ctx.font="bold 68px sans-serif"; ctx.textAlign="center";
-    ctx.fillText("🏆 TOP 5", W/2, SLOT/2+24);
+    ctx.fillStyle="#44ddff"; ctx.font="bold 66px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("🏆 TOP 5", W/2, PAD + SLOT/2+22);
     ctx.strokeStyle="rgba(68,221,255,0.4)"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(40,SLOT); ctx.lineTo(W-40,SLOT); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(40,PAD+SLOT); ctx.lineTo(W-40,PAD+SLOT); ctx.stroke();
 
     const scores = loadLearningScores();
     if(!scores.length){
-        ctx.fillStyle="#aaa"; ctx.font="48px sans-serif";
+        ctx.fillStyle="#aaa"; ctx.font="46px sans-serif";
         ctx.fillText("記録なし", W/2, H/2);
     } else {
         scores.forEach((s,i)=>{
-            const rowTop = SLOT*(i+1);
-            const cy = rowTop + SLOT/2 + 6;
-            const fontSize = i===0 ? 64 : 52;
+            const rowTop = PAD + SLOT*(i+1);
+            const cy = rowTop + SLOT/2 + 4;
+            const fontSize = i===0 ? 62 : 50;
             ctx.fillStyle=i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
             ctx.font=`bold ${fontSize}px sans-serif`; ctx.textAlign="center";
             ctx.fillText(`${medals[i]} ${(s.time/1000).toFixed(1)}s`, W/2, cy);
             const clockStr = s.clock ? `${s.date}  ${s.clock}` : s.date;
-            ctx.fillStyle="#777"; ctx.font="30px sans-serif"; ctx.textAlign="right";
-            ctx.fillText(clockStr, W-44, cy+4);
+            ctx.fillStyle="#777"; ctx.font="28px sans-serif"; ctx.textAlign="right";
+            ctx.fillText(clockStr, W-36, cy+6);
         });
     }
     tex.needsUpdate=true;
@@ -2397,20 +2401,20 @@ function onLearnComplete(){
     sfxLearningComplete();
     setDark(0.75);
     railSound.pause();
-    const rank = saveLearningScore(elapsed);
+    const {rank, id} = saveLearningScore(elapsed);
     if(rank >= 0) setTimeout(()=>sfxNewRecord(rank), 800); // ファンファーレ後に記録音
     updateLearnScoreBoard();
-    showLearnResult(elapsed, rank);
+    showLearnResult(elapsed, rank, id);
 }
 
 /*
  * 関数名：showLearnResult
  * 役割  ：コンプリート後のリザルトパネルを EXP キャンバスに描画する
- *         上4割：今回タイム、下6割：TOP5（タイトル1割＋各位1割×5）
- *         NEWはグロー＋強調色で目立たせる
- * 引数  ：elapsed = 今回の経過時間(ms)、newRank = TOP5順位(0-based, -1=圏外)
+ *         上4割：今回タイム（左側にNEW/圏外バッジ）
+ *         下6割：TOP5均等（上下8pxパディング）
+ * 引数  ：elapsed=今回ms, newRank=0-based順位(-1=圏外), savedId=今回レコードのid
  */
-function showLearnResult(elapsed, newRank){
+function showLearnResult(elapsed, newRank, savedId){
     const {ctx,tex}=EXP;
     const W=1024, H=1024;
     ctx.clearRect(0,0,W,H);
@@ -2424,67 +2428,73 @@ function showLearnResult(elapsed, newRank){
     const isNewRecord = newRank >= 0;
 
     // タイトル
-    ctx.fillStyle="#44ddff"; ctx.font="bold 52px sans-serif"; ctx.textAlign="center";
-    ctx.fillText("🎊 全発掘コンプリート！", W/2, 68);
+    ctx.fillStyle="#44ddff"; ctx.font="bold 50px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("🎊 全発掘コンプリート！", W/2, 64);
 
     // ラベル
-    ctx.fillStyle=isNewRecord?"#44ffcc":"#aaddff"; ctx.font="bold 42px sans-serif";
-    ctx.fillText("⏱ TIME", W/2, 148);
+    ctx.fillStyle=isNewRecord?"#44ffcc":"#aaddff"; ctx.font="bold 38px sans-serif";
+    ctx.fillText("⏱ TIME", W/2, 138);
 
-    // 今回タイム（大）＋ NEWグロー
+    // 今回タイム（大）—— 中央固定
     const timeStr = `${(elapsed/1000).toFixed(1)}s`;
     if(isNewRecord){
         ctx.save();
-        ctx.shadowColor="#44ffcc"; ctx.shadowBlur=28;
-        ctx.fillStyle="#44ffcc"; ctx.font="bold 148px sans-serif";
-        ctx.fillText(timeStr, W/2, 305);
+        ctx.shadowColor="#44ffcc"; ctx.shadowBlur=30;
+        ctx.fillStyle="#44ffcc"; ctx.font="bold 140px sans-serif"; ctx.textAlign="center";
+        ctx.fillText(timeStr, W/2, 295);
         ctx.restore();
-        // NEWバッジ（グロー付き）
+        // NEWバッジ：タイム左隣（textAlign="right"で中央x-8の位置）
         ctx.save();
-        ctx.shadowColor="#ffee44"; ctx.shadowBlur=20;
-        ctx.fillStyle="#ffee44"; ctx.font="bold 38px sans-serif";
-        ctx.fillText(`★ ${newRank===0?"🥇 NEW RECORD!":"TOP"+(newRank+1)+" NEW!"}`, W/2, 370);
+        ctx.shadowColor="#ffee44"; ctx.shadowBlur=18;
+        ctx.fillStyle="#ffee44"; ctx.font="bold 34px sans-serif"; ctx.textAlign="right";
+        const badge = newRank===0 ? "🥇 NEW\nRECORD!" : `TOP${newRank+1}\nNEW!`;
+        const lines = badge.split("\n");
+        lines.forEach((ln,li)=>{
+            ctx.fillText(ln, W/2 - 90, 265 + li*40);
+        });
         ctx.restore();
     } else {
-        ctx.fillStyle="#44ffcc"; ctx.font="bold 148px sans-serif";
-        ctx.fillText(timeStr, W/2, 305);
-        ctx.fillStyle="rgba(180,180,200,0.5)"; ctx.font="bold 32px sans-serif";
-        ctx.fillText("圏外", W/2, 375);
+        ctx.fillStyle="#44ffcc"; ctx.font="bold 140px sans-serif"; ctx.textAlign="center";
+        ctx.fillText(timeStr, W/2, 295);
+        // 圏外：タイム左隣
+        ctx.fillStyle="rgba(180,180,200,0.55)"; ctx.font="bold 30px sans-serif"; ctx.textAlign="right";
+        ctx.fillText("圏外", W/2 - 90, 285);
     }
 
     // 区切り線
     ctx.strokeStyle="rgba(68,200,255,0.35)"; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(40,TOP_H); ctx.lineTo(W-40,TOP_H); ctx.stroke();
 
-    // ── 下6割：TOP5エリア（409〜1024px、615px）──
-    const BOT_START = TOP_H;
-    const SLOT = Math.floor((H - BOT_START) / 6); // 102px/slot
+    // ── 下6割：TOP5エリア（409〜1024px）──
+    // 上下8pxパディングを設けてSLOTを計算
+    const PAD = 8;
+    const BOT_USABLE = H - TOP_H - PAD*2; // パディング分を引いた実効高さ
+    const SLOT = Math.floor(BOT_USABLE / 6); // ≈99px/slot
 
     // TOP5タイトル行（1/6）
-    const titleY = BOT_START + SLOT/2 + 18;
-    ctx.fillStyle="#44ddff"; ctx.font="bold 48px sans-serif"; ctx.textAlign="center";
-    ctx.fillText("🏆 TOP 5", W/2, titleY);
+    const titleCY = TOP_H + PAD + SLOT/2;
+    ctx.fillStyle="#44ddff"; ctx.font="bold 46px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("🏆 TOP 5", W/2, titleCY+14);
 
     const scores = loadLearningScores();
     const medals = ["🥇","🥈","🥉","4.","5."];
     if(!scores.length){
-        ctx.fillStyle="#aaa"; ctx.font="36px sans-serif";
-        ctx.fillText("記録なし", W/2, BOT_START + SLOT*3);
+        ctx.fillStyle="#aaa"; ctx.font="34px sans-serif";
+        ctx.fillText("記録なし", W/2, TOP_H + PAD + SLOT*3);
     } else {
         scores.slice(0,5).forEach((s,i)=>{
-            const rowTop = BOT_START + SLOT*(i+1);
-            const cy = rowTop + SLOT/2 + 4;
-            const isNew = Math.abs(s.time-elapsed)<10;
+            const rowTop = TOP_H + PAD + SLOT*(i+1);
+            const cy = rowTop + SLOT/2;
+            const isNew = savedId != null ? s.id===savedId : false;
             const color = isNew?"#44ffcc":i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
-            const fontSize = i===0 ? 52 : 42;
+            const fontSize = i===0 ? 50 : 40;
 
             if(isNew){
-                // グロー
                 ctx.save();
-                ctx.shadowColor=color; ctx.shadowBlur=18;
-                // NEWバッジ（左端）
-                ctx.fillStyle=color; ctx.font="bold 28px sans-serif"; ctx.textAlign="left";
-                ctx.fillText("★NEW", 44, cy+8);
+                ctx.shadowColor=color; ctx.shadowBlur=16;
+                // ★NEWバッジ（スコア左隣・textAlign=right）
+                ctx.fillStyle=color; ctx.font="bold 24px sans-serif"; ctx.textAlign="right";
+                ctx.fillText("★NEW", W/2 - 8, cy+10);
                 // スコア（中央）
                 ctx.fillStyle=color; ctx.font=`bold ${fontSize}px sans-serif`; ctx.textAlign="center";
                 ctx.fillText(`${medals[i]} ${(s.time/1000).toFixed(1)}s`, W/2, cy+14);
@@ -2495,8 +2505,8 @@ function showLearnResult(elapsed, newRank){
             }
             // 日付＋時刻（右端）
             const clockStr = s.clock ? `${s.date} ${s.clock}` : s.date;
-            ctx.fillStyle=isNew?"rgba(68,255,204,0.7)":"#666"; ctx.font="26px sans-serif"; ctx.textAlign="right";
-            ctx.fillText(clockStr, W-44, cy+18);
+            ctx.fillStyle=isNew?"rgba(68,255,204,0.65)":"#666"; ctx.font="24px sans-serif"; ctx.textAlign="right";
+            ctx.fillText(clockStr, W-40, cy+18);
         });
     }
 
@@ -2671,7 +2681,7 @@ function updateHUD(){
 /*
  * 関数名：updateScoreBoard
  * 役割  ：ゲームモードの TOP5 スコアランキングボードを Canvas に描画する
- *         "TOP5" タイトル 1/6、各位 1/6 の均等レイアウト。1位のみ文字大きめ。
+ *         "TOP5" タイトル 1/6、各位 1/6 の均等レイアウト。上下8pxパディング。1位のみ文字大きめ。
  */
 function updateScoreBoard(){
     const {ctx,tex}=SB;
@@ -2679,30 +2689,31 @@ function updateScoreBoard(){
     ctx.clearRect(0,0,W,H);
     ctx.fillStyle="rgba(0,0,0,0.78)"; rrect(ctx,8,8,W-16,H-16,28); ctx.fill();
 
-    const SLOT = Math.floor(H/6); // 170px/slot
+    const PAD = 8;
+    const SLOT = Math.floor((H - PAD*2) / 6);
     const medals=["🥇","🥈","🥉","4.","5."];
 
     // タイトル行（1/6）
-    ctx.fillStyle="#ffcc44"; ctx.font="bold 68px sans-serif"; ctx.textAlign="center";
-    ctx.fillText("🏆 TOP 5", W/2, SLOT/2+24);
+    ctx.fillStyle="#ffcc44"; ctx.font="bold 66px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("🏆 TOP 5", W/2, PAD + SLOT/2+22);
     ctx.strokeStyle="rgba(255,204,68,0.4)"; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(40,SLOT); ctx.lineTo(W-40,SLOT); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(40,PAD+SLOT); ctx.lineTo(W-40,PAD+SLOT); ctx.stroke();
 
     const scores=loadScores();
     if(!scores.length){
-        ctx.fillStyle="#aaa"; ctx.font="48px sans-serif";
+        ctx.fillStyle="#aaa"; ctx.font="46px sans-serif";
         ctx.fillText("記録なし", W/2, H/2);
     } else {
         scores.forEach((s,i)=>{
-            const rowTop = SLOT*(i+1);
-            const cy = rowTop + SLOT/2 + 6;
-            const fontSize = i===0 ? 64 : 52;
+            const rowTop = PAD + SLOT*(i+1);
+            const cy = rowTop + SLOT/2 + 4;
+            const fontSize = i===0 ? 62 : 50;
             ctx.fillStyle=i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
             ctx.font=`bold ${fontSize}px sans-serif`; ctx.textAlign="center";
             ctx.fillText(`${medals[i]} ${s.score}pt`, W/2, cy);
             const clockStr = s.clock ? `${s.date}  ${s.clock}` : s.date;
-            ctx.fillStyle="#777"; ctx.font="30px sans-serif"; ctx.textAlign="right";
-            ctx.fillText(clockStr, W-44, cy+4);
+            ctx.fillStyle="#777"; ctx.font="28px sans-serif"; ctx.textAlign="right";
+            ctx.fillText(clockStr, W-36, cy+6);
         });
     }
     tex.needsUpdate=true;
@@ -2873,13 +2884,14 @@ function doEnd(){
     sfxTimeUp();
     vibrate(600,1.0);
     railSound.pause();
-    let rank = -1;
+    let rank = -1, savedId = null;
     if(gameScore>0){
-        rank = saveScore(gameScore);
+        const saved = saveScore(gameScore);
+        rank = saved.rank; savedId = saved.id;
         if(rank >= 0) setTimeout(()=>sfxNewRecord(rank), 600);
     }
     updateScoreBoard();
-    showGameResult(gameScore, rank);
+    showGameResult(gameScore, rank, savedId);
     cleanCoins();
     resetArtifacts();
     phaseTimeout=setTimeout(()=>{
@@ -2892,11 +2904,11 @@ function doEnd(){
 /*
  * 関数名：showGameResult
  * 役割  ：ゲームモード終了時のリザルトパネルを EXP キャンバスに描画する
- *         上4割：今回スコア、下6割：TOP5（タイトル1割＋各位1割×5）
- *         NEWはグロー＋強調色で目立たせる
- * 引数  ：score = 今回スコア、newRank = TOP5順位(0-based, -1=圏外)
+ *         上4割：今回スコア（左側にNEW/圏外バッジ）
+ *         下6割：TOP5均等（上下8pxパディング）
+ * 引数  ：score=今回スコア, newRank=0-based順位(-1=圏外), savedId=今回レコードのid
  */
-function showGameResult(score, newRank){
+function showGameResult(score, newRank, savedId){
     const {ctx,tex}=EXP;
     const W=1024, H=1024;
     ctx.clearRect(0,0,W,H);
@@ -2910,64 +2922,72 @@ function showGameResult(score, newRank){
     const isNewRecord = newRank >= 0;
 
     // タイトル
-    ctx.fillStyle="#ffee44"; ctx.font="bold 52px sans-serif"; ctx.textAlign="center";
-    ctx.fillText("🎉 ゲーム終了！", W/2, 68);
+    ctx.fillStyle="#ffee44"; ctx.font="bold 50px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("🎉 ゲーム終了！", W/2, 64);
 
     // ラベル
-    ctx.fillStyle=isNewRecord?"#44ffcc":"#ffe680"; ctx.font="bold 42px sans-serif";
-    ctx.fillText("SCORE", W/2, 148);
+    ctx.fillStyle=isNewRecord?"#44ffcc":"#ffe680"; ctx.font="bold 38px sans-serif";
+    ctx.fillText("SCORE", W/2, 138);
 
-    // 今回スコア（大）＋ NEWグロー
+    // 今回スコア（大）—— 中央固定
     const scoreStr = `${score}pt`;
     if(isNewRecord){
         ctx.save();
-        ctx.shadowColor="#ffee44"; ctx.shadowBlur=28;
-        ctx.fillStyle="#ffee44"; ctx.font="bold 148px sans-serif";
-        ctx.fillText(scoreStr, W/2, 305);
+        ctx.shadowColor="#ffee44"; ctx.shadowBlur=30;
+        ctx.fillStyle="#ffee44"; ctx.font="bold 140px sans-serif"; ctx.textAlign="center";
+        ctx.fillText(scoreStr, W/2, 295);
         ctx.restore();
+        // NEWバッジ：スコア左隣
         ctx.save();
-        ctx.shadowColor="#44ffcc"; ctx.shadowBlur=20;
-        ctx.fillStyle="#44ffcc"; ctx.font="bold 38px sans-serif";
-        ctx.fillText(`★ ${newRank===0?"🥇 NEW RECORD!":"TOP"+(newRank+1)+" NEW!"}`, W/2, 370);
+        ctx.shadowColor="#44ffcc"; ctx.shadowBlur=18;
+        ctx.fillStyle="#44ffcc"; ctx.font="bold 34px sans-serif"; ctx.textAlign="right";
+        const badge = newRank===0 ? "🥇 NEW\nRECORD!" : `TOP${newRank+1}\nNEW!`;
+        badge.split("\n").forEach((ln,li)=>{
+            ctx.fillText(ln, W/2 - 90, 265 + li*40);
+        });
         ctx.restore();
     } else {
-        ctx.fillStyle="#ffee44"; ctx.font="bold 148px sans-serif";
-        ctx.fillText(scoreStr, W/2, 305);
-        ctx.fillStyle="rgba(180,180,200,0.5)"; ctx.font="bold 32px sans-serif";
-        ctx.fillText("圏外", W/2, 375);
+        ctx.fillStyle="#ffee44"; ctx.font="bold 140px sans-serif"; ctx.textAlign="center";
+        ctx.fillText(scoreStr, W/2, 295);
+        // 圏外：スコア左隣
+        ctx.fillStyle="rgba(180,180,200,0.55)"; ctx.font="bold 30px sans-serif"; ctx.textAlign="right";
+        ctx.fillText("圏外", W/2 - 90, 285);
     }
 
     // 区切り線
     ctx.strokeStyle="rgba(255,204,68,0.35)"; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(40,TOP_H); ctx.lineTo(W-40,TOP_H); ctx.stroke();
 
-    // ── 下6割：TOP5エリア（409〜1024px、615px）──
-    const BOT_START = TOP_H;
-    const SLOT = Math.floor((H - BOT_START) / 6); // 102px/slot
+    // ── 下6割：TOP5エリア（409〜1024px）──
+    const PAD = 8;
+    const BOT_USABLE = H - TOP_H - PAD*2;
+    const SLOT = Math.floor(BOT_USABLE / 6); // ≈99px/slot
 
     // TOP5タイトル行（1/6）
-    const titleY = BOT_START + SLOT/2 + 18;
-    ctx.fillStyle="#ffcc44"; ctx.font="bold 48px sans-serif"; ctx.textAlign="center";
-    ctx.fillText("🏆 TOP 5", W/2, titleY);
+    const titleCY = TOP_H + PAD + SLOT/2;
+    ctx.fillStyle="#ffcc44"; ctx.font="bold 46px sans-serif"; ctx.textAlign="center";
+    ctx.fillText("🏆 TOP 5", W/2, titleCY+14);
 
     const scores = loadScores();
     const medals = ["🥇","🥈","🥉","4.","5."];
     if(!scores.length){
-        ctx.fillStyle="#aaa"; ctx.font="36px sans-serif";
-        ctx.fillText("記録なし", W/2, BOT_START + SLOT*3);
+        ctx.fillStyle="#aaa"; ctx.font="34px sans-serif";
+        ctx.fillText("記録なし", W/2, TOP_H + PAD + SLOT*3);
     } else {
         scores.slice(0,5).forEach((s,i)=>{
-            const rowTop = BOT_START + SLOT*(i+1);
-            const cy = rowTop + SLOT/2 + 4;
-            const isNew = s.score===score && i===newRank;
+            const rowTop = TOP_H + PAD + SLOT*(i+1);
+            const cy = rowTop + SLOT/2;
+            const isNew = savedId != null ? s.id===savedId : false;
             const color = isNew?"#44ffcc":i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#88ccff";
-            const fontSize = i===0 ? 52 : 42;
+            const fontSize = i===0 ? 50 : 40;
 
             if(isNew){
                 ctx.save();
-                ctx.shadowColor=color; ctx.shadowBlur=18;
-                ctx.fillStyle=color; ctx.font="bold 28px sans-serif"; ctx.textAlign="left";
-                ctx.fillText("★NEW", 44, cy+8);
+                ctx.shadowColor=color; ctx.shadowBlur=16;
+                // ★NEWバッジ（スコア左隣）
+                ctx.fillStyle=color; ctx.font="bold 24px sans-serif"; ctx.textAlign="right";
+                ctx.fillText("★NEW", W/2 - 8, cy+10);
+                // スコア（中央）
                 ctx.fillStyle=color; ctx.font=`bold ${fontSize}px sans-serif`; ctx.textAlign="center";
                 ctx.fillText(`${medals[i]} ${s.score}pt`, W/2, cy+14);
                 ctx.restore();
@@ -2976,8 +2996,8 @@ function showGameResult(score, newRank){
                 ctx.fillText(`${medals[i]} ${s.score}pt`, W/2, cy+14);
             }
             const clockStr = s.clock ? `${s.date} ${s.clock}` : s.date;
-            ctx.fillStyle=isNew?"rgba(68,255,204,0.7)":"#666"; ctx.font="26px sans-serif"; ctx.textAlign="right";
-            ctx.fillText(clockStr, W-44, cy+18);
+            ctx.fillStyle=isNew?"rgba(68,255,204,0.65)":"#666"; ctx.font="24px sans-serif"; ctx.textAlign="right";
+            ctx.fillText(clockStr, W-40, cy+18);
         });
     }
 
