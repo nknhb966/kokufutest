@@ -2233,7 +2233,7 @@ function tickLearnExcavation(dt){
                 const offset = new THREE.Vector3();
                 offset.addScaledVector(right, 0.1);
                 offset.addScaledVector(up,    0.1);
-                offset.addScaledVector(back,  -0.2);
+                offset.addScaledVector(back,  0.2);
 
                 learnExcavMirrorModel.position.copy(ctrlWorldPos).add(offset);
             }
