@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター2025</title>
+<title>1越前国府VRコースター2025</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -2220,12 +2220,22 @@ function tickLearnExcavation(dt){
         if(learnExcavMirrorModel){
             learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/10);
             if(leftController){
-                // 左手コントローラーのワールド座標を取得し上方に配置
                 const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
-                ctrlWorldPos.x += 0.1;
-                ctrlWorldPos.y += 0.1;
-                ctrlWorldPos.z += 0.1;
-                learnExcavMirrorModel.position.copy(ctrlWorldPos);
+
+                // カメラの向きを取得
+                const camQuat = camera.quaternion;
+
+                // カメラ基準の方向ベクトル
+                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQuat);   // 右
+                const back  = new THREE.Vector3(0, 0, 1).applyQuaternion(camQuat);   // 奥（←重要）
+
+                // オフセット（カメラ基準）
+                const offset = new THREE.Vector3();
+                offset.addScaledVector(right, 0.2);  // 右
+                offset.addScaledVector(back,  0.1);  // 奥
+
+                // 最終位置
+                learnExcavMirrorModel.position.copy(ctrlWorldPos).add(offset);
             }
         }
         // GOが押されるまで無限待機
