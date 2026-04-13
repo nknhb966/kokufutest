@@ -2227,13 +2227,13 @@ function tickLearnExcavation(dt){
 
                 // コントローラー基準の方向
                 const right = new THREE.Vector3(1, 0, 0).applyQuaternion(ctrlQuat);
-                // const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(ctrlQuat);
+                const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(ctrlQuat);
                 const back  = new THREE.Vector3(0, 0, -1).applyQuaternion(ctrlQuat);
 
                 const offset = new THREE.Vector3();
                 offset.addScaledVector(right, 0.1);
-                // offset.addScaledVector(up,    0.1);
-                offset.addScaledVector(back,  0.1);
+                offset.addScaledVector(up,    0.1);
+                offset.addScaledVector(back,  -0.2);
 
                 learnExcavMirrorModel.position.copy(ctrlWorldPos).add(offset);
             }
