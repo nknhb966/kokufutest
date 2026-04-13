@@ -508,6 +508,7 @@ const RAIL_RADIUS    = 3.6 * MODEL_SCALE;
 const RAIL_HEIGHT    = 1.7 * MODEL_SCALE;
 const RAIL_OVAL      = 0.4;
 const GAME_DURATION  = 60;
+const LASER_OFFSET   = 1.5;
 const LASER_MAX_DIST = 25;
 
 /* =====================================================
@@ -1281,7 +1282,7 @@ renderer.xr.addEventListener("sessionstart", () => {
 function makeLaser() {
     const mat = new THREE.LineBasicMaterial({ color:0xff2222, depthTest:false, transparent:true, opacity:0.95 });
     const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-LASER_MAX_DIST)
+        new THREE.Vector3(0,0,-LASER_OFFSET), new THREE.Vector3(0,0,-LASER_MAX_DIST)
     ]);
     const line = new THREE.Line(geo, mat);
     line.frustumCulled = false; line.renderOrder = 9999;
@@ -2219,26 +2220,12 @@ function tickLearnExcavation(dt){
         // ミラーモデル：左手コントローラーの付近で追従（同じ回転速度）
         if(learnExcavMirrorModel){
             learnExcavMirrorModel.rotation.y += dt * (2*Math.PI/10);
-                if(leftController){
-                    const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
-
-                    // カメラの向きを取得
-                    const camQuat = camera.quaternion;
-
-                    // カメラ基準の方向ベクトル
-                    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQuat);   // 右
-                    const up    = new THREE.Vector3(0, 1, 0).applyQuaternion(camQuat);   // 上
-                    const back  = new THREE.Vector3(0, 0, 1).applyQuaternion(camQuat);   // 奥（←重要）
-
-                    // オフセット（カメラ基準）
-                    const offset = new THREE.Vector3();
-                    offset.addScaledVector(right, 0.1);  // 右
-                    offset.addScaledVector(up,    0.1);  // 上
-                    offset.addScaledVector(back,  0.1);  // 奥
-
-                    // 最終位置
-                    learnExcavMirrorModel.position.copy(ctrlWorldPos).add(offset);
-                }
+            if(leftController){
+                // 左手コントローラーのワールド座標を取得し上方0.1mに配置
+                const ctrlWorldPos = new THREE.Vector3().setFromMatrixPosition(leftController.matrixWorld);
+                ctrlWorldPos.y += 0.1;
+                learnExcavMirrorModel.position.copy(ctrlWorldPos);
+            }
         }
         // GOが押されるまで無限待機
         return;
