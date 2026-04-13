@@ -1285,12 +1285,12 @@ function makeLaser() {
         new THREE.Vector3(0,0,-LASER_OFFSET), new THREE.Vector3(0,0,-LASER_MAX_DIST)
     ]);
     const line = new THREE.Line(geo, mat);
-    line.frustumCulled = false; line.renderOrder = 9999;
+    line.frustumCulled = false; line.renderOrder = 9998;
     const dot = new THREE.Mesh(
         new THREE.SphereGeometry(0.012, 8, 8),
         new THREE.MeshBasicMaterial({ color:0xffffff, depthTest:false })
     );
-    dot.renderOrder = 9999; dot.visible = false;
+    dot.renderOrder = 9998; dot.visible = false;
     line.add(dot);
     return { line, mat, dot };
 }
@@ -2206,6 +2206,15 @@ function tickLearnExcavation(dt){
                 // オリジナルサイズ（MODEL_SCALE適用前 = 1.0 スケール）
                 learnExcavMirrorModel.scale.setScalar(1.0);
                 learnExcavMirrorModel.visible = true;
+
+                learnExcavMirrorModel.traverse(obj => {
+                    if(obj.isMesh){
+                        obj.renderOrder = 9999;
+                        // 必要なら深度無効化（UI的に前面固定したい場合）
+                        obj.material.depthTest = false;
+                        obj.material.depthWrite = false;
+                    }
+                });
                 scene.add(learnExcavMirrorModel);
             }
         }
