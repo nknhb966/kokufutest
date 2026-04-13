@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>越前国府VRコースター2025</title>
+<title>1越前国府VRコースター2025</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -1339,27 +1339,6 @@ function detachLeftLaser() {
         laserLeft.line.parent.remove(laserLeft.line);
     }
 }
-
-let leftTriggerEnabled = true;
-
-/*
- * 関数名：disableLeftTrigger
- * 役割  ：左トリガー入力を無効化する
- */
-function disableLeftTrigger() {
-    leftTriggerEnabled = false;
-    trigLeft = false; // 押しっぱなし防止
-}
-
-/*
- * 関数名：enableLeftTrigger
- * 役割  ：左トリガー入力を有効化する
- */
-function enableLeftTrigger() {
-    leftTriggerEnabled = true;
-}
-
-
 
 /*
  * 関数名：onControllerDisconnected
@@ -3381,6 +3360,25 @@ renderer.setAnimationLoop(()=>{
             laserLeft.line.visible = true;
             hitsLeft  = updateLaser(leftController,  laserLeft);
         }
+    }
+
+    let leftTriggerEnabled = true;
+
+    /*
+     * 関数名：disableLeftTrigger
+     * 役割  ：左トリガー入力を無効化する
+     */
+    function disableLeftTrigger() {
+        leftTriggerEnabled = false;
+        trigLeft = false; // 押しっぱなし防止
+    }
+
+    /*
+     * 関数名：enableLeftTrigger
+     * 役割  ：左トリガー入力を有効化する
+     */
+    function enableLeftTrigger() {
+        leftTriggerEnabled = true;
     }
 
     // XR コントローラーボタン状態を取得
