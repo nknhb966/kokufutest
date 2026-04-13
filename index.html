@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター2025</title>
+<title>越前国府VRコースター2025</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -3350,18 +3350,6 @@ renderer.setAnimationLoop(()=>{
     laserRight.line.visible = false;
     laserLeft.line.visible  = false;
 
-    // ツアーモード以外かつ VR 中のみレーザーを有効にする
-    if(!isTour && isVR){
-        if(rightController){
-            laserRight.line.visible = true;
-            hitsRight = updateLaser(rightController, laserRight);
-        }
-        if(leftController){
-            laserLeft.line.visible = true;
-            hitsLeft  = updateLaser(leftController,  laserLeft);
-        }
-    }
-
     let leftTriggerEnabled = true;
 
     /*
@@ -3391,8 +3379,20 @@ renderer.setAnimationLoop(()=>{
                 bA        = src.gamepad.buttons[4]?.pressed ?? false; // Aボタン
                 bB        = src.gamepad.buttons[5]?.pressed ?? false; // Bボタン
             } else if(src.handedness==="left"){
-                trigLeft  = src.gamepad.buttons[0]?.pressed ?? false; // 左トリガー
+                trigLeft = leftTriggerEnabled ? (src.gamepad.buttons[0]?.pressed ?? false) : false;
             }
+        }
+    }
+
+    // ツアーモード以外かつ VR 中のみレーザーを有効にする
+    if(!isTour && isVR){
+        if(rightController){
+            laserRight.line.visible = true;
+            hitsRight = updateLaser(rightController, laserRight);
+        }
+        if(leftController){
+            laserLeft.line.visible = true;
+            hitsLeft  = updateLaser(leftController,  laserLeft);
         }
     }
 
@@ -3413,7 +3413,7 @@ renderer.setAnimationLoop(()=>{
             if(bA&&!prevA&&gamePhase==="idle") startLearningMode();         // スタート
             if(bB&&!prevB&&(gamePhase==="playing"||gamePhase==="countdown")) doLearnForceEnd(); // 強制終了
             const allHits = [...hitsRight,...hitsLeft];
-            const trigPressed = (trigRight&&!prevTrig0)||(trigLeft&&!prevTrig1);
+            const trigPressed =  (trigRight && !prevTrig0) || (leftTriggerEnabled && trigLeft && !prevTrig1);
             if(trigPressed && gamePhase==="playing"){
                 if(learnGoReady && allHits.some(h=>h.object===GOBT.mesh)){
                     // GOボタンをレーザーでクリック
