@@ -508,7 +508,6 @@ const RAIL_RADIUS    = 3.6 * MODEL_SCALE;
 const RAIL_HEIGHT    = 1.7 * MODEL_SCALE;
 const RAIL_OVAL      = 0.4;
 const GAME_DURATION  = 60;
-const LASER_OFFSET   = 1.5;
 const LASER_MAX_DIST = 25;
 
 /* =====================================================
@@ -1282,7 +1281,7 @@ renderer.xr.addEventListener("sessionstart", () => {
 function makeLaser() {
     const mat = new THREE.LineBasicMaterial({ color:0xff2222, depthTest:false, transparent:true, opacity:0.95 });
     const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0,0,-LASER_OFFSET), new THREE.Vector3(0,0,-LASER_MAX_DIST)
+        new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-LASER_MAX_DIST)
     ]);
     const line = new THREE.Line(geo, mat);
     line.frustumCulled = false; line.renderOrder = 9998;
@@ -2211,8 +2210,8 @@ function tickLearnExcavation(dt){
                     if(obj.isMesh){
                         obj.renderOrder = 9999;
                         // 必要なら深度無効化（UI的に前面固定したい場合）
-                        obj.material.depthTest = false;
-                        obj.material.depthWrite = false;
+                        // obj.material.depthTest = false;
+                        // obj.material.depthWrite = false;
                     }
                 });
                 scene.add(learnExcavMirrorModel);
