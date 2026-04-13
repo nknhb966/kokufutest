@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width">
-<title>1越前国府VRコースター2025</title>
+<title>越前国府VRコースター2025</title>
 <style>
     *, *::before, *::after { box-sizing:border-box; }
     body { margin:0; overflow:hidden; font-family:'Helvetica Neue',Arial,sans-serif; background:#000; }
@@ -2226,13 +2226,11 @@ function tickLearnExcavation(dt){
                 const camQuat = camera.quaternion;
 
                 // カメラ基準の方向ベクトル
-                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camQuat);   // 右
-                const back  = new THREE.Vector3(0, 0, 1).applyQuaternion(camQuat);   // 奥（←重要）
+                const side  = new THREE.Vector3(0, 0, 1).applyQuaternion(camQuat);
 
                 // オフセット（カメラ基準）
                 const offset = new THREE.Vector3();
-                offset.addScaledVector(right, 0.2);  // 右
-                offset.addScaledVector(back,  0.1);  // 奥
+                offset.addScaledVector(side,  0.3);
 
                 // 最終位置
                 learnExcavMirrorModel.position.copy(ctrlWorldPos).add(offset);
