@@ -578,12 +578,28 @@ function saveLearningScore(timeMs){
     const arr = loadLearningScores();
     const now = new Date();
     const id = now.getTime();
-    arr.push({time: timeMs, date: now.toLocaleDateString("ja-JP"), clock: fmtTime(now), id});
-    arr.sort((a,b)=>a.time-b.time); arr.splice(5);
+
+    const trimmed = Math.floor(timeMs / 10) * 10;
+
+    arr.push({
+        time: trimmed,
+        date: now.toLocaleDateString("ja-JP"),
+        clock: fmtTime(now),
+        id
+    });
+
+    arr.sort((a, b) => {
+        if (a.time !== b.time) return a.time - b.time;
+        return b.id - a.id;
+    });
+
+    arr.splice(5);
     saveScoresBy(LS_LEARNING_KEY, arr);
-    const rank = arr.findIndex(s=>s.id===id);
+
+    const rank = arr.findIndex(s => s.id === id);
     return {rank, id};
 }
+
 
 /*
  * 関数名：loadScores
@@ -601,7 +617,14 @@ function saveScore(score){
     const now = new Date();
     const id = now.getTime();
     arr.push({ score, date: now.toLocaleDateString("ja-JP"), clock: fmtTime(now), id });
-    arr.sort((a,b)=>b.score-a.score); arr.splice(5);
+
+    arr.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.id - a.id;
+    });
+   
+    arr.splice(5);
+
     saveScoresBy(LS_KEY, arr);
     const rank = arr.findIndex(s=>s.id===id);
     return {rank, id};
@@ -1766,7 +1789,7 @@ function updateLearnHUD(){
     ctx.fillStyle="rgba(0,0,0,0.78)"; rrect(ctx,8,8,1008,496,28); ctx.fill();
 
     const elapsed = learnElapsedMs();
-    const secs = (elapsed/1000).toFixed(1);
+    const secs = Math.floor(elapsed / 100) / 10;
 
     ctx.fillStyle="#44ddff"; ctx.font="bold 64px sans-serif"; ctx.textAlign="left";
     ctx.fillText("📚 LEARNING",40,88);
