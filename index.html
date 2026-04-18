@@ -2441,7 +2441,8 @@ function showLearnResult(elapsed, newRank, savedId){
     ctx.fillText("⏱ TIME", W/2, 138);
 
     // 今回タイム（大）—— 中央固定
-    const timeStr = `${(elapsed/1000).toFixed(1)}s`;
+    const timeStr = `${(Math.floor(elapsed / 100) / 10).toFixed(1)}s`;
+
     if(isNewRecord){
         ctx.save();
         ctx.shadowColor="#44ffcc"; ctx.shadowBlur=30;
