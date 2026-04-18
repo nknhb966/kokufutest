@@ -1789,7 +1789,8 @@ function updateLearnHUD(){
     ctx.fillStyle="rgba(0,0,0,0.78)"; rrect(ctx,8,8,1008,496,28); ctx.fill();
 
     const elapsed = learnElapsedMs();
-    const secs = Math.floor(elapsed / 100) / 10;
+    const trimmed = Math.floor(elapsed / 100) / 10;
+    const secs = trimmed.toFixed(1);
 
     ctx.fillStyle="#44ddff"; ctx.font="bold 64px sans-serif"; ctx.textAlign="left";
     ctx.fillText("📚 LEARNING",40,88);
