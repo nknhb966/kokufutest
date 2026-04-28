@@ -383,7 +383,7 @@
 <body>
 <audio id="railSound" src="trolley_clatter.mp3" loop preload="auto"></audio>
 
-<!-- ═══ UI表示トグルボタン（常時右上に固定表示） ═══ -->
+<!-- ═══ UI表示トグルボタン ═══ -->
 <button id="uiToggleBtn" title="UIパネルの表示切替">👁 UI ON</button>
 
 <!-- ═══ フルスクリーン タイトルパネル（ride モード） ═══ -->
@@ -1201,11 +1201,10 @@ VR セッションイベント
   - sessionend   : VR終了時にUIを再表示
 ===================================================== */
 
-// ── ここで宣言することで sessionstart より前に初期化が保証される ──
 let progress=0, velocity=0.0001;
 let velocityTarget=0.0001;
 let tourRunning = false;
-let demoRunning = false; // VR前デモ走行フラグ（モデル読み込み完了後に自動開始）
+let demoRunning = false;
 
 /*
  * 関数名：teleportToStart
@@ -1756,7 +1755,6 @@ function clearTimers(){
 let learningSubState = "exploring";
 
 // 球体の状態 per idx: idle / accumulating / ready / done
-// （learnSphereState は EXPLAIN_PTS.forEach より前に宣言済み）
 const learnExcavQueue = []; // 発掘待ち FIFO キュー
 let learnIsExcavating = false;
 
@@ -2822,8 +2820,6 @@ function vibrate(dur,intensity){
 
 /* =====================================================
 ゲームロジック（ゲームモード）
-  - progress / velocity / tourRunning / demoRunning は
-    sessionstart より前（上部）で宣言済み
 ===================================================== */
 
 /*
