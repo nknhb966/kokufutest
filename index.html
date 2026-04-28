@@ -90,21 +90,6 @@
         pointer-events:none !important;
         transform:none !important;
     }
-    /* カウントダウン表示バー */
-    #vrCooldownBar {
-        display:none;
-        width:100%; height:6px;
-        background:rgba(255,255,255,0.12);
-        border-radius:3px;
-        margin-top:8px;
-        overflow:hidden;
-    }
-    #vrCooldownBar .bar-inner {
-        height:100%;
-        background:linear-gradient(90deg,#7c3aed,#38bdf8);
-        border-radius:3px;
-        transition:width 0.1s linear;
-    }
     #vrCooldownMsg {
         display:none;
         text-align:center;
@@ -408,8 +393,7 @@
     <p class="sub-title">〜 遺跡を駆ける、発見の旅 -2025- 〜</p>
 
     <div id="vrButtonWrap"></div>
-    <div id="vrCooldownBar"><div class="bar-inner" id="vrCooldownBarInner"></div></div>
-    <div id="vrCooldownMsg" id="vrCooldownMsg"></div>
+    <div id="vrCooldownMsg"></div>
 
     <div class="divider"></div>
 
@@ -1146,22 +1130,16 @@ document.getElementById("vrButtonWrap").appendChild(VRButton.createButton(render
 
 /* =====================================================
 ARスタートボタン 起動待機ロック
-  - リロード直後の不安定期間（VR_LOCK_SEC 秒）はボタンを無効化する
-  - カウントダウンバーと残り秒数でユーザーに進捗を伝える
-  - VR_LOCK_SEC は定数として変更可能
+  - 初期状態：ボタンをロックし「モデル読み込み中...」と表示
+  - 全モデル（コースターシーン + 8アーティファクト）読み込み完了後、
+    0.5 秒の短いカウントダウン後に解除する
+  - 解除トリガー：window.__unlockVRButtonAfterLoad() を全モデル読込後に呼ぶ
 ===================================================== */
-const VR_LOCK_SEC = 5;
+const VR_UNLOCK_DELAY_MS = 500; // 全モデル読み込み完了後に待機する時間
+let __vrUnlockTrigger = null;   // 全モデル読み込み完了時に呼ぶ関数
 
-/*
- * 関数名：applyVRButtonLock
- * 役割  ：VRButton が生成した要素を取得してカウントダウン無効化を適用する
- *         VRButton は非同期で要素を差し替えることがあるため
- *         MutationObserver で確実に捕捉する
- */
 (function applyVRButtonLock(){
     const wrap = document.getElementById("vrButtonWrap");
-    const bar  = document.getElementById("vrCooldownBar");
-    const barInner = document.getElementById("vrCooldownBarInner");
     const msg  = document.getElementById("vrCooldownMsg");
 
     function lockButton(el){
@@ -1182,37 +1160,28 @@ const VR_LOCK_SEC = 5;
         }
     }
 
-    function startCountdown(el){
-        bar.style.display  = "block";
-        msg.style.display  = "block";
-        barInner.style.width = "100%";
+    // 「モデル読み込み中...」メッセージ表示（ロック直後）
+    function showLoadingMessage(){
+        msg.style.display = "block";
+        msg.textContent = "モデル読み込み中...";
+    }
 
-        const start = performance.now();
-        const dur   = VR_LOCK_SEC * 1000;
-
-        function tick(){
-            const elapsed = performance.now() - start;
-            const remain  = Math.max(0, dur - elapsed);
-            const ratio   = remain / dur;
-            barInner.style.width = (ratio * 100).toFixed(1) + "%";
-            msg.textContent = `起動中... あと ${Math.ceil(remain/1000)} 秒`;
-
-            if(remain > 0){
-                requestAnimationFrame(tick);
-            } else {
-                unlockButton(el);
-                bar.style.display = "none";
-                msg.style.display = "none";
-            }
-        }
-        requestAnimationFrame(tick);
+    // 全モデル読み込み完了後の短い待機 → 解除
+    function startUnlockCountdown(el){
+        msg.textContent = "起動準備中...";
+        setTimeout(()=>{
+            unlockButton(el);
+            msg.style.display = "none";
+        }, VR_UNLOCK_DELAY_MS);
     }
 
     function tryLock(){
         const el = wrap.querySelector("button, a");
         if(el){
             lockButton(el);
-            startCountdown(el);
+            showLoadingMessage();
+            // 全モデル読み込み完了時に外部から呼ぶトリガーを登録
+            __vrUnlockTrigger = () => startUnlockCountdown(el);
             return true;
         }
         return false;
@@ -1467,11 +1436,6 @@ const curve = new MyCurve();
 await addCoaster(scene, curve, null,
     "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu3.glb");
 
-// ── デモ走行開始（VR前のプレビューとして自動走行） ──
-// addCoaster 完了 = メインシーン読み込み完了のタイミングで開始
-// VRセッション開始時に demoRunning=false & teleportToStart() で停止する
-demoRunning = true;
-
 let coasterRoot = null;
 scene.traverse(o => {
     if (!coasterRoot && o.isMesh) {
@@ -1524,18 +1488,40 @@ function makeAuraTex() {
 const auraMat = new THREE.MeshBasicMaterial({map:makeAuraTex(),transparent:true,depthWrite:false,side:THREE.DoubleSide});
 const auraGeo = new THREE.CylinderGeometry(1.2,0.6,12,32,1,true);
 
-ARTIFACTS.forEach((data,idx) => {
+// 各アーティファクトのロードPromiseを収集して、全て揃ったタイミングを取れるようにする
+const artifactLoadPromises = ARTIFACTS.map((data, idx) => {
     const wp = new THREE.Vector3(data.x*MODEL_SCALE, ARTIFACT_HEIGHT, data.z*MODEL_SCALE);
     artifactWorldPos[idx] = wp;
     const aura = new THREE.Mesh(auraGeo, auraMat);
     aura.position.copy(wp); scene.add(aura); auras.push(aura);
-    loader.load(BASE_URL+data.file, gltf => {
-        const obj = gltf.scene;
-        obj.scale.set(ARTIFACT_SCALE, ARTIFACT_SCALE, ARTIFACT_SCALE);
-        obj.position.copy(wp);
-        obj.visible = (CONFIG.gameMode === "tour");
-        scene.add(obj); rotatingObjects.push(obj); permanentModels[idx] = obj;
+    return new Promise((resolve) => {
+        loader.load(
+            BASE_URL + data.file,
+            (gltf) => {
+                const obj = gltf.scene;
+                obj.scale.set(ARTIFACT_SCALE, ARTIFACT_SCALE, ARTIFACT_SCALE);
+                obj.position.copy(wp);
+                obj.visible = (CONFIG.gameMode === "tour");
+                scene.add(obj); rotatingObjects.push(obj); permanentModels[idx] = obj;
+                resolve();
+            },
+            undefined,
+            (err) => {
+                // 読み込み失敗してもデモ走行・VR起動はブロックしない
+                console.warn("Failed to load artifact:", data.file, err);
+                resolve();
+            }
+        );
     });
+});
+
+// 全アーティファクト読み込み完了後にデモ走行とVRボタン解除を起動
+// （addCoaster は既に await 済み = メインシーン読み込み完了）
+Promise.all(artifactLoadPromises).then(() => {
+    // ── デモ走行開始（VR前のプレビューとして自動走行） ──
+    demoRunning = true;
+    // ── VRボタン解除カウントダウン開始（0.5秒後にボタン押下可能） ──
+    if(typeof __vrUnlockTrigger === "function") __vrUnlockTrigger();
 });
 
 /* =====================================================
