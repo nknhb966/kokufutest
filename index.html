@@ -15,20 +15,22 @@
         position:absolute; inset:0;
         display:flex; flex-direction:column; align-items:center; justify-content:center;
         background:
-            radial-gradient(ellipse at 30% 20%, rgba(120,60,240,0.55) 0%, transparent 60%),
-            radial-gradient(ellipse at 70% 80%, rgba(30,80,220,0.50) 0%, transparent 60%),
-            linear-gradient(160deg, #04040f 0%, #0a0620 50%, #060818 100%);
+            radial-gradient(ellipse at 30% 20%, rgba(120,60,240,0.22) 0%, transparent 60%),
+            radial-gradient(ellipse at 70% 80%, rgba(30,80,220,0.18) 0%, transparent 60%),
+            linear-gradient(160deg, rgba(4,4,15,0.55) 0%, rgba(10,6,32,0.52) 50%, rgba(6,8,24,0.50) 100%);
         color:#fff; z-index:10;
         overflow-y:auto;
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
     }
     /* 背景粒子風装飾 */
     #uiPanel::before {
         content:''; position:absolute; inset:0; pointer-events:none;
         background:
-            radial-gradient(circle 1px at 15% 25%, rgba(200,160,255,0.5) 0%, transparent 100%),
-            radial-gradient(circle 1px at 80% 15%, rgba(160,200,255,0.4) 0%, transparent 100%),
-            radial-gradient(circle 1px at 60% 70%, rgba(200,160,255,0.3) 0%, transparent 100%),
-            radial-gradient(circle 2px at 40% 55%, rgba(100,180,255,0.3) 0%, transparent 100%);
+            radial-gradient(circle 1px at 15% 25%, rgba(200,160,255,0.25) 0%, transparent 100%),
+            radial-gradient(circle 1px at 80% 15%, rgba(160,200,255,0.20) 0%, transparent 100%),
+            radial-gradient(circle 1px at 60% 70%, rgba(200,160,255,0.15) 0%, transparent 100%),
+            radial-gradient(circle 2px at 40% 55%, rgba(100,180,255,0.15) 0%, transparent 100%);
     }
 
     .panel-inner {
@@ -126,9 +128,11 @@
         gap:12px; margin-bottom:16px;
     }
     .setting-card {
-        background:rgba(255,255,255,0.05);
-        border:1px solid rgba(180,140,255,0.2);
+        background:rgba(10,8,30,0.55);
+        border:1px solid rgba(180,140,255,0.25);
         border-radius:10px; padding:12px 14px;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
     }
     .setting-label {
         font-size:13px; font-weight:700; letter-spacing:2px;
@@ -355,10 +359,47 @@
     .mini-toggle button:first-child { border-radius:5px 0 0 5px; }
     .mini-toggle button:last-child  { border-radius:0 5px 5px 0; }
     .mini-toggle button.active { background:linear-gradient(135deg,#7c3aed,#1d4ed8); color:#fff; }
+
+    /* ═══════════════════════════════════════════════
+       UI表示トグルボタン（右上固定）
+    ═══════════════════════════════════════════════ */
+    #uiToggleBtn {
+        position: fixed;
+        top: 14px;
+        right: 16px;
+        z-index: 200;
+        background: rgba(10, 8, 30, 0.72);
+        border: 1px solid rgba(180,140,255,0.45);
+        border-radius: 8px;
+        color: #c4b5fd;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        padding: 7px 14px;
+        cursor: pointer;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        transition: background .15s, border-color .15s, color .15s;
+        user-select: none;
+        white-space: nowrap;
+    }
+    #uiToggleBtn:hover {
+        background: rgba(30, 20, 60, 0.88);
+        border-color: rgba(180,140,255,0.75);
+        color: #fff;
+    }
+    #uiToggleBtn.ui-hidden {
+        background: rgba(10, 8, 30, 0.55);
+        border-color: rgba(120,100,200,0.35);
+        color: rgba(160,140,220,0.7);
+    }
 </style>
 </head>
 <body>
 <audio id="railSound" src="trolley_clatter.mp3" loop preload="auto"></audio>
+
+<!-- ═══ UI表示トグルボタン（常時右上に固定表示） ═══ -->
+<button id="uiToggleBtn" title="UIパネルの表示切替">👁 UI ON</button>
 
 <!-- ═══ フルスクリーン タイトルパネル（ride モード） ═══ -->
 <div id="uiPanel">
@@ -1190,7 +1231,31 @@ VR セッションイベント
   - sessionstart : VR開始時にカメラをtrainに接続
   - sessionend   : VR終了時にUIを再表示
 ===================================================== */
+
+// ── ここで宣言することで sessionstart より前に初期化が保証される ──
+let progress=0, velocity=0.0001;
+let velocityTarget=0.0001;
+let tourRunning = false;
+let demoRunning = false; // VR前デモ走行フラグ（モデル読み込み完了後に自動開始）
+
+/*
+ * 関数名：teleportToStart
+ * 役割  ：列車をレールの始点（t=0）にワープさせる
+ */
+function teleportToStart(){
+    progress=0; velocity=0.0001; velocityTarget=0.0001;
+    const p=curve.getPointAt(0).clone(); p.y+=0.2;
+    train.position.copy(p);
+    const tan0=curve.getTangentAt(0);
+    const lk=p.clone().sub(tan0);
+    train.lookAt(lk);
+}
+
 renderer.xr.addEventListener("sessionstart", () => {
+    // デモ走行を停止してスタート位置へ戻す
+    demoRunning = false;
+    teleportToStart();
+
     if (orbitControls) { orbitControls.dispose(); orbitControls = null; }
     if (camera.parent !== train) {
         if (camera.parent) camera.parent.remove(camera);
@@ -1401,6 +1466,11 @@ const curve = new MyCurve();
 ===================================================== */
 await addCoaster(scene, curve, null,
     "https://www.city.echizen.lg.jp/office/030/021/open-data-echizen_d/fil/00101_kokufuhakkutsu3.glb");
+
+// ── デモ走行開始（VR前のプレビューとして自動走行） ──
+// addCoaster 完了 = メインシーン読み込み完了のタイミングで開始
+// VRセッション開始時に demoRunning=false & teleportToStart() で停止する
+demoRunning = true;
 
 let coasterRoot = null;
 scene.traverse(o => {
@@ -2766,27 +2836,9 @@ function vibrate(dur,intensity){
 
 /* =====================================================
 ゲームロジック（ゲームモード）
-  - progress : レール上の現在位置（0〜1）
-  - velocity : 移動速度（フレームごとの progress 増分）
+  - progress / velocity / tourRunning / demoRunning は
+    sessionstart より前（上部）で宣言済み
 ===================================================== */
-let progress=0, velocity=0.0001;
-let velocityTarget=0.0001; // スムージング用ターゲット速度
-let tourRunning = false; // ツアーモード走行フラグ（Aボタンでtrue、Bボタンでfalse）
-
-/*
- * 関数名：teleportToStart
- * 役割  ：列車をレールの始点（t=0）にワープさせる
- *         progress・velocity・train の位置と回転を初期化する
- */
-function teleportToStart(){
-    progress=0; velocity=0.0001; velocityTarget=0.0001;
-    const p=curve.getPointAt(0).clone(); p.y+=0.2;
-    train.position.copy(p);
-    // train の向きを初期化
-    const tan0=curve.getTangentAt(0);
-    const lk=p.clone().sub(tan0);
-    train.lookAt(lk);
-}
 
 /*
  * 関数名：doLearnForceEnd
@@ -3196,10 +3248,10 @@ renderer.setAnimationLoop(()=>{
     const learnStop = isLearning && learningSubState==="excavating";
     // ツアーモード：tourRunningがfalseでもvelocityが残っている間は走り続ける（スムージング減速）
     const tourMoving = isTour && (tourRunning || velocity > 0.000005);
-    if(tourMoving || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend") progress=(progress+velocity)%1;
+    if(demoRunning || tourMoving || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend") progress=(progress+velocity)%1;
 
     pos.copy(curve.getPointAt(progress)); pos.y+=0.2;
-    const moving = tourMoving || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend";
+    const moving = demoRunning || tourMoving || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend";
     realSpeed = moving ? pos.distanceTo(prevPos)/(dt/1000)*3.6 : 0;
     if(now-lastSpeedUI>100){ if(realSpeedUI) realSpeedUI.textContent=realSpeed.toFixed(0)+" km/h"; lastSpeedUI=now; }
     prevPos.copy(pos);
@@ -3211,7 +3263,11 @@ renderer.setAnimationLoop(()=>{
     // スムージング係数（小さいほど緩やかに加減速）
     const SMOOTH = 0.04;
     accelState=0;
-    if((isTour && tourRunning) || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend"){
+    if(demoRunning && !isVR){
+        // デモ走行：一定速度で巡航（VR前のみ）
+        const DEMO_V = 0.00010 * SPEED;
+        velocityTarget = DEMO_V;
+    } else if((isTour && tourRunning) || (gamePhase==="playing" && !learnStop) || gamePhase==="result" || gamePhase==="forceend"){
         if(!isTour && keyUp)  {velocityTarget+=ACCEL*dt;accelState=1;}
         if(!isTour && keyDown){velocityTarget-=DECEL*dt;accelState=-1;}
         const sy=getStickY();
@@ -3410,6 +3466,52 @@ renderer.setAnimationLoop(()=>{
 リサイズ対応
   - ウィンドウサイズ変更時にカメラ比率とレンダラーサイズを更新する
 ===================================================== */
+/* =====================================================
+UI表示トグルボタン（右上固定）
+  - ON : #uiPanel（半透明）・#miniUI を表示
+  - OFF: #uiPanel・#miniUI を非表示、Three.jsキャンバスのみ表示
+  - どちらの場合もトグルボタン自体は常時表示
+===================================================== */
+(function setupUIToggle(){
+    const btn      = document.getElementById("uiToggleBtn");
+    const uiPanel  = document.getElementById("uiPanel");
+    const miniUI   = document.getElementById("miniUI");
+    const modals   = [
+        document.getElementById("modal"),
+        document.getElementById("recordsModal")
+    ];
+
+    let uiVisible = true; // 初期状態：ON（パネル表示）
+
+    function applyState(){
+        if(uiVisible){
+            // UI ON：パネルを表示（body.outside-mode を考慮）
+            if(document.body.classList.contains("outside-mode")){
+                uiPanel.style.display = "";
+                miniUI.style.display  = "";
+            } else {
+                uiPanel.style.display = "";
+            }
+            btn.textContent = "👁 UI ON";
+            btn.classList.remove("ui-hidden");
+        } else {
+            // UI OFF：パネルを全部非表示、モーダルも閉じる
+            uiPanel.style.display = "none";
+            miniUI.style.display  = "none";
+            modals.forEach(m => m.classList.remove("open"));
+            btn.textContent = "👁 UI OFF";
+            btn.classList.add("ui-hidden");
+        }
+    }
+
+    btn.addEventListener("click", ()=>{
+        uiVisible = !uiVisible;
+        applyState();
+    });
+
+    applyState();
+})();
+
 window.addEventListener("resize",()=>{
     camera.aspect=window.innerWidth/window.innerHeight;
     camera.updateProjectionMatrix();
